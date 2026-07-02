@@ -1,0 +1,68 @@
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
+use crate::presentation::theme::{ACCENT, BG_MAIN, BORDER, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::views::View;
+
+pub fn render(f: &mut ratatui::Frame, area: Rect) {
+    f.render_widget(
+        Block::default().style(Style::default().bg(BG_MAIN)),
+        area,
+    );
+
+    let vertical = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Min(0),
+            Constraint::Length(3),
+            Constraint::Length(1),
+        ])
+        .split(area);
+
+    let header_area = vertical[0];
+    let body_area = vertical[1];
+    let actions_area = vertical[2];
+    let footer_area = vertical[3];
+
+    crate::presentation::components::header::render(f, header_area);
+    crate::presentation::components::footer::render(f, footer_area, View::Results);
+
+    let horizontal = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(body_area);
+
+    let report_area = horizontal[0];
+    let sources_area = horizontal[1];
+
+    crate::presentation::components::report_view::render(f, report_area);
+    crate::presentation::components::source_card::render(f, sources_area);
+
+    let action_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(BORDER));
+
+    let action_line = Line::from(vec![
+        Span::styled("[F1]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(" Export MD", Style::default().fg(TEXT_MAIN)),
+        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled("[F2]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(" Export PDF", Style::default().fg(TEXT_MAIN)),
+        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled("[F3]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(" Sync Obsidian", Style::default().fg(TEXT_MAIN)),
+        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled("[F4]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(" Copy Report", Style::default().fg(TEXT_MAIN)),
+        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled("[F5]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(" New Session", Style::default().fg(TEXT_MAIN)),
+    ]);
+
+    let action_para = Paragraph::new(action_line).alignment(Alignment::Center);
+    let inner = action_block.inner(actions_area);
+    f.render_widget(action_block, actions_area);
+    f.render_widget(action_para, inner);
+}
