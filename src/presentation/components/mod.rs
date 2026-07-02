@@ -1,3 +1,9 @@
+pub mod clarifier_panel;
 pub mod footer;
 pub mod header;
+pub mod pipeline_graph;
+pub mod query_input;
+pub mod session_list;
+pub mod source_registry;
+pub mod telemetry_panel;
 pub mod welcome_logo;
