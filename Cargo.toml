@@ -3,6 +3,13 @@ name = "muon"
 version = "0.1.0"
 edition = "2024"
 
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "forbid"
+unimplemented = "forbid"
+
 [profile.release]
 opt-level = 3
 codegen-units = 1
