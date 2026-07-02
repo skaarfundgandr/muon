@@ -11,13 +11,14 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
 
     let filled = 1;
     let empty = 9;
-    let progress: String = "█".repeat(filled) + &"░".repeat(empty);
+    let filled_bar: String = "█".repeat(filled);
+    let empty_bar: String = "░".repeat(empty);
 
     let line = Line::from(vec![
         Span::styled("Tokens: ", Style::default().fg(TEXT_DIM)),
         Span::styled("12,847 / 128k ", Style::default().fg(TEXT_MAIN)),
-        Span::styled(&progress[..filled], Style::default().fg(ACCENT)),
-        Span::styled(&progress[filled..], Style::default().fg(TEXT_DIM)),
+        Span::styled(filled_bar, Style::default().fg(ACCENT)),
+        Span::styled(empty_bar, Style::default().fg(TEXT_DIM)),
         Span::styled(" 10%", Style::default().fg(TEXT_DIM)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
         Span::styled("Agents: ", Style::default().fg(TEXT_DIM)),
