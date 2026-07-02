@@ -6,14 +6,10 @@ use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{Alignment, Rect};
-use ratatui::style::Style;
 use ratatui::Terminal;
-use ratatui::widgets::{Block, Paragraph};
 use tokio::sync::mpsc;
 
-use crate::presentation::theme::{BG_MAIN, HEADER_STYLE};
-use crate::presentation::views::{View, ViewRouter};
+use crate::presentation::{View, ViewRouter};
 
 #[derive(Debug)]
 pub struct AppState {
@@ -43,27 +39,24 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) 
     let _ = execute!(terminal.backend_mut(), LeaveAlternateScreen);
 }
 
-fn render(f: &mut ratatui::Frame, app: &AppState) {
-    let area = f.area();
-    f.render_widget(
-        Block::default().style(Style::default().bg(BG_MAIN)),
-        area,
-    );
-    let text = format!(
-        "μon // {} // tick {}",
-        app.router.active().title(),
-        app.tick_count
-    );
-    let paragraph = Paragraph::new(text)
-        .style(HEADER_STYLE)
-        .alignment(Alignment::Center);
-    let centered = Rect {
-        x: area.width / 4,
-        y: area.height / 2,
-        width: area.width / 2,
-        height: 1,
-    };
-    f.render_widget(paragraph, centered);
+fn render(frame: &mut ratatui::Frame, app: &AppState) {
+    match app.router.active() {
+        crate::presentation::View::Welcome => {
+            crate::presentation::layouts::welcome::render(frame, frame.area());
+        }
+        crate::presentation::View::Dashboard => {
+            crate::presentation::layouts::dashboard::render(frame, frame.area());
+        }
+        crate::presentation::View::Progress => {
+            crate::presentation::layouts::progress::render(frame, frame.area());
+        }
+        crate::presentation::View::Results => {
+            crate::presentation::layouts::results::render(frame, frame.area());
+        }
+        crate::presentation::View::Settings => {
+            crate::presentation::layouts::settings::render(frame, frame.area());
+        }
+    }
 }
 
 fn handle_event(app: &mut AppState, event: Event) {
