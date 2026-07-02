@@ -2,7 +2,8 @@ use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use crate::presentation::theme::{BORDER, SUCCESS, TEXT_DIM, TEXT_MAIN};
+
+use crate::presentation::theme::{BORDER, SUCCESS, TEXT_DARK, TEXT_DIM, TEXT_MAIN};
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let block = Block::default()
@@ -14,35 +15,43 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(block, area);
 
     let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Min(4)])
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Length(16), Constraint::Min(0)])
         .split(inner);
 
     let label = Line::from(Span::styled("Data Sources:", Style::default().fg(TEXT_DIM)));
     f.render_widget(Paragraph::new(label), chunks[0]);
 
-    let row_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-        .split(chunks[1]);
-
-    let names = vec![
-        Line::from(Span::styled("Web Search", Style::default().fg(TEXT_MAIN))),
-        Line::from(Span::styled("Paper Search", Style::default().fg(TEXT_MAIN))),
-        Line::from(Span::styled("Enterprise", Style::default().fg(TEXT_MAIN))),
-        Line::from(Span::styled("Knowledge Layer", Style::default().fg(TEXT_MAIN))),
+    let sources = [
+        ("Web Search", true),
+        ("Paper Search", true),
+        ("Enterprise", false),
+        ("Knowledge Layer", false),
     ];
 
-    let on_style = Style::default().fg(SUCCESS);
-    let off_style = Style::default().fg(TEXT_DIM);
+    let per = (chunks[1].width / sources.len() as u16).max(20);
 
-    let switches = vec![
-        Line::from(Span::styled("[ON]", on_style)),
-        Line::from(Span::styled("[ON]", on_style)),
-        Line::from(Span::styled("[OFF]", off_style)),
-        Line::from(Span::styled("[OFF]", off_style)),
-    ];
+    for (i, (name, on)) in sources.iter().enumerate() {
+        let x = chunks[1].x + (i as u16) * per;
+        let cell = Rect {
+            x,
+            y: chunks[1].y,
+            width: per,
+            height: chunks[1].height,
+        };
 
-    f.render_widget(Paragraph::new(names), row_chunks[0]);
-    f.render_widget(Paragraph::new(switches).alignment(Alignment::Right), row_chunks[1]);
+        let pill_track_color = if *on { SUCCESS } else { TEXT_DARK };
+        let knob_char = if *on { "●" } else { "○" };
+
+        let pill_track = "████";
+        let line = Line::from(vec![
+            Span::styled(*name, Style::default().fg(TEXT_MAIN)),
+            Span::raw("  "),
+            Span::styled(pill_track, Style::default().fg(pill_track_color)),
+            Span::styled(" ", Style::default().fg(pill_track_color)),
+            Span::styled(knob_char, Style::default().fg(TEXT_MAIN)),
+        ]);
+
+        f.render_widget(Paragraph::new(line).alignment(Alignment::Left), cell);
+    }
 }
