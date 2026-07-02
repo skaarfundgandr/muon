@@ -20,7 +20,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
 
     let body_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
         .split(chunks[1]);
 
     crate::presentation::components::header::render(f, chunks[0]);

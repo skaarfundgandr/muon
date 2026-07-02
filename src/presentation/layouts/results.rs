@@ -31,7 +31,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
         .split(body_area);
 
     let report_area = horizontal[0];

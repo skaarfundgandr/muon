@@ -1,4 +1,4 @@
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -19,60 +19,98 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(block, area);
 
     let chunks = Layout::default()
-        .direction(Direction::Horizontal)
+        .direction(Direction::Vertical)
         .constraints([
-            Constraint::Percentage(33),
-            Constraint::Length(3),
-            Constraint::Percentage(33),
-            Constraint::Length(3),
-            Constraint::Percentage(33),
+            Constraint::Length(2), // Intent Classifier
+            Constraint::Length(1), // connector
+            Constraint::Length(2), // Clarifier
+            Constraint::Length(1), // connector
+            Constraint::Min(0),   // Deep Researcher (with subagents)
         ])
         .split(inner);
 
-    let nodes: [(&str, &str, Style); 3] = [
-        (
-            "Intent Classifier",
-            "✓ Complete",
-            Style::new().fg(SUCCESS),
-        ),
-        (
-            "Research Pipeline",
-            "◉ Active",
-            Style::new().fg(ACCENT),
-        ),
-        (
-            "Deep Researcher",
-            "○ Pending",
-            Style::new().fg(TEXT_DIM),
-        ),
+    // Node 1: Intent Classifier ✓
+    render_node(f, chunks[0], "Intent Classifier", "✓ Done", SUCCESS);
+
+    // Connector
+    let conn1 = Paragraph::new(Line::from(Span::styled(
+        " │",
+        Style::new().fg(BORDER),
+    )));
+    f.render_widget(conn1, chunks[1]);
+
+    // Node 2: Clarifier ✓
+    render_node(f, chunks[2], "Clarifier", "✓ 2 rounds | Plan approved", SUCCESS);
+
+    // Connector
+    let conn2 = Paragraph::new(Line::from(Span::styled(
+        " │",
+        Style::new().fg(BORDER),
+    )));
+    f.render_widget(conn2, chunks[3]);
+
+    // Node 3: Deep Researcher (with nested subagents)
+    render_deep_researcher(f, chunks[4]);
+}
+
+fn render_node(f: &mut ratatui::Frame, area: Rect, title: &str, status: &str, color: ratatui::style::Color) {
+    let node_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::new().fg(BORDER));
+
+    let inner = node_block.inner(area);
+    f.render_widget(node_block, area);
+
+    let title_line = Line::from(Span::styled(
+        title,
+        Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
+    ));
+    let status_line = Line::from(Span::styled(status, Style::new().fg(color)));
+
+    f.render_widget(Paragraph::new(title_line), Rect { x: inner.x, y: inner.y, width: inner.width, height: 1 });
+    f.render_widget(Paragraph::new(status_line), Rect { x: inner.x, y: inner.y + 1, width: inner.width, height: 1 });
+}
+
+fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect) {
+    let outer_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::new().fg(BORDER))
+        .title(Span::styled(
+            " Deep Researcher ",
+            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ));
+
+    let inner = outer_block.inner(area);
+    f.render_widget(outer_block, area);
+
+    // Status line
+    let status = Line::from(vec![
+        Span::styled("  Orchestrator: ", Style::new().fg(TEXT_DIM)),
+        Span::styled("Coordinating", Style::new().fg(ACCENT)),
+    ]);
+    f.render_widget(status, Rect { x: inner.x, y: inner.y, width: inner.width, height: 1 });
+
+    // Subagent rows
+    let subagents = [
+        ("Planner", "✓", "5 queries, 4 sections", SUCCESS),
+        ("Researcher [Round 1/2]", "◉", "23/47 sources", ACCENT),
+        ("Researcher [Round 2/2]", "○", "pending", TEXT_DIM),
+        ("Citation Verification", "○", "pending", TEXT_DIM),
+        ("Final Report", "○", "pending", TEXT_DIM),
     ];
 
-    for (i, (title, status, status_style)) in nodes.iter().enumerate() {
-        let node_block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::new().fg(BORDER));
+    for (i, (name, icon, detail, color)) in subagents.iter().enumerate() {
+        let y = inner.y + 1 + i as u16;
+        if y >= inner.y + inner.height {
+            break;
+        }
 
-        let paragraph = Paragraph::new(vec![
-            Line::from(Span::styled(
-                *title,
-                Style::new()
-                    .fg(TEXT_MAIN)
-                    .add_modifier(Modifier::BOLD),
-            )),
-            Line::from(Span::styled(*status, *status_style)),
-        ])
-        .alignment(Alignment::Center);
-
-        f.render_widget(node_block.clone(), chunks[i * 2]);
-        f.render_widget(paragraph, node_block.inner(chunks[i * 2]));
-    }
-
-    for i in [1, 3] {
-        let arrow = Paragraph::new(Line::from(Span::styled(
-            " → ",
-            Style::new().fg(ACCENT),
-        )))
-        .alignment(Alignment::Center);
-        f.render_widget(arrow, chunks[i]);
+        let line = Line::from(vec![
+            Span::styled("    ", Style::new().fg(TEXT_DIM)),
+            Span::styled(format!("{} ", icon), Style::new().fg(*color)),
+            Span::styled(format!("{:<22}", name), Style::new().fg(TEXT_MAIN)),
+            Span::styled(*detail, Style::new().fg(TEXT_DIM)),
+        ]);
+        f.render_widget(line, Rect { x: inner.x, y, width: inner.width, height: 1 });
     }
 }
