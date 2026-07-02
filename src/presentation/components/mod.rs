@@ -7,6 +7,7 @@ pub mod query_input;
 pub mod report_view;
 pub mod resource_monitor;
 pub mod session_list;
+pub mod settings_form;
 pub mod source_card;
 pub mod source_registry;
 pub mod telemetry_panel;
