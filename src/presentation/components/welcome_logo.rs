@@ -3,126 +3,195 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::presentation::theme::{ACCENT, BG_MAIN, BORDER, CYAN, DIM_STYLE, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme::{
+    ACCENT, BG_DARK, BG_MAIN, BORDER, DIM_STYLE, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN,
+};
+
+const BADGES: &[(&str, &str)] = &[
+    ("4 Agents", "4 Agents"),
+    ("Rust + Ratatui", "Rust + Ratatui"),
+    ("Rig Framework", "Rig Framework"),
+];
+
+const HINT_LINES: &[(&str, &str)] = &[
+    ("Enter", "to start a new research query"),
+    ("F4", "for settings"),
+    ("?", "for help"),
+];
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
-    let bg = Block::default().style(Style::default().bg(BG_MAIN));
-    f.render_widget(bg, area);
+    f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
 
     let outer = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(0),
-            Constraint::Length(7),
-            Constraint::Length(1),
-        ])
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(area);
 
-    let logo_block = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0)])
-        .split(outer[0]);
-
-    let content_height: u16 = 9;
-    let vertical_pad = logo_block[0].height.saturating_sub(content_height) / 2;
-    let logo_area = Rect {
-        x: logo_block[0].x,
-        y: logo_block[0].y + vertical_pad,
-        width: logo_block[0].width,
-        height: content_height.min(logo_block[0].height),
+    let content_height: u16 = 17;
+    let vertical_pad = outer[0].height.saturating_sub(content_height) / 2;
+    let content_area = Rect {
+        x: outer[0].x,
+        y: outer[0].y + vertical_pad,
+        width: outer[0].width,
+        height: content_height.min(outer[0].height),
     };
 
-    let logo_lines: Vec<Line> = vec![
-        Line::from(""),
-        Line::from(Span::styled(
-            "μon",
-            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
-        )),
-        Line::from(Span::styled("Deep Research Agent", Style::new().fg(PURPLE))),
-        Line::from(Span::styled("v0.1.0-alpha", DIM_STYLE)),
-        Line::from(""),
-        Line::from(Span::styled(
-            "Terminal-based multi-agent research system",
-            Style::new().fg(TEXT_MAIN),
-        )),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("[", Style::new().fg(ACCENT)),
-            Span::styled("4 Agents", Style::new().fg(TEXT_MAIN)),
-            Span::styled("]", Style::new().fg(ACCENT)),
-            Span::styled("  ", Style::new().fg(TEXT_DIM)),
-            Span::styled("[", Style::new().fg(ACCENT)),
-            Span::styled("Rust + Ratatui", Style::new().fg(TEXT_MAIN)),
-            Span::styled("]", Style::new().fg(ACCENT)),
-            Span::styled("  ", Style::new().fg(TEXT_DIM)),
-            Span::styled("[", Style::new().fg(ACCENT)),
-            Span::styled("Rig Framework", Style::new().fg(TEXT_MAIN)),
-            Span::styled("]", Style::new().fg(ACCENT)),
-        ]),
-        Line::from(""),
-    ];
-
-    let logo = Paragraph::new(logo_lines).alignment(Alignment::Center);
-    f.render_widget(logo, logo_area);
-
-    let hints_block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER))
-        .style(Style::default().bg(BG_MAIN));
-
-    let hint_chunks = Layout::default()
+    let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Length(6),
+            Constraint::Length(1),
         ])
-        .split(hints_block.inner(outer[1]));
-
-    f.render_widget(hints_block, outer[1]);
-
-    let prompt_style = Style::new().fg(ACCENT).add_modifier(Modifier::BOLD);
-    let key_style = Style::new().fg(ACCENT).add_modifier(Modifier::BOLD);
+        .split(content_area);
 
     f.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled("> ", prompt_style),
-            Span::styled("Press ", Style::new().fg(TEXT_MAIN)),
-            Span::styled("[Enter]", key_style),
-            Span::styled(" to start a new research query", Style::new().fg(TEXT_MAIN)),
-        ])),
-        hint_chunks[0],
+        Paragraph::new(Line::from(Span::styled(
+            "μon",
+            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+        )))
+        .alignment(Alignment::Center),
+        chunks[0],
     );
 
     f.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled("> ", prompt_style),
-            Span::styled("Press ", Style::new().fg(TEXT_MAIN)),
-            Span::styled("[F4]", key_style),
-            Span::styled(" for settings", Style::new().fg(TEXT_MAIN)),
-        ])),
-        hint_chunks[1],
+        Paragraph::new(Line::from(Span::styled(
+            "Deep Research Agent",
+            Style::new().fg(PURPLE).add_modifier(Modifier::BOLD),
+        )))
+        .alignment(Alignment::Center),
+        chunks[1],
     );
 
     f.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled("> ", prompt_style),
-            Span::styled("Press ", Style::new().fg(TEXT_MAIN)),
-            Span::styled("[?]", key_style),
-            Span::styled(" for help", Style::new().fg(TEXT_MAIN)),
-        ])),
-        hint_chunks[2],
+        Paragraph::new(Line::from(Span::styled("v0.1.0-alpha", DIM_STYLE)))
+            .alignment(Alignment::Center),
+        chunks[2],
     );
+
+    f.render_widget(
+        Paragraph::new(Line::from("")).alignment(Alignment::Center),
+        chunks[3],
+    );
+
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(
+            "Terminal-based multi-agent research system",
+            Style::new().fg(TEXT_MAIN),
+        )))
+        .alignment(Alignment::Center),
+        chunks[4],
+    );
+
+    render_stat_badges(f, chunks[5]);
+
+    render_hints_box(f, chunks[6]);
 
     let prompt_line = Line::from(vec![
-        Span::styled("       ", Style::new().fg(TEXT_DIM)),
-        Span::styled("muon-agent ", Style::new().fg(SUCCESS).add_modifier(Modifier::BOLD)),
-        Span::styled(": ~ $ ", Style::new().fg(TEXT_DIM)),
-        Span::styled("awaiting input", Style::new().fg(CYAN)),
-        Span::styled("█", Style::new().fg(ACCENT)),
+        Span::styled("muon-agent", Style::new().fg(SUCCESS).add_modifier(Modifier::BOLD)),
+        Span::styled(":", TEXT_DIM),
+        Span::styled("~", Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled("$", TEXT_DIM),
+        Span::styled(" awaiting input", TEXT_DIM),
+        Span::styled("█", Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
     ]);
     f.render_widget(
         Paragraph::new(prompt_line).alignment(Alignment::Center),
-        outer[2],
+        chunks[7],
     );
+}
+
+fn render_stat_badges(f: &mut ratatui::Frame, area: Rect) {
+    let total_width: u16 = BADGES
+        .iter()
+        .map(|(label, _)| label.chars().count() as u16 + 4)
+        .sum::<u16>()
+        + 2 * (BADGES.len() as u16 - 1);
+
+    let start_x = area.x + area.width.saturating_sub(total_width) / 2;
+    let mut x = start_x;
+    for (label, _) in BADGES {
+        let w = label.chars().count() as u16 + 4;
+        let cell = Rect {
+            x,
+            y: area.y + (area.height.saturating_sub(1)) / 2,
+            width: w,
+            height: 1,
+        };
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::new().fg(BORDER))
+            .style(Style::default().bg(BG_DARK));
+
+        let inner = block.inner(cell);
+        f.render_widget(block, cell);
+
+        let line = Line::from(vec![
+            Span::styled("[", Style::new().fg(PURPLE).add_modifier(Modifier::BOLD)),
+            Span::styled(*label, Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)),
+            Span::styled("]", Style::new().fg(PURPLE).add_modifier(Modifier::BOLD)),
+        ]);
+        f.render_widget(Paragraph::new(line).alignment(Alignment::Center), inner);
+
+        x += w + 2;
+    }
+}
+
+fn render_hints_box(f: &mut ratatui::Frame, area: Rect) {
+    let max_label_len = HINT_LINES
+        .iter()
+        .map(|(k, _)| k.chars().count() + 2)
+        .max()
+        .unwrap_or(0) as u16;
+    let max_text_len = HINT_LINES
+        .iter()
+        .map(|(_, t)| t.chars().count())
+        .max()
+        .unwrap_or(0) as u16;
+    let inner_text_width = "Press ".len() as u16 + max_label_len + 1 + max_text_len;
+    let hints_width = (inner_text_width + 6).min(area.width);
+    let hints_height = HINT_LINES.len() as u16 + 2;
+    let start_x = area.x + area.width.saturating_sub(hints_width) / 2;
+    let start_y = area.y + area.height.saturating_sub(hints_height) / 2;
+
+    let cell = Rect {
+        x: start_x,
+        y: start_y,
+        width: hints_width,
+        height: hints_height,
+    };
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::new().fg(BORDER))
+        .style(Style::default().bg(BG_DARK));
+
+    let inner = block.inner(cell);
+    f.render_widget(block, cell);
+
+    let line_constraints: Vec<Constraint> = HINT_LINES
+        .iter()
+        .map(|_| Constraint::Length(1))
+        .collect();
+    let line_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(line_constraints)
+        .split(inner);
+
+    for (i, (key, text)) in HINT_LINES.iter().enumerate() {
+        let line = Line::from(vec![
+            Span::styled("> ", Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled("Press ", Style::new().fg(TEXT_MAIN)),
+            Span::styled(
+                format!("[{}]", key),
+                Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(format!(" {}", text), Style::new().fg(TEXT_MAIN)),
+        ]);
+        f.render_widget(Paragraph::new(line), line_chunks[i]);
+    }
 }
