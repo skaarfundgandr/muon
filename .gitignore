@@ -1,0 +1,10 @@
+/target
+.idea/
+.env
+.vscode/
+mcp.json
+**.pdf
+**.md
+!README.md
+!AGENTS.md
+!docs/**/*.md
