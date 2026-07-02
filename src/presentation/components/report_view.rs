@@ -1,0 +1,67 @@
+use ratatui::layout::Rect;
+use ratatui::style::{Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph};
+use crate::presentation::theme::{ACCENT, BORDER, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN};
+
+fn citation_line<'a>(text: &'a str, citations: &[&'a str]) -> Line<'a> {
+    let mut spans = Vec::new();
+    let mut rest = text;
+    for cite in citations {
+        if let Some(idx) = rest.find(cite) {
+            if idx > 0 {
+                spans.push(Span::styled(&rest[..idx], Style::new().fg(TEXT_MAIN)));
+            }
+            spans.push(Span::styled(*cite, Style::new().fg(PURPLE)));
+            rest = &rest[idx + cite.len()..];
+        }
+    }
+    if !rest.is_empty() {
+        spans.push(Span::styled(rest, Style::new().fg(TEXT_MAIN)));
+    }
+    Line::from(spans)
+}
+
+pub fn render(f: &mut ratatui::Frame, area: Rect) {
+    let body1 = "Germany's renewable transition, or Energiewende, has expanded green energy capacity to over 52% of domestic generation as of late 2024, driving regional job growth but causing structural cost shifts in industrial manufacturing sectors [1]. In contrast, Japan's green growth strategies prioritize offshore wind and grid improvements to combat high electricity price premiums that drag down industrial export competitiveness [2].";
+
+    let body2 = "Comparative macroeconomic modeling indicates Germany's feed-in tariff policies yielded high initial deployment velocity but lower cost efficiency than Japan's corporate-backed PPAs [3]. Moving forward, both countries face critical bottlenecks in grid storage infrastructure and regulatory limits on inter-regional transmission loops, capping immediate GDP growth opportunities to 1.2-1.5% annually [4].";
+
+    let lines: Vec<Line> = vec![
+        Line::from(Span::styled(
+            "Economic Impacts of Renewable Energy in Germany & Japan",
+            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        citation_line(body1, &["[1]", "[2]"]),
+        Line::from(""),
+        citation_line(body2, &["[3]", "[4]"]),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("Sources Analyzed: ", Style::new().fg(TEXT_DIM)),
+            Span::styled("47  ", Style::new().fg(TEXT_MAIN)),
+            Span::styled("Documents Deep-Read: ", Style::new().fg(TEXT_DIM)),
+            Span::styled("12  ", Style::new().fg(TEXT_MAIN)),
+            Span::styled("Citations Verified: ", Style::new().fg(TEXT_DIM)),
+            Span::styled("8 / 8 (100% ✓)", Style::new().fg(SUCCESS)),
+            Span::styled("  ", Style::new().fg(TEXT_DIM)),
+            Span::styled("Overall Confidence: ", Style::new().fg(TEXT_DIM)),
+            Span::styled(
+                "87%",
+                Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+            ),
+        ]),
+    ];
+
+    let block = Block::new()
+        .borders(Borders::ALL)
+        .border_style(Style::new().fg(BORDER))
+        .title(Span::styled(
+            " RESEARCH REPORT SUMMARY ",
+            Style::new().fg(BORDER),
+        ));
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+    f.render_widget(Paragraph::new(lines), inner);
+}
