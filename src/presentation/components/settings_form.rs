@@ -11,18 +11,19 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .constraints([Constraint::Length(1), Constraint::Min(0)])
         .split(area);
 
-    // Tab bar
+    // Tab bar (text-only labels — emojis don't render reliably in all terminals)
     let tab_bar = Line::from(vec![
-        Span::styled("⚙ ", Style::new().fg(ACCENT)),
-        Span::styled("[Agents]", Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
-        Span::raw("  "),
-        Span::styled("🛠 Tools", Style::new().fg(TEXT_DIM)),
-        Span::raw("  "),
-        Span::styled("📁 Data Sources", Style::new().fg(TEXT_DIM)),
-        Span::raw("  "),
-        Span::styled("📺 Display", Style::new().fg(TEXT_DIM)),
-        Span::raw("  "),
-        Span::styled("⚡ Advanced", Style::new().fg(TEXT_DIM)),
+        Span::styled("[", Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled("Agents", Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled("]", Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::raw("    "),
+        Span::styled("Tools", Style::new().fg(TEXT_DIM)),
+        Span::raw("    "),
+        Span::styled("Data Sources", Style::new().fg(TEXT_DIM)),
+        Span::raw("    "),
+        Span::styled("Display", Style::new().fg(TEXT_DIM)),
+        Span::raw("    "),
+        Span::styled("Advanced", Style::new().fg(TEXT_DIM)),
     ]);
     f.render_widget(Paragraph::new(tab_bar), chunks[0]);
 
