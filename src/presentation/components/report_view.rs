@@ -1,8 +1,9 @@
-use ratatui::layout::Rect;
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use crate::presentation::theme::{ACCENT, BORDER, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN};
+
+use crate::presentation::theme::{ACCENT, BORDER, CYAN, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN};
 
 fn citation_line<'a>(text: &'a str, citations: &[&'a str]) -> Line<'a> {
     let mut spans = Vec::new();
@@ -12,7 +13,7 @@ fn citation_line<'a>(text: &'a str, citations: &[&'a str]) -> Line<'a> {
             if idx > 0 {
                 spans.push(Span::styled(&rest[..idx], Style::new().fg(TEXT_MAIN)));
             }
-            spans.push(Span::styled(*cite, Style::new().fg(PURPLE)));
+            spans.push(Span::styled(*cite, Style::new().fg(CYAN)));
             rest = &rest[idx + cite.len()..];
         }
     }
@@ -27,32 +28,6 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
 
     let body2 = "Comparative macroeconomic modeling indicates Germany's feed-in tariff policies yielded high initial deployment velocity but lower cost efficiency than Japan's corporate-backed PPAs [3]. Moving forward, both countries face critical bottlenecks in grid storage infrastructure and regulatory limits on inter-regional transmission loops, capping immediate GDP growth opportunities to 1.2-1.5% annually [4].";
 
-    let lines: Vec<Line> = vec![
-        Line::from(Span::styled(
-            "Economic Impacts of Renewable Energy in Germany & Japan",
-            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
-        citation_line(body1, &["[1]", "[2]"]),
-        Line::from(""),
-        citation_line(body2, &["[3]", "[4]"]),
-        Line::from(""),
-        Line::from(vec![
-            Span::styled("Sources Analyzed: ", Style::new().fg(TEXT_DIM)),
-            Span::styled("47  ", Style::new().fg(TEXT_MAIN)),
-            Span::styled("Documents Deep-Read: ", Style::new().fg(TEXT_DIM)),
-            Span::styled("12  ", Style::new().fg(TEXT_MAIN)),
-            Span::styled("Citations Verified: ", Style::new().fg(TEXT_DIM)),
-            Span::styled("8 / 8 (100% ✓)", Style::new().fg(SUCCESS)),
-            Span::styled("  ", Style::new().fg(TEXT_DIM)),
-            Span::styled("Overall Confidence: ", Style::new().fg(TEXT_DIM)),
-            Span::styled(
-                "87%",
-                Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
-            ),
-        ]),
-    ];
-
     let block = Block::new()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(BORDER))
@@ -63,5 +38,94 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
 
     let inner = block.inner(area);
     f.render_widget(block, area);
-    f.render_widget(Paragraph::new(lines), inner);
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(0),
+            Constraint::Length(7),
+            Constraint::Length(2),
+        ])
+        .split(inner);
+
+    f.render_widget(
+        Paragraph::new(Line::from(Span::styled(
+            "Economic Impacts of Renewable Energy in Germany & Japan",
+            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ))),
+        chunks[0],
+    );
+
+    let body_lines: Vec<Line> = vec![
+        citation_line(body1, &["[1]", "[2]"]),
+        Line::from(""),
+        citation_line(body2, &["[3]", "[4]"]),
+    ];
+    f.render_widget(Paragraph::new(body_lines), chunks[1]);
+
+    let stats_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::new().fg(BORDER))
+        .title(Span::styled(
+            " STATS ",
+            Style::new().fg(BORDER),
+        ));
+    let stats_inner = stats_block.inner(chunks[2]);
+    f.render_widget(stats_block, chunks[2]);
+
+    let stats_rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ])
+        .split(stats_inner);
+
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("Sources Analyzed:    ", Style::new().fg(TEXT_DIM)),
+            Span::styled("47", Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)),
+        ])),
+        stats_rows[0],
+    );
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("Documents Deep-Read:  ", Style::new().fg(TEXT_DIM)),
+            Span::styled("12", Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)),
+        ])),
+        stats_rows[1],
+    );
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("Citations Verified:   ", Style::new().fg(TEXT_DIM)),
+            Span::styled(
+                "8 / 8 (100% ✓)",
+                Style::new().fg(SUCCESS).add_modifier(Modifier::BOLD),
+            ),
+        ])),
+        stats_rows[2],
+    );
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled("Overall Confidence:  ", Style::new().fg(TEXT_DIM)),
+            Span::styled("87%", Style::new().fg(CYAN).add_modifier(Modifier::BOLD)),
+        ])),
+        stats_rows[3],
+    );
+
+    let tag_line = Line::from(vec![
+        Span::styled("#renewable", Style::new().fg(PURPLE)),
+        Span::raw("  "),
+        Span::styled("#energy", Style::new().fg(PURPLE)),
+        Span::raw("  "),
+        Span::styled("#germany", Style::new().fg(PURPLE)),
+        Span::raw("  "),
+        Span::styled("#japan", Style::new().fg(PURPLE)),
+        Span::raw("  "),
+        Span::styled("#gdp", Style::new().fg(PURPLE)),
+    ]);
+    f.render_widget(Paragraph::new(tag_line), chunks[3]);
 }
