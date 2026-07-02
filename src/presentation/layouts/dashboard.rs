@@ -1,6 +1,8 @@
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::Block;
+
+use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::theme::BG_MAIN;
 use crate::presentation::views::View;
 
@@ -23,7 +25,11 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let body_area = vertical[1];
     let footer_area = vertical[2];
 
-    crate::presentation::components::header::render(f, header_area);
+    crate::presentation::components::header::render(
+        f,
+        header_area,
+        HeaderConfig::for_view(View::Dashboard, 0),
+    );
     crate::presentation::components::footer::render(f, footer_area, View::Dashboard);
 
     let horizontal = Layout::default()
@@ -46,14 +52,16 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3),
-            Constraint::Min(5),
-            Constraint::Min(6),
-            Constraint::Min(0),
+            Constraint::Min(8),
+            Constraint::Min(3),
         ])
         .split(main_area);
 
     crate::presentation::components::query_input::render(f, main_split[0]);
-    crate::presentation::components::pipeline_graph::render(f, main_split[1]);
-    crate::presentation::components::clarifier_panel::render(f, main_split[2]);
-    crate::presentation::components::source_registry::render(f, main_split[3]);
+    crate::presentation::components::pipeline_graph::render_horizontal(
+        f,
+        main_split[1],
+        Some(crate::presentation::components::clarifier_panel::render),
+    );
+    crate::presentation::components::source_registry::render(f, main_split[2]);
 }

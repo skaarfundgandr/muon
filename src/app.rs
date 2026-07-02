@@ -48,10 +48,12 @@ fn render(frame: &mut ratatui::Frame, app: &AppState) {
             crate::presentation::layouts::dashboard::render(frame, frame.area());
         }
         crate::presentation::View::Progress => {
-            crate::presentation::layouts::progress::render(frame, frame.area());
+            let elapsed = app.tick_count * 250 / 1000;
+            crate::presentation::layouts::progress::render(frame, frame.area(), elapsed);
         }
         crate::presentation::View::Results => {
-            crate::presentation::layouts::results::render(frame, frame.area());
+            let total = app.tick_count * 250 / 1000;
+            crate::presentation::layouts::results::render(frame, frame.area(), total);
         }
         crate::presentation::View::Settings => {
             crate::presentation::layouts::settings::render(frame, frame.area());
