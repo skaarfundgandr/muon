@@ -3,6 +3,7 @@ use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::{Block, Paragraph};
 
+use crate::presentation::components::*;
 use crate::presentation::theme::{BG_DARK, BG_MAIN, BORDER, TEXT_DIM};
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
@@ -14,7 +15,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(area);
 
-    crate::presentation::components::welcome_logo::render(f, chunks[0]);
+    welcome_logo::render(f, chunks[0]);
 
     let footer_block = Block::default()
         .style(Style::default().bg(BG_DARK))

@@ -3,14 +3,12 @@ use ratatui::style::Style;
 use ratatui::widgets::Block;
 
 use crate::presentation::components::header::HeaderConfig;
+use crate::presentation::components::*;
 use crate::presentation::theme::BG_MAIN;
 use crate::presentation::views::View;
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
-    f.render_widget(
-        Block::default().style(Style::default().bg(BG_MAIN)),
-        area,
-    );
+    f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
 
     let vertical = Layout::default()
         .direction(Direction::Vertical)
@@ -25,12 +23,8 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let body_area = vertical[1];
     let footer_area = vertical[2];
 
-    crate::presentation::components::header::render(
-        f,
-        header_area,
-        HeaderConfig::for_view(View::Dashboard, 0),
-    );
-    crate::presentation::components::footer::render(f, footer_area, View::Dashboard);
+    header::render(f, header_area, HeaderConfig::for_view(View::Dashboard, 0));
+    footer::render(f, footer_area, View::Dashboard);
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
@@ -45,8 +39,8 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(sidebar_area);
 
-    crate::presentation::components::session_list::render(f, sidebar_split[0]);
-    crate::presentation::components::telemetry_panel::render(f, sidebar_split[1]);
+    session_list::render(f, sidebar_split[0]);
+    telemetry_panel::render(f, sidebar_split[1]);
 
     let main_split = Layout::default()
         .direction(Direction::Vertical)
@@ -57,11 +51,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         ])
         .split(main_area);
 
-    crate::presentation::components::query_input::render(f, main_split[0]);
-    crate::presentation::components::pipeline_graph::render_horizontal(
-        f,
-        main_split[1],
-        Some(crate::presentation::components::clarifier_panel::render),
-    );
-    crate::presentation::components::source_registry::render(f, main_split[2]);
+    query_input::render(f, main_split[0]);
+    pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render));
+    source_registry::render(f, main_split[2]);
 }

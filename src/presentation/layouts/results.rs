@@ -4,14 +4,12 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::presentation::components::header::HeaderConfig;
+use crate::presentation::components::*;
 use crate::presentation::theme::{ACCENT, BG_MAIN, BORDER, TEXT_DIM, TEXT_MAIN};
 use crate::presentation::views::View;
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, total_time_secs: u64) {
-    f.render_widget(
-        Block::default().style(Style::default().bg(BG_MAIN)),
-        area,
-    );
+    f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
 
     let vertical = Layout::default()
         .direction(Direction::Vertical)
@@ -28,12 +26,12 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, total_time_secs: u64) {
     let actions_area = vertical[2];
     let footer_area = vertical[3];
 
-    crate::presentation::components::header::render(
+    header::render(
         f,
         header_area,
         HeaderConfig::for_view(View::Results, total_time_secs),
     );
-    crate::presentation::components::footer::render(f, footer_area, View::Results);
+    footer::render(f, footer_area, View::Results);
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
@@ -43,30 +41,48 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, total_time_secs: u64) {
     let report_area = horizontal[0];
     let sources_area = horizontal[1];
 
-    crate::presentation::components::report_view::render(f, report_area);
-    crate::presentation::components::source_card::render(f, sources_area);
+    report_view::render(f, report_area);
+    source_card::render(f, sources_area);
 
     let action_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(BORDER));
 
     let action_line = Line::from(vec![
-        Span::styled("[F1]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[F1]",
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Export MD", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
-        Span::styled("[F2]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[F2]",
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Export PDF", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
-        Span::styled("[F3]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[F3]",
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Sync Obsidian", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
-        Span::styled("[F4]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[F4]",
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" New Query", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
-        Span::styled("[F5]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[F5]",
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Refine Search", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
-        Span::styled("[F6]", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "[F6]",
+            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" Full Report view", Style::default().fg(TEXT_MAIN)),
     ]);
 

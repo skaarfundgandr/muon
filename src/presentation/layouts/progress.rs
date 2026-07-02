@@ -3,6 +3,7 @@ use ratatui::style::Style;
 use ratatui::widgets::Block;
 
 use crate::presentation::components::header::HeaderConfig;
+use crate::presentation::components::*;
 use crate::presentation::theme::BG_MAIN;
 use crate::presentation::views::View;
 
@@ -25,13 +26,13 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, elapsed_secs: u64) {
         .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
         .split(chunks[1]);
 
-    crate::presentation::components::header::render(
+    header::render(
         f,
         chunks[0],
         HeaderConfig::for_view(View::Progress, elapsed_secs),
     );
-    crate::presentation::components::pipeline_graph::render(f, body_chunks[0]);
-    crate::presentation::components::live_feed::render(f, body_chunks[1]);
-    crate::presentation::components::resource_monitor::render(f, chunks[2]);
-    crate::presentation::components::footer::render(f, chunks[3], View::Progress);
+    pipeline_graph::render(f, body_chunks[0]);
+    live_feed::render(f, body_chunks[1]);
+    resource_monitor::render(f, chunks[2]);
+    footer::render(f, chunks[3], View::Progress);
 }

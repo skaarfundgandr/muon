@@ -3,6 +3,7 @@ use ratatui::style::Style;
 use ratatui::widgets::Block;
 
 use crate::presentation::components::header::HeaderConfig;
+use crate::presentation::components::*;
 use crate::presentation::theme::BG_MAIN;
 use crate::presentation::views::View;
 
@@ -19,11 +20,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         ])
         .split(area);
 
-    crate::presentation::components::header::render(
-        f,
-        chunks[0],
-        HeaderConfig::for_view(View::Settings, 0),
-    );
-    crate::presentation::components::settings_form::render(f, chunks[1]);
-    crate::presentation::components::footer::render(f, chunks[2], View::Settings);
+    header::render(f, chunks[0], HeaderConfig::for_view(View::Settings, 0));
+    settings_form::render(f, chunks[1]);
+    footer::render(f, chunks[2], View::Settings);
 }
