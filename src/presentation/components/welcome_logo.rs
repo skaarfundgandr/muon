@@ -5,6 +5,16 @@ use ratatui::widgets::{Block, Paragraph};
 use crate::presentation::theme::{ACCENT, BG_MAIN, CYAN, DIM_STYLE, PURPLE, TEXT_DIM, TEXT_MAIN};
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
+    // Vertically center: render paragraph centered in the available area
+    let content_height: u16 = 13; // number of lines in the content
+    let vertical_pad = area.height.saturating_sub(content_height) / 2;
+    let centered_area = Rect {
+        x: area.x,
+        y: area.y + vertical_pad,
+        width: area.width,
+        height: content_height.min(area.height),
+    };
+
     let lines: Vec<Line> = vec![
         Line::from(""),
         Line::from(Span::styled(
@@ -58,5 +68,5 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .alignment(Alignment::Center)
         .block(Block::default().style(Style::new().bg(BG_MAIN)));
 
-    f.render_widget(paragraph, area);
+    f.render_widget(paragraph, centered_area);
 }
