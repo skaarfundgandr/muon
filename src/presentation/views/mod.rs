@@ -1,4 +1,4 @@
-pub mod view;
 pub mod router;
-pub use router::ViewRouter;
+pub mod view;
+pub use router::{SettingsTab, ViewRouter};
 pub use view::View;
