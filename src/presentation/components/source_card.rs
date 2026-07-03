@@ -3,14 +3,38 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::presentation::theme::{ACCENT, BORDER, CYAN, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
+use crate::presentation::theme::{
+    ACCENT, BORDER, CYAN, ERROR, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING,
+};
+
+#[derive(Clone, Copy)]
+#[allow(dead_code)]
+enum Verification {
+    Exact,
+    Prefix,
+    ChildPath,
+    QuerySubset,
+    Removed,
+}
+
+impl Verification {
+    fn badge(&self) -> (&'static str, ratatui::style::Color) {
+        match self {
+            Verification::Exact => ("✓ EXACT", SUCCESS),
+            Verification::Prefix => ("~ PREFIX", CYAN),
+            Verification::ChildPath => ("↗ CHILD-PATH", ACCENT),
+            Verification::QuerySubset => ("⊞ QUERY-SUBSET", PURPLE),
+            Verification::Removed => ("⚠ REMOVED", ERROR),
+        }
+    }
+}
 
 struct SourceEntry {
     title: &'static str,
     snippet: &'static str,
     domain: &'static str,
     relevance: u16,
-    verified: bool,
+    verification: Verification,
     source_type: SourceType,
 }
 
@@ -57,7 +81,10 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
         .split(outer_inner);
 
     let total_status = Line::from(vec![
-        Span::styled("ALL CHECKS PASSED", Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "ALL CHECKS PASSED",
+            Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+        ),
         Span::styled(" ✓", Style::default().fg(SUCCESS)),
     ]);
     f.render_widget(
@@ -76,7 +103,7 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
             snippet: "Germany's renewable energy deployment reached record highs in 2024, contributing to structural modifications in price indexing across industrial sectors, albeit with temporary grid load bottlenecks...",
             domain: "iea.org",
             relevance: 96,
-            verified: true,
+            verification: Verification::Exact,
             source_type: SourceType::Web,
         },
         SourceEntry {
@@ -84,7 +111,7 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
             snippet: "High reliance on imported fossil fuels during renewable capacity scaling creates structural electricity premiums that challenge export industries in the Tokyo and Osaka manufacturing centers...",
             domain: "j-stage.jst.go.jp",
             relevance: 89,
-            verified: true,
+            verification: Verification::Prefix,
             source_type: SourceType::Paper,
         },
         SourceEntry {
@@ -92,7 +119,7 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
             snippet: "Source code repository containing macroeconomic simulation parameters comparing Germany's feed-in tariff policies to Japan's corporate power purchase agreements...",
             domain: "github.com/econ-model/g7-energy",
             relevance: 85,
-            verified: true,
+            verification: Verification::ChildPath,
             source_type: SourceType::Code,
         },
         SourceEntry {
@@ -100,7 +127,7 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
             snippet: "...macroeconomic growth limitations due to power transmission capacity ceiling. Grid congestion costs are estimated to suppress German GDP growth potential by up to 0.15%...",
             domain: "energy-forecast-archive.net/g7...",
             relevance: 72,
-            verified: false,
+            verification: Verification::Removed,
             source_type: SourceType::Web,
         },
     ];
@@ -117,12 +144,13 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
         .split(body_area);
 
     for (i, entry) in items.iter().enumerate() {
+        let is_removed = matches!(entry.verification, Verification::Removed);
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(if entry.verified {
-                Style::default().fg(BORDER)
-            } else {
+            .border_style(if is_removed {
                 Style::default().fg(WARNING)
+            } else {
+                Style::default().fg(BORDER)
             });
 
         let index_style = Style::default().fg(PURPLE).add_modifier(Modifier::BOLD);
@@ -137,14 +165,13 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
             TEXT_DIM
         };
 
-        let badge = if entry.verified {
-            Span::styled("✓ VERIFIED", Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD))
-        } else {
-            Span::styled(
-                "⚠ WARNING",
-                Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
-            )
-        };
+        let (badge_text, badge_color) = entry.verification.badge();
+        let badge = Span::styled(
+            badge_text,
+            Style::default()
+                .fg(badge_color)
+                .add_modifier(Modifier::BOLD),
+        );
 
         let bar_width = 10u16;
         let filled_count = (entry.relevance as u32 * bar_width as u32 / 100) as usize;
@@ -152,7 +179,10 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
         let filled: String = "█".repeat(filled_count);
         let empty: String = "░".repeat(empty_count);
 
-        let type_span = Span::styled(entry.source_type.icon(), Style::default().fg(entry.source_type.color()));
+        let type_span = Span::styled(
+            entry.source_type.icon(),
+            Style::default().fg(entry.source_type.color()),
+        );
 
         let header_line = Line::from(vec![index_span, title_span]);
         let meta_line = Line::from(vec![
@@ -162,12 +192,15 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
             Span::styled(" • ", Style::default().fg(TEXT_DIM)),
             Span::styled(entry.domain, Style::default().fg(TEXT_DIM)),
             Span::raw("  "),
-            Span::styled(format!("Relevance: {}% ", entry.relevance), Style::default().fg(rel_color)),
+            Span::styled(
+                format!("Relevance: {}% ", entry.relevance),
+                Style::default().fg(rel_color),
+            ),
             Span::styled(filled, Style::default().fg(rel_color)),
             Span::styled(empty, Style::default().fg(TEXT_DIM)),
         ]);
 
-        let warning_text = if !entry.verified {
+        let warning_text = if is_removed {
             Line::from(Span::styled(
                 "⚠ URL truncated — partial match on index server",
                 Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
@@ -176,15 +209,12 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
             Line::from("")
         };
 
-        let snippet_line = Line::from(Span::styled(
-            entry.snippet,
-            Style::default().fg(TEXT_DIM),
-        ));
+        let snippet_line = Line::from(Span::styled(entry.snippet, Style::default().fg(TEXT_DIM)));
 
         let inner = block.inner(chunks[i]);
         f.render_widget(block, chunks[i]);
         let lines = vec![header_line, meta_line];
-        let snippet_offset = if !entry.verified { 1u16 } else { 0u16 };
+        let snippet_offset = if is_removed { 1u16 } else { 0u16 };
         f.render_widget(
             Paragraph::new(lines),
             Rect {
@@ -194,7 +224,7 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
                 height: 2,
             },
         );
-        if !entry.verified {
+        if is_removed {
             f.render_widget(
                 Paragraph::new(warning_text),
                 Rect {

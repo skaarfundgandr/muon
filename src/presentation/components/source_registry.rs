@@ -1,4 +1,4 @@
-use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -22,28 +22,23 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(block, area);
 
     let chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0)])
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+            Constraint::Percentage(25),
+        ])
         .split(inner);
 
-    let lines: Vec<Line> = SOURCES
-        .iter()
-        .map(|(name, on)| {
-            let box_style = if *on {
-                Style::default().fg(SUCCESS)
-            } else {
-                Style::default().fg(TEXT_DIM)
-            };
-            let mark = if *on { "✓" } else { " " };
-            Line::from(vec![
-                Span::styled("[", box_style),
-                Span::styled(mark, box_style),
-                Span::styled("] ", box_style),
-                Span::styled(*name, Style::default().fg(TEXT_MAIN)),
-            ])
-        })
-        .collect();
-
-    let para = Paragraph::new(lines).alignment(Alignment::Left);
-    f.render_widget(para, chunks[0]);
+    for (i, (name, on)) in SOURCES.iter().enumerate() {
+        let dot = if *on { "●" } else { "○" };
+        let color = if *on { SUCCESS } else { TEXT_DIM };
+        let line = Line::from(vec![
+            Span::styled(*name, Style::default().fg(TEXT_MAIN)),
+            Span::raw(" "),
+            Span::styled(dot, Style::default().fg(color)),
+        ]);
+        f.render_widget(Paragraph::new(line), chunks[i]);
+    }
 }
