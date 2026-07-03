@@ -15,9 +15,7 @@ pub fn render_horizontal(
         .border_style(Style::new().fg(BORDER))
         .title(Span::styled(
             " PIPELINE ROUTING ",
-            Style::new()
-                .fg(TEXT_MAIN)
-                .add_modifier(Modifier::BOLD),
+            Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
         ));
 
     let inner = block.inner(area);
@@ -25,10 +23,7 @@ pub fn render_horizontal(
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3),
-            Constraint::Min(0),
-        ])
+        .constraints([Constraint::Length(3), Constraint::Min(0)])
         .split(inner);
 
     let nodes_row = Layout::default()
@@ -44,7 +39,7 @@ pub fn render_horizontal(
 
     render_horizontal_node(f, nodes_row[0], "Intent Classifier", "✓ Complete", SUCCESS);
     render_horizontal_arrow(f, nodes_row[1], true);
-    render_horizontal_node(f, nodes_row[2], "Research Pipeline", "◉ Active", ACCENT);
+    render_horizontal_node(f, nodes_row[2], "Depth Router", "◉ Research → Deep", ACCENT);
     render_horizontal_arrow(f, nodes_row[3], false);
     render_horizontal_node(f, nodes_row[4], "Deep Researcher", "○ Pending", TEXT_DIM);
 
@@ -123,24 +118,32 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(2),
+            Constraint::Length(5),
             Constraint::Length(1),
-            Constraint::Length(2),
+            Constraint::Length(5),
             Constraint::Length(1),
             Constraint::Min(0),
         ])
         .split(inner);
 
-    render_node(f, chunks[0], "Intent Classifier", "✓ done", SUCCESS);
+    render_node_with_body(
+        f,
+        chunks[0],
+        "Intent Classifier",
+        "✓ done",
+        SUCCESS,
+        "research → deep",
+    );
     let conn1 = Paragraph::new(Line::from(Span::styled(" │", Style::new().fg(BORDER))));
     f.render_widget(conn1, chunks[1]);
 
-    render_node(
+    render_node_with_body(
         f,
         chunks[2],
         "Clarifier",
         "✓ 2 rounds | Plan approved",
         SUCCESS,
+        "Focus on Germany and Japan",
     );
     let conn2 = Paragraph::new(Line::from(Span::styled(" │", Style::new().fg(BORDER))));
     f.render_widget(conn2, chunks[3]);
@@ -148,12 +151,13 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     render_deep_researcher(f, chunks[4]);
 }
 
-fn render_node(
+fn render_node_with_body(
     f: &mut ratatui::Frame,
     area: Rect,
     title: &str,
     status: &str,
     color: ratatui::style::Color,
+    body: &str,
 ) {
     let node_block = Block::default()
         .borders(Borders::ALL)
@@ -167,9 +171,10 @@ fn render_node(
         Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
     ));
     let status_line = Line::from(Span::styled(status, Style::new().fg(color)));
+    let body_line = Line::from(Span::styled(body, Style::new().fg(color)));
 
     f.render_widget(
-        Paragraph::new(title_line),
+        title_line,
         Rect {
             x: inner.x,
             y: inner.y,
@@ -178,10 +183,19 @@ fn render_node(
         },
     );
     f.render_widget(
-        Paragraph::new(status_line),
+        status_line,
         Rect {
             x: inner.x,
             y: inner.y + 1,
+            width: inner.width,
+            height: 1,
+        },
+    );
+    f.render_widget(
+        body_line,
+        Rect {
+            x: inner.x,
+            y: inner.y + 2,
             width: inner.width,
             height: 1,
         },
@@ -200,21 +214,8 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect) {
     let inner = outer_block.inner(area);
     f.render_widget(outer_block, area);
 
-    let status = Line::from(vec![
-        Span::styled("  Orchestrator: ", Style::new().fg(TEXT_DIM)),
-        Span::styled("Coordinating", Style::new().fg(ACCENT)),
-    ]);
-    f.render_widget(
-        status,
-        Rect {
-            x: inner.x,
-            y: inner.y,
-            width: inner.width,
-            height: 1,
-        },
-    );
-
     let subagents = [
+        ("Orchestrator", "◉", "Coordinating", ACCENT),
         ("Planner", "✓", "5 queries, 4 sections", SUCCESS),
         ("Researcher [Round 1/2]", "◉", "23/47 sources", ACCENT),
         ("Researcher [Round 2/2]", "○", "pending", TEXT_DIM),
@@ -223,7 +224,7 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect) {
     ];
 
     for (i, (name, icon, detail, color)) in subagents.iter().enumerate() {
-        let y = inner.y + 1 + i as u16;
+        let y = inner.y + i as u16;
         if y >= inner.y + inner.height {
             break;
         }
