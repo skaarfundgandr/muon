@@ -13,11 +13,11 @@ pub struct FooterConfig {
 impl FooterConfig {
     pub fn default_tabs() -> Vec<(&'static str, &'static str, Option<View>)> {
         vec![
-            ("F1 ", "Dashboard", Some(View::Dashboard)),
-            ("F2 ", "Progress", Some(View::Progress)),
-            ("F3 ", "Results", Some(View::Results)),
-            ("F4 ", "Settings", Some(View::Settings)),
-            ("F5 ", "Help", None),
+            ("1  ", "Dashboard", Some(View::Dashboard)),
+            ("2  ", "Progress", Some(View::Progress)),
+            ("3  ", "Results", Some(View::Results)),
+            ("4  ", "Settings", Some(View::Settings)),
+            ("? ", "Help", None),
         ]
     }
 
@@ -26,7 +26,7 @@ impl FooterConfig {
             View::Progress => Self {
                 tabs: Self::default_tabs()
                     .into_iter()
-                    .filter(|(k, _, _)| *k != "F5 ")
+                    .filter(|(k, _, _)| *k != "? ")
                     .collect(),
                 right_hint: vec![
                     ("[Esc]", "Pause"),
@@ -37,14 +37,14 @@ impl FooterConfig {
             View::Results => Self {
                 tabs: Self::default_tabs()
                     .into_iter()
-                    .filter(|(k, _, _)| *k != "F5 ")
+                    .filter(|(k, _, _)| *k != "? ")
                     .collect(),
                 right_hint: vec![("[Tab]", "Navigate"), ("[^C]", "Exit μon")],
             },
             View::Settings => Self {
                 tabs: Self::default_tabs()
                     .into_iter()
-                    .filter(|(k, _, _)| *k != "F5 ")
+                    .filter(|(k, _, _)| *k != "? ")
                     .collect(),
                 right_hint: vec![
                     ("[Tab]", "switch"),
