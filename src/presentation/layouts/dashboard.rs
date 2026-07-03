@@ -45,13 +45,17 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let main_split = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),
+            Constraint::Length(4),
             Constraint::Min(8),
             Constraint::Min(3),
         ])
         .split(main_area);
 
-    query_input::render(f, main_split[0]);
+    query_input::render(
+        f,
+        main_split[0],
+        "Economic impacts of renewable energy transition in Germany and Japan",
+    );
     pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render));
     source_registry::render(f, main_split[2]);
 }
