@@ -5,7 +5,7 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
-use crate::presentation::theme::{ACCENT, BG_MAIN, BORDER, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme::{BG_MAIN, BORDER, PURPLE, TEXT_DIM, TEXT_MAIN};
 use crate::presentation::views::View;
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, total_time_secs: u64) {
@@ -51,37 +51,43 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, total_time_secs: u64) {
     let action_line = Line::from(vec![
         Span::styled(
             "[F1]",
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
         ),
         Span::styled(" Export MD", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
         Span::styled(
             "[F2]",
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" Export PDF", Style::default().fg(TEXT_MAIN)),
+        Span::styled(
+            " Export PDF",
+            Style::default()
+                .fg(TEXT_DIM)
+                .add_modifier(Modifier::CROSSED_OUT),
+        ),
+        Span::styled(" (v0.2)", Style::default().fg(TEXT_DIM)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
         Span::styled(
             "[F3]",
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
         ),
         Span::styled(" Sync Obsidian", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
         Span::styled(
             "[F4]",
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
         ),
         Span::styled(" New Query", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
         Span::styled(
             "[F5]",
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
         ),
         Span::styled(" Refine Search", Style::default().fg(TEXT_MAIN)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
         Span::styled(
             "[F6]",
-            Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
         ),
         Span::styled(" Full Report view", Style::default().fg(TEXT_MAIN)),
     ]);
