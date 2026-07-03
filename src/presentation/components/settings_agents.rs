@@ -182,18 +182,22 @@ fn input_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> {
         Line::from(vec![
             Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{:<14}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled("[", Style::new().fg(BORDER_FOCUS)),
             Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled("]", Style::new().fg(BORDER_FOCUS)),
         ])
     } else {
         Line::from(vec![
             Span::styled(format!("{:<14}", label), Style::new().fg(TEXT_DIM)),
+            Span::styled("[", Style::new().fg(TEXT_DIM)),
             Span::styled(value, Style::new().fg(SUCCESS)),
+            Span::styled("]", Style::new().fg(TEXT_DIM)),
         ])
     }
 }
 
 fn checkbox_line(label: &str, checked: bool, focused: bool) -> Line<'_> {
-    let mark = if checked { "\u{2713}" } else { "\u{2717}" };
+    let mark = if checked { "[\u{2713}]" } else { "[ ]" };
     let mark_color = if checked { SUCCESS } else { TEXT_DIM };
     if focused {
         Line::from(vec![
