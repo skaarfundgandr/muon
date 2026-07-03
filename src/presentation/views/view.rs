@@ -22,11 +22,21 @@ impl View {
 
     pub fn from_fkey(key: KeyCode) -> Option<Self> {
         match key {
-            KeyCode::F(1) => Some(View::Dashboard),
-            KeyCode::F(2) => Some(View::Progress),
-            KeyCode::F(3) => Some(View::Results),
-            KeyCode::F(4) => Some(View::Settings),
+            KeyCode::Char('1') => Some(View::Dashboard),
+            KeyCode::Char('2') => Some(View::Progress),
+            KeyCode::Char('3') => Some(View::Results),
+            KeyCode::Char('4') => Some(View::Settings),
             _ => None,
+        }
+    }
+
+    pub fn next(self) -> Self {
+        match self {
+            View::Welcome => View::Dashboard,
+            View::Dashboard => View::Progress,
+            View::Progress => View::Results,
+            View::Results => View::Settings,
+            View::Settings => View::Dashboard,
         }
     }
 }
