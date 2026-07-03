@@ -1,34 +1,51 @@
+use crate::presentation::theme::{ACCENT, BORDER, ERROR, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use crate::presentation::theme::{ACCENT, BORDER, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let block = Block::default()
         .borders(Borders::TOP)
         .border_style(Style::default().fg(BORDER));
 
-    let filled = 1;
-    let empty = 9;
-    let filled_bar: String = "█".repeat(filled);
-    let empty_bar: String = "░".repeat(empty);
+    let context_pct: u16 = 62;
+    let filled_count = (context_pct / 10) as usize;
+    let empty_count = 10 - filled_count;
+
+    let bar_color = if context_pct >= 80 {
+        ERROR
+    } else if context_pct >= 60 {
+        WARNING
+    } else {
+        ACCENT
+    };
+
+    let filled_bar: String = "█".repeat(filled_count);
+    let empty_bar: String = "░".repeat(empty_count);
 
     let line = Line::from(vec![
-        Span::styled("Tokens: ", Style::default().fg(TEXT_DIM)),
-        Span::styled("12,847 / 128k ", Style::default().fg(TEXT_MAIN)),
-        Span::styled(filled_bar, Style::default().fg(ACCENT)),
+        Span::styled("Context: ", Style::default().fg(TEXT_DIM)),
+        Span::styled(filled_bar, Style::default().fg(bar_color)),
         Span::styled(empty_bar, Style::default().fg(TEXT_DIM)),
-        Span::styled(" 10%", Style::default().fg(TEXT_DIM)),
+        Span::styled(
+            format!(" {}%", context_pct),
+            Style::default().fg(bar_color).add_modifier(Modifier::BOLD),
+        ),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
-        Span::styled("Agents: ", Style::default().fg(TEXT_DIM)),
-        Span::styled("3 ", Style::default().fg(TEXT_MAIN)),
-        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
-        Span::styled("Round: ", Style::default().fg(TEXT_DIM)),
-        Span::styled("1/2 ", Style::default().fg(WARNING).add_modifier(Modifier::BOLD)),
+        Span::styled("Tokens: ", Style::default().fg(TEXT_DIM)),
+        Span::styled("↓8,421", Style::default().fg(SUCCESS)),
+        Span::styled(" ", Style::default().fg(TEXT_MAIN)),
+        Span::styled("↑4,426", Style::default().fg(ACCENT)),
         Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
         Span::styled("Cost: ", Style::default().fg(TEXT_DIM)),
-        Span::styled("$0.034", Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "$0.034",
+            Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled("Mem: ", Style::default().fg(TEXT_DIM)),
+        Span::styled("142MB", Style::default().fg(TEXT_MAIN)),
     ]);
 
     let paragraph = Paragraph::new(line);
