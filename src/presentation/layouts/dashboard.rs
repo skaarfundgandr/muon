@@ -6,8 +6,15 @@ use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
 use crate::presentation::theme::BG_MAIN;
 use crate::presentation::views::View;
+use crate::session::SessionSummary;
+use crate::presentation::components::query_input::QueryInput;
 
-pub fn render(f: &mut ratatui::Frame, area: Rect) {
+pub fn render(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    query: &QueryInput,
+    sessions: &[SessionSummary],
+) {
     f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
 
     let vertical = Layout::default()
@@ -39,7 +46,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(sidebar_area);
 
-    session_list::render(f, sidebar_split[0]);
+    session_list::render(f, sidebar_split[0], sessions);
     telemetry_panel::render(f, sidebar_split[1]);
 
     let main_split = Layout::default()
@@ -51,11 +58,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         ])
         .split(main_area);
 
-    query_input::render(
-        f,
-        main_split[0],
-        "Economic impacts of renewable energy transition in Germany and Japan",
-    );
+    query_input::render(f, main_split[0], query);
     pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render));
     source_registry::render(f, main_split[2]);
 }

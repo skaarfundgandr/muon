@@ -1,16 +1,47 @@
-use crate::presentation::theme::{BORDER, CYAN, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
+use crate::config::DisplayConfig;
+use crate::presentation::form::{FieldDef, FormState};
+use crate::presentation::theme::{BORDER, BORDER_FOCUS, CYAN, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-pub fn render(f: &mut ratatui::Frame, area: Rect) {
+pub fn fields() -> &'static [FieldDef] {
+    Box::leak(Box::new([
+        FieldDef::dropdown("Visual Theme", &["Tokyo Night", "Gruvbox", "Catppuccin", "Nord"]),
+        FieldDef::dropdown("Font Size", &["Small 12px", "Medium 14px", "Large 16px"]),
+    ])) as &'static [FieldDef]
+}
+
+pub fn get_field(config: &DisplayConfig, index: usize) -> String {
+    match index {
+        0 => config.visual_theme.clone(),
+        1 => config.font_size.clone(),
+        _ => String::new(),
+    }
+}
+
+pub fn set_field(config: &mut DisplayConfig, index: usize, value: &str) {
+    match index {
+        0 => config.visual_theme = value.to_string(),
+        1 => config.font_size = value.to_string(),
+        _ => {}
+    }
+}
+
+pub fn toggle_field(_config: &mut DisplayConfig, _index: usize) {}
+
+fn is_focused(form: &FormState, index: usize) -> bool {
+    form.focus == index
+}
+
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    render_left(f, grid[0]);
+    render_left(f, grid[0], config, form);
     render_right(f, grid[1]);
 }
 
@@ -24,14 +55,26 @@ fn section_block<'a>(title: &'a str) -> Block<'a> {
         ))
 }
 
-fn dropdown_line<'a>(label: &'a str, value: &'a str) -> Line<'a> {
-    Line::from(vec![
-        Span::styled(format!("{:<14}", label), Style::new().fg(TEXT_DIM)),
-        Span::styled("[", Style::new().fg(TEXT_DIM)),
-        Span::styled(value, Style::new().fg(TEXT_MAIN)),
-        Span::styled("▼", Style::new().fg(TEXT_DIM)),
-        Span::styled("]", Style::new().fg(TEXT_DIM)),
-    ])
+fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> {
+    if focused {
+        Line::from(vec![
+            Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:<14}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled("[", Style::new().fg(BORDER_FOCUS)),
+            Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled("\u{25BC}", Style::new().fg(BORDER_FOCUS)),
+            Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+        ])
+    } else {
+        Line::from(vec![
+            Span::styled("  ", Style::new().fg(TEXT_DIM)),
+            Span::styled(format!("{:<14}", label), Style::new().fg(TEXT_DIM)),
+            Span::styled("[", Style::new().fg(TEXT_DIM)),
+            Span::styled(value, Style::new().fg(TEXT_MAIN)),
+            Span::styled("\u{25BC}", Style::new().fg(TEXT_DIM)),
+            Span::styled("]", Style::new().fg(TEXT_DIM)),
+        ])
+    }
 }
 
 fn info_row<'a>(label: &'a str, value: &'a str, val_style: Style) -> Line<'a> {
@@ -41,7 +84,12 @@ fn info_row<'a>(label: &'a str, value: &'a str, val_style: Style) -> Line<'a> {
     ])
 }
 
-fn render_left(f: &mut ratatui::Frame, area: Rect) {
+fn render_left(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    config: &DisplayConfig,
+    form: &FormState,
+) {
     let block = section_block("TERMINAL DISPLAY SETTINGS");
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -56,8 +104,11 @@ fn render_left(f: &mut ratatui::Frame, area: Rect) {
         ])
         .split(inner);
 
-    f.render_widget(dropdown_line("Visual Theme", "Tokyo Night"), chunks[0]);
-    f.render_widget(dropdown_line("Font Size", "Medium 14px"), chunks[1]);
+    f.render_widget(
+        dropdown_line("Visual Theme", &config.visual_theme, is_focused(form, 0)),
+        chunks[0],
+    );
+    f.render_widget(dropdown_line("Font Size", &config.font_size, is_focused(form, 1)), chunks[1]);
     f.render_widget(
         Paragraph::new(Span::styled("Live Preview", Style::new().fg(TEXT_DIM))),
         chunks[2],
@@ -82,10 +133,7 @@ fn render_left(f: &mut ratatui::Frame, area: Rect) {
             "abcdefghijklmnopqrstuvwxyz",
             Style::new().fg(TEXT_MAIN),
         )),
-        Line::from(Span::styled(
-            "0123456789",
-            Style::new().fg(TEXT_MAIN),
-        )),
+        Line::from(Span::styled("0123456789", Style::new().fg(TEXT_MAIN))),
     ];
     f.render_widget(Paragraph::new(preview_lines), preview_inner);
 }
@@ -96,11 +144,31 @@ fn render_right(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(block, area);
 
     let lines: Vec<Line> = vec![
-        info_row("Active Renderer:", "HTML TUI Emulator (Bex/Ratatui Mock)", Style::new().fg(CYAN)),
-        info_row("Font Stack:", "Tokyo Night / 14px / JetBrains Mono", Style::new().fg(PURPLE)),
-        info_row("Terminal Encoding:", "UTF-8 / Unicode Standard", Style::new().fg(SUCCESS)),
-        info_row("Color Standard:", "True Color (24-bit RGB)", Style::new().fg(WARNING)),
-        info_row("Window Size:", "1200 x 800 (Simulated Viewport)", Style::new().fg(CYAN)),
+        info_row(
+            "Active Renderer:",
+            "HTML TUI Emulator (Bex/Ratatui Mock)",
+            Style::new().fg(CYAN),
+        ),
+        info_row(
+            "Font Stack:",
+            "Tokyo Night / 14px / JetBrains Mono",
+            Style::new().fg(PURPLE),
+        ),
+        info_row(
+            "Terminal Encoding:",
+            "UTF-8 / Unicode Standard",
+            Style::new().fg(SUCCESS),
+        ),
+        info_row(
+            "Color Standard:",
+            "True Color (24-bit RGB)",
+            Style::new().fg(WARNING),
+        ),
+        info_row(
+            "Window Size:",
+            "1200 x 800 (Simulated Viewport)",
+            Style::new().fg(CYAN),
+        ),
     ];
     f.render_widget(Paragraph::new(lines), inner);
 }

@@ -12,6 +12,22 @@ pub struct HeaderConfig {
 }
 
 impl HeaderConfig {
+    pub fn for_settings(elapsed_secs: u64, dirty: bool) -> Self {
+        let _ = elapsed_secs;
+        let (text, color) = if dirty {
+            ("UNSAVED CHANGES", WARNING)
+        } else {
+            ("SAVED", SUCCESS)
+        };
+        Self {
+            badge: Some("CONFIGURATION CONSOLE"),
+            extra_right: vec![Span::styled(
+                text,
+                Style::default().fg(color).add_modifier(Modifier::BOLD),
+            )],
+        }
+    }
+
     pub fn for_view(view: View, elapsed_secs: u64) -> Self {
         match view {
             View::Dashboard => Self {

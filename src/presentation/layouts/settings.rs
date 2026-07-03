@@ -3,12 +3,20 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
+use crate::config::MuonConfig;
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
+use crate::presentation::form::FormState;
 use crate::presentation::theme::{ACCENT, BG_MAIN, TEXT_DIM};
 use crate::presentation::views::{SettingsTab, View};
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, tab: SettingsTab) {
+pub fn render(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    tab: SettingsTab,
+    config: &MuonConfig,
+    _form: &FormState,
+) {
     let bg = Block::default().style(Style::default().bg(BG_MAIN));
     f.render_widget(bg, area);
 
@@ -22,15 +30,25 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, tab: SettingsTab) {
         ])
         .split(area);
 
-    header::render(f, chunks[0], HeaderConfig::for_view(View::Settings, 0));
+    header::render(f, chunks[0], HeaderConfig::for_settings(0, _form.dirty));
     render_tab_bar(f, chunks[1], tab);
 
     match tab {
-        SettingsTab::Agents => settings_agents::render(f, chunks[2]),
-        SettingsTab::Tools => settings_tools::render(f, chunks[2]),
-        SettingsTab::DataSources => settings_data_sources::render(f, chunks[2]),
-        SettingsTab::Display => settings_display::render(f, chunks[2]),
-        SettingsTab::Advanced => settings_advanced::render(f, chunks[2]),
+        SettingsTab::Agents => {
+            settings_agents::render(f, chunks[2], &config.agents, _form);
+        }
+        SettingsTab::Tools => {
+            settings_tools::render(f, chunks[2], &config.tools, _form);
+        }
+        SettingsTab::DataSources => {
+            settings_data_sources::render(f, chunks[2], &config.data_sources, _form);
+        }
+        SettingsTab::Display => {
+            settings_display::render(f, chunks[2], &config.display, _form);
+        }
+        SettingsTab::Advanced => {
+            settings_advanced::render(f, chunks[2], &config.advanced, _form);
+        }
     }
 
     footer::render(f, chunks[3], View::Settings);
