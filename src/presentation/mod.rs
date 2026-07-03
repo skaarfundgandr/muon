@@ -3,4 +3,4 @@ pub mod layouts;
 pub mod theme;
 pub mod views;
 
-pub use views::{View, ViewRouter};
+pub use views::{SettingsTab, View, ViewRouter};
