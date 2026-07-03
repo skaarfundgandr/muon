@@ -24,9 +24,7 @@ pub const BORDER_STYLE: Style = Style::new().fg(BORDER);
 
 pub const BORDER_FOCUS_STYLE: Style = Style::new().fg(BORDER_FOCUS);
 
-pub const ACTIVE_STYLE: Style = Style::new()
-    .fg(ACCENT)
-    .add_modifier(Modifier::BOLD);
+pub const ACTIVE_STYLE: Style = Style::new().fg(ACCENT).add_modifier(Modifier::BOLD);
 
 pub const DIM_STYLE: Style = Style::new().fg(TEXT_DIM);
 
@@ -36,9 +34,7 @@ pub const WARNING_STYLE: Style = Style::new().fg(WARNING);
 
 pub const ERROR_STYLE: Style = Style::new().fg(ERROR);
 
-pub const TITLE_STYLE: Style = Style::new()
-    .fg(PURPLE)
-    .add_modifier(Modifier::BOLD);
+pub const TITLE_STYLE: Style = Style::new().fg(PURPLE).add_modifier(Modifier::BOLD);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Theme {
