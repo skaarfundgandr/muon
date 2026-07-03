@@ -1,15 +1,15 @@
 use std::time::Duration;
 
-use crossterm::event::{poll, read, Event as CrosstermEvent};
+use crossterm::event::{Event as CrosstermEvent, poll, read};
 use crossterm::execute;
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
-use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
+use ratatui::backend::CrosstermBackend;
 use tokio::sync::mpsc;
 
-use crate::presentation::{View, ViewRouter};
+use crate::presentation::{SettingsTab, View, ViewRouter};
 
 #[derive(Debug)]
 pub struct AppState {
@@ -56,7 +56,8 @@ fn render(frame: &mut ratatui::Frame, app: &AppState) {
             crate::presentation::layouts::results::render(frame, frame.area(), total);
         }
         crate::presentation::View::Settings => {
-            crate::presentation::layouts::settings::render(frame, frame.area());
+            let tab = app.router.settings_tab();
+            crate::presentation::layouts::settings::render(frame, frame.area(), tab);
         }
     }
 }
@@ -70,6 +71,33 @@ fn handle_event(app: &mut AppState, event: Event) {
                 && app.router.active() == View::Welcome
             {
                 app.router.transition(View::Dashboard);
+            } else if app.router.active() == View::Settings {
+                match key.code {
+                    crossterm::event::KeyCode::Right | crossterm::event::KeyCode::Char('l') => {
+                        app.router.set_settings_tab(app.router.settings_tab().next());
+                    }
+                    crossterm::event::KeyCode::Left | crossterm::event::KeyCode::Char('h') => {
+                        app.router.set_settings_tab(app.router.settings_tab().prev());
+                    }
+                    crossterm::event::KeyCode::Char('1') => {
+                        app.router.set_settings_tab(SettingsTab::Agents);
+                    }
+                    crossterm::event::KeyCode::Char('2') => {
+                        app.router.set_settings_tab(SettingsTab::Tools);
+                    }
+                    crossterm::event::KeyCode::Char('3') => {
+                        app.router.set_settings_tab(SettingsTab::DataSources);
+                    }
+                    crossterm::event::KeyCode::Char('4') => {
+                        app.router.set_settings_tab(SettingsTab::Display);
+                    }
+                    crossterm::event::KeyCode::Char('5') => {
+                        app.router.set_settings_tab(SettingsTab::Advanced);
+                    }
+                    _ => {
+                        let _ = app.router.handle_key(key);
+                    }
+                }
             } else {
                 app.router.handle_key(key);
             }
