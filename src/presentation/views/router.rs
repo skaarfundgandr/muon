@@ -3,6 +3,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use super::View;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(usize)]
 pub enum SettingsTab {
     Agents,
     Tools,
