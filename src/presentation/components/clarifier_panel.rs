@@ -1,8 +1,8 @@
+use crate::presentation::theme::{ACCENT, BORDER, SUCCESS, TEXT_DIM, TEXT_MAIN};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use crate::presentation::theme::{ACCENT, BORDER, SUCCESS, TEXT_DIM, TEXT_MAIN};
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let block = Block::default()
@@ -25,7 +25,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
             Span::styled("  Plan approved", Style::new().fg(ACCENT)),
         ]),
         Line::from(""),
-        Line::from(Span::styled("Last clarification:", Style::new().fg(TEXT_DIM))),
+        Line::from(Span::styled(
+            "Last clarification:",
+            Style::new().fg(TEXT_DIM),
+        )),
         Line::from(vec![
             Span::styled("> ", Style::new().fg(ACCENT)),
             Span::styled("'Focus on Germany and Japan'", Style::new().fg(TEXT_MAIN)),
@@ -40,9 +43,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .borders(Borders::ALL)
         .border_style(Style::new().fg(BORDER));
 
-    let input_paragraph = Paragraph::new(Line::from(
-        Span::styled("[Type response to clarify...]", Style::new().fg(TEXT_DIM)),
-    ));
+    let input_paragraph = Paragraph::new(Line::from(Span::styled(
+        "[Type response to clarify...]",
+        Style::new().fg(TEXT_DIM),
+    )));
 
     let input_area = chunks[1];
     f.render_widget(input_block.clone(), input_area);

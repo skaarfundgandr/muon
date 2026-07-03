@@ -9,7 +9,7 @@ use crate::presentation::theme::{
 
 const HINT_LINES: &[(&str, &str)] = &[
     ("Enter", "to start a new research query"),
-    ("F4", "for settings"),
+    ("Tab", "to cycle views"),
     ("?", "for help"),
 ];
 

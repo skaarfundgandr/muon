@@ -67,10 +67,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let stats_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(BORDER))
-        .title(Span::styled(
-            " STATS ",
-            Style::new().fg(BORDER),
-        ));
+        .title(Span::styled(" STATS ", Style::new().fg(BORDER)));
     let stats_inner = stats_block.inner(chunks[2]);
     f.render_widget(stats_block, chunks[2]);
 
@@ -87,14 +84,20 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled("Sources Analyzed:    ", Style::new().fg(TEXT_DIM)),
-            Span::styled("47", Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "47",
+                Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
+            ),
         ])),
         stats_rows[0],
     );
     f.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled("Documents Deep-Read:  ", Style::new().fg(TEXT_DIM)),
-            Span::styled("12", Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "12",
+                Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
+            ),
         ])),
         stats_rows[1],
     );
