@@ -6,6 +6,7 @@ use ratatui::widgets::{Block, Paragraph};
 use crate::config::MuonConfig;
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
+use crate::presentation::components::settings::{advanced, agents, data_sources, display, tools};
 use crate::presentation::form::FormState;
 use crate::presentation::theme::{ACCENT, BG_MAIN, TEXT_DIM};
 use crate::presentation::views::{SettingsTab, View};
@@ -35,19 +36,19 @@ pub fn render(
 
     match tab {
         SettingsTab::Agents => {
-            settings_agents::render(f, chunks[2], &config.agents, _form);
+            agents::render(f, chunks[2], &config.agents, _form);
         }
         SettingsTab::Tools => {
-            settings_tools::render(f, chunks[2], &config.tools, _form);
+            tools::render(f, chunks[2], &config.tools, _form);
         }
         SettingsTab::DataSources => {
-            settings_data_sources::render(f, chunks[2], &config.data_sources, _form);
+            data_sources::render(f, chunks[2], &config.data_sources, _form);
         }
         SettingsTab::Display => {
-            settings_display::render(f, chunks[2], &config.display, _form);
+            display::render(f, chunks[2], &config.display, _form);
         }
         SettingsTab::Advanced => {
-            settings_advanced::render(f, chunks[2], &config.advanced, _form);
+            advanced::render(f, chunks[2], &config.advanced, _form);
         }
     }
 

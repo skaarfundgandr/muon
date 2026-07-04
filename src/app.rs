@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use crossterm::event::{Event as CrosstermEvent, poll, read};
+use crossterm::event::{poll, read, Event as CrosstermEvent};
 use crossterm::execute;
 use crossterm::terminal::{
-    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
 };
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
@@ -11,11 +11,11 @@ use tokio::sync::mpsc;
 
 use crate::application::pipeline::{PipelineStage, PipelineState};
 use crate::presentation::components::query_input::QueryInput;
-use crate::presentation::components::{settings_advanced, settings_agents, settings_data_sources, settings_display, settings_tools};
 use crate::presentation::form::{FieldKind, FormState};
 use crate::presentation::views::{SettingsTab, View, ViewRouter};
 use crate::session::SessionService;
 use crossterm::event::{KeyCode, KeyModifiers};
+use crate::presentation::components::settings::{advanced, agents, data_sources, display, tools};
 
 #[derive(Debug)]
 pub struct AppState {
@@ -101,11 +101,11 @@ fn handle_event(app: &mut AppState, event: Event) {
                 let tab = app.router.settings_tab();
                 let tab_idx = tab as usize;
                 let fields = match tab {
-                    SettingsTab::Agents => settings_agents::fields(),
-                    SettingsTab::Tools => settings_tools::fields(),
-                    SettingsTab::DataSources => settings_data_sources::fields(),
-                    SettingsTab::Display => settings_display::fields(),
-                    SettingsTab::Advanced => settings_advanced::fields(),
+                    SettingsTab::Agents => agents::fields(),
+                    SettingsTab::Tools => tools::fields(),
+                    SettingsTab::DataSources => data_sources::fields(),
+                    SettingsTab::Display => display::fields(),
+                    SettingsTab::Advanced => advanced::fields(),
                 };
                 let field_count = fields.len();
 
@@ -124,19 +124,19 @@ fn handle_event(app: &mut AppState, event: Event) {
                     {
                         match tab {
                             SettingsTab::Agents => {
-                                settings_agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
+                                agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
                             }
                             SettingsTab::Tools => {
-                                settings_tools::set_field(&mut app.config.tools, app.forms[tab_idx].focus, &val);
+                                tools::set_field(&mut app.config.tools, app.forms[tab_idx].focus, &val);
                             }
                             SettingsTab::DataSources => {
-                                settings_data_sources::set_field(&mut app.config.data_sources, app.forms[tab_idx].focus, &val);
+                                data_sources::set_field(&mut app.config.data_sources, app.forms[tab_idx].focus, &val);
                             }
                             SettingsTab::Display => {
-                                settings_display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
+                                display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
                             }
                             SettingsTab::Advanced => {
-                                settings_advanced::set_field(&mut app.config.advanced, app.forms[tab_idx].focus, &val);
+                                advanced::set_field(&mut app.config.advanced, app.forms[tab_idx].focus, &val);
                             }
                         }
                     }
@@ -159,19 +159,19 @@ fn handle_event(app: &mut AppState, event: Event) {
                             app.forms[tab_idx].dropdown_open = false;
                             match tab {
                                 SettingsTab::Agents => {
-                                    settings_agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
+                                    agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
                                 }
                                 SettingsTab::Tools => {
-                                    settings_tools::set_field(&mut app.config.tools, app.forms[tab_idx].focus, &val);
+                                    tools::set_field(&mut app.config.tools, app.forms[tab_idx].focus, &val);
                                 }
                                 SettingsTab::DataSources => {
-                                    settings_data_sources::set_field(&mut app.config.data_sources, app.forms[tab_idx].focus, &val);
+                                    data_sources::set_field(&mut app.config.data_sources, app.forms[tab_idx].focus, &val);
                                 }
                                 SettingsTab::Display => {
-                                    settings_display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
+                                    display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
                                 }
                                 SettingsTab::Advanced => {
-                                    settings_advanced::set_field(&mut app.config.advanced, app.forms[tab_idx].focus, &val);
+                                    advanced::set_field(&mut app.config.advanced, app.forms[tab_idx].focus, &val);
                                 }
                             }
                             app.forms[tab_idx].dirty = true;
@@ -234,11 +234,11 @@ fn handle_event(app: &mut AppState, event: Event) {
                                 match fields[focused].kind {
                                     FieldKind::Text | FieldKind::Number => {
                                         let val = match tab {
-                                            SettingsTab::Agents => settings_agents::get_field(&app.config.agents, focused),
-                                            SettingsTab::Tools => settings_tools::get_field(&app.config.tools, focused),
-                                            SettingsTab::DataSources => settings_data_sources::get_field(&app.config.data_sources, focused),
-                                            SettingsTab::Display => settings_display::get_field(&app.config.display, focused),
-                                            SettingsTab::Advanced => settings_advanced::get_field(&app.config.advanced, focused),
+                                            SettingsTab::Agents => agents::get_field(&app.config.agents, focused),
+                                            SettingsTab::Tools => tools::get_field(&app.config.tools, focused),
+                                            SettingsTab::DataSources => data_sources::get_field(&app.config.data_sources, focused),
+                                            SettingsTab::Display => display::get_field(&app.config.display, focused),
+                                            SettingsTab::Advanced => advanced::get_field(&app.config.advanced, focused),
                                         };
                                         app.forms[tab_idx].begin_edit(&val);
                                     }
@@ -248,19 +248,19 @@ fn handle_event(app: &mut AppState, event: Event) {
                                     FieldKind::Checkbox => {
                                         match tab {
                                             SettingsTab::Agents => {
-                                                settings_agents::toggle_field(&mut app.config.agents, focused);
+                                                agents::toggle_field(&mut app.config.agents, focused);
                                             }
                                             SettingsTab::Tools => {
-                                                settings_tools::toggle_field(&mut app.config.tools, focused);
+                                                tools::toggle_field(&mut app.config.tools, focused);
                                             }
                                             SettingsTab::DataSources => {
-                                                settings_data_sources::toggle_field(&mut app.config.data_sources, focused);
+                                                data_sources::toggle_field(&mut app.config.data_sources, focused);
                                             }
                                             SettingsTab::Display => {
-                                                settings_display::toggle_field(&mut app.config.display, focused);
+                                                display::toggle_field(&mut app.config.display, focused);
                                             }
                                             SettingsTab::Advanced => {
-                                                settings_advanced::toggle_field(&mut app.config.advanced, focused);
+                                                advanced::toggle_field(&mut app.config.advanced, focused);
                                             }
                                         }
                                         app.forms[tab_idx].dirty = true;
