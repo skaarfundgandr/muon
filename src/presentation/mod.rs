@@ -1,3 +1,4 @@
+pub mod click;
 pub mod components;
 pub mod form;
 pub mod handlers;
