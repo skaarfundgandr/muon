@@ -1,4 +1,13 @@
 use crossterm::event::KeyCode;
+use ratatui::layout::Rect;
+
+use crate::application::pipeline::PipelineState;
+use crate::config::MuonConfig;
+use crate::presentation::components::query_input::QueryInput;
+use crate::presentation::form::FormState;
+use crate::session::SessionSummary;
+
+use super::SettingsTab;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
@@ -7,6 +16,16 @@ pub enum View {
     Progress,
     Results,
     Settings,
+}
+
+/// Data needed by View::render(). Constructed once per frame in app.rs.
+pub struct RenderParams<'a> {
+    pub query_input: &'a QueryInput,
+    pub sessions: &'a [SessionSummary],
+    pub pipeline: &'a PipelineState,
+    pub config: &'a MuonConfig,
+    pub forms: &'a [FormState; 5],
+    pub settings_tab: SettingsTab,
 }
 
 impl View {
@@ -37,6 +56,39 @@ impl View {
             View::Progress => View::Results,
             View::Results => View::Settings,
             View::Settings => View::Dashboard,
+        }
+    }
+
+    /// Dispatch rendering to the appropriate layout.
+    pub fn render(
+        self,
+        f: &mut ratatui::Frame,
+        area: Rect,
+        params: &RenderParams,
+    ) {
+        match self {
+            View::Welcome => {
+                crate::presentation::layouts::welcome::render(f, area);
+            }
+            View::Dashboard => {
+                crate::presentation::layouts::dashboard::render(
+                    f,
+                    area,
+                    params.query_input,
+                    params.sessions,
+                );
+            }
+            View::Progress => {
+                crate::presentation::layouts::progress::render(f, area, params.pipeline);
+            }
+            View::Results => {
+                crate::presentation::layouts::results::render(f, area, params.pipeline);
+            }
+            View::Settings => {
+                let tab = params.settings_tab;
+                let form = &params.forms[tab as usize];
+                crate::presentation::layouts::settings::render(f, area, tab, params.config, form);
+            }
         }
     }
 }

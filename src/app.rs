@@ -12,7 +12,7 @@ use tokio::sync::mpsc;
 use crate::application::pipeline::{PipelineStage, PipelineState};
 use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::form::FormState;
-use crate::presentation::views::{View, ViewRouter};
+use crate::presentation::views::{RenderParams, View, ViewRouter};
 use crate::session::SessionService;
 
 #[derive(Debug)]
@@ -49,45 +49,15 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>) 
 }
 
 fn render(frame: &mut ratatui::Frame, app: &AppState) {
-    match app.router.active() {
-        crate::presentation::View::Welcome => {
-            crate::presentation::layouts::welcome::render(frame, frame.area());
-        }
-        crate::presentation::View::Dashboard => {
-            crate::presentation::layouts::dashboard::render(
-                frame,
-                frame.area(),
-                &app.query_input,
-                app.sessions.list(),
-            );
-        }
-        crate::presentation::View::Progress => {
-            crate::presentation::layouts::progress::render(
-                frame,
-                frame.area(),
-                &app.pipeline,
-            );
-        }
-        crate::presentation::View::Results => {
-            crate::presentation::layouts::results::render(
-                frame,
-                frame.area(),
-                &app.pipeline,
-            );
-        }
-        crate::presentation::View::Settings => {
-            let tab = app.router.settings_tab();
-            let tab_idx = tab as usize;
-            let form = &app.forms[tab_idx];
-            crate::presentation::layouts::settings::render(
-                frame,
-                frame.area(),
-                tab,
-                &app.config,
-                form,
-            );
-        }
-    }
+    let view = app.router.active();
+    view.render(frame, frame.area(), &RenderParams {
+        query_input: &app.query_input,
+        sessions: app.sessions.list(),
+        pipeline: &app.pipeline,
+        config: &app.config,
+        forms: &app.forms,
+        settings_tab: app.router.settings_tab(),
+    });
 }
 
 fn handle_event(app: &mut AppState, event: Event) {
