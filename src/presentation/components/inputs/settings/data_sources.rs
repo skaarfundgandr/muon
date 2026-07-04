@@ -201,17 +201,24 @@ fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState) 
         .split(area);
 
     let path_prefix = if is_focused(form, 4) { "> " } else { "  " };
-    let path_label_style = if is_focused(form, 4) {
+    let path_value: String = if is_focused(form, 4) && form.is_editing() {
+        if let Some(buf) = &form.edit_buffer {
+            let cur = form.edit_cursor.min(buf.len());
+            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+        } else {
+            String::new()
+        }
+    } else {
+        "~/documents/research/".to_string()
+    };
+    let path_value_style = if is_focused(form, 4) {
         Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(TEXT_MAIN)
     };
     let path_line = Line::from(vec![
         Span::styled(path_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-        Span::styled(
-            "~/documents/research/                  ",
-            path_label_style,
-        ),
+        Span::styled(path_value, path_value_style),
     ]);
     f.render_widget(Paragraph::new(path_line), form_cols[0]);
 

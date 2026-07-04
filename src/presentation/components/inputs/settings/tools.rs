@@ -275,9 +275,24 @@ fn render_search_providers(
     } else {
         Style::new().fg(TEXT_DIM)
     };
+    let url_value: String = if is_focused(form, 4) && form.is_editing() {
+        if let Some(buf) = &form.edit_buffer {
+            let cur = form.edit_cursor.min(buf.len());
+            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+        } else {
+            String::new()
+        }
+    } else {
+        config.searxng_url.clone()
+    };
+    let url_value_style = if is_focused(form, 4) {
+        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(CYAN)
+    };
     let url_line = Line::from(vec![
         Span::styled(format!("{:<18}", "Instance URL"), url_label_style),
-        Span::styled(&config.searxng_url, Style::new().fg(CYAN)),
+        Span::styled(url_value, url_value_style),
     ]);
     f.render_widget(Paragraph::new(url_line), searx_rows[0]);
 

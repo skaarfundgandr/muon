@@ -177,8 +177,22 @@ fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> 
     }
 }
 
-fn input_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> {
-    if focused {
+fn input_line<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, cursor: usize, buffer: Option<&'a str>) -> Line<'a> {
+    if editing {
+        let buf = buffer.unwrap_or("");
+        let cur = cursor.min(buf.len());
+        let pre = &buf[..cur];
+        let post = &buf[cur..];
+        Line::from(vec![
+            Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:<14}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled("[", Style::new().fg(BORDER_FOCUS)),
+            Span::styled(pre.to_string(), Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled("\u{258E}", Style::new().fg(BORDER_FOCUS)),
+            Span::styled(post.to_string(), Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+        ])
+    } else if focused {
         Line::from(vec![
             Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{:<14}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
@@ -224,7 +238,7 @@ fn render_intent_classifier(
     let lines: Vec<Line> = vec![
         dropdown_line("Model", &cfg.model, is_focused(form, 0)),
         dropdown_line("Provider", &cfg.provider, is_focused(form, 1)),
-        input_line("Timeout (sec)", &timeout_str, is_focused(form, 2)),
+        input_line("Timeout (sec)", &timeout_str, is_focused(form, 2), is_focused(form, 2) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
         checkbox_line("Verbose Output ", cfg.verbose, is_focused(form, 3)),
     ];
 
@@ -246,9 +260,9 @@ fn render_clarifier(
     let lines: Vec<Line> = vec![
         dropdown_line("Model", &cfg.model, is_focused(form, 4)),
         dropdown_line("Provider", &cfg.provider, is_focused(form, 5)),
-        input_line("Max turns", &max_turns_str, is_focused(form, 6)),
+        input_line("Max turns", &max_turns_str, is_focused(form, 6), is_focused(form, 6) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
         checkbox_line("Plan approval  ", cfg.plan_approval, is_focused(form, 7)),
-        input_line("Max iterations", &max_iters_str, is_focused(form, 8)),
+        input_line("Max iterations", &max_iters_str, is_focused(form, 8), is_focused(form, 8) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
     ];
 
     f.render_widget(
@@ -269,8 +283,8 @@ fn render_shallow_researcher(
     let lines: Vec<Line> = vec![
         dropdown_line("Model", &cfg.model, is_focused(form, 9)),
         dropdown_line("Provider", &cfg.provider, is_focused(form, 10)),
-        input_line("Max LLM turns", &llm_turns_str, is_focused(form, 11)),
-        input_line("Max tool iters", &tool_iters_str, is_focused(form, 12)),
+        input_line("Max LLM turns", &llm_turns_str, is_focused(form, 11), is_focused(form, 11) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        input_line("Max tool iters", &tool_iters_str, is_focused(form, 12), is_focused(form, 12) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
     ];
 
     f.render_widget(
@@ -369,7 +383,7 @@ fn render_deep_researcher(
 
     // Iterations (19)
     let iter_str = cfg.iterations.to_string();
-    let iter_line = input_line("Iterations", &iter_str, is_focused(form, 19));
+    let iter_line = input_line("Iterations", &iter_str, is_focused(form, 19), is_focused(form, 19) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref());
     f.render_widget(Paragraph::new(iter_line), grid[4]);
 
     // Citation Verify (20)

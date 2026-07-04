@@ -131,8 +131,22 @@ fn section_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
         ))
 }
 
-fn numeric_row<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> {
-    if focused {
+fn numeric_row<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, cursor: usize, buffer: Option<&'a str>) -> Line<'a> {
+    if editing {
+        let buf = buffer.unwrap_or("");
+        let cur = cursor.min(buf.len());
+        let pre = &buf[..cur];
+        let post = &buf[cur..];
+        Line::from(vec![
+            Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled("[", Style::new().fg(BORDER_FOCUS)),
+            Span::styled(pre.to_string(), Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled("\u{258E}", Style::new().fg(BORDER_FOCUS)),
+            Span::styled(post.to_string(), Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
+            Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+        ])
+    } else if focused {
         Line::from(vec![
             Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{:<24}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
@@ -211,11 +225,11 @@ fn render_pipeline_knobs(
     let s5 = config.max_deep_turns.to_string();
 
     let lines: Vec<Line> = vec![
-        numeric_row("Max Researcher Loops", &s1, is_focused(form, 0)),
-        numeric_row("Max Clarifier Turns", &s2, is_focused(form, 1)),
-        numeric_row("Max Plan Iterations", &s3, is_focused(form, 2)),
-        numeric_row("Max Shallow Turns", &s4, is_focused(form, 3)),
-        numeric_row("Max Deep Turns", &s5, is_focused(form, 4)),
+        numeric_row("Max Researcher Loops", &s1, is_focused(form, 0), is_focused(form, 0) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        numeric_row("Max Clarifier Turns", &s2, is_focused(form, 1), is_focused(form, 1) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        numeric_row("Max Plan Iterations", &s3, is_focused(form, 2), is_focused(form, 2) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        numeric_row("Max Shallow Turns", &s4, is_focused(form, 3), is_focused(form, 3) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        numeric_row("Max Deep Turns", &s5, is_focused(form, 4), is_focused(form, 4) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
         checkbox_row(
             "Escalate Agent",
             "Enable Shallow -> Deep escalation",
@@ -261,7 +275,7 @@ fn render_compaction(
 
     let threshold_str = config.compaction_threshold.to_string();
     let ratio_lines: Vec<Line> = vec![
-        numeric_row("Compaction Threshold", &threshold_str, is_focused(form, 7)),
+        numeric_row("Compaction Threshold", &threshold_str, is_focused(form, 7), is_focused(form, 7) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
         Line::from(Span::styled(
             "0.0-1.0: context fill ratio that triggers message summary/compaction",
             Style::new().fg(TEXT_DIM),
@@ -280,12 +294,25 @@ fn render_compaction(
     let preamble_inner = preamble_block.inner(chunks[1]);
     f.render_widget(preamble_block, chunks[1]);
 
-    let preamble_style = if is_focused(form, 8) {
+    let preamble_editing = is_focused(form, 8) && form.is_editing();
+    let preamble_text: String = if let Some(buf) = &form.edit_buffer {
+        if preamble_editing {
+            let cur = form.edit_cursor.min(buf.len());
+            format!("{}{}{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..], "\n", "Default system prompt injected for all agent instances.")
+        } else {
+            buf.clone()
+        }
+    } else {
+        config.agent_preamble.clone()
+    };
+    let preamble_style = if preamble_editing {
+        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+    } else if is_focused(form, 8) {
         Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(TEXT_MAIN)
     };
-    let preamble = Paragraph::new(config.agent_preamble.as_str())
+    let preamble = Paragraph::new(preamble_text)
         .style(preamble_style)
         .wrap(Wrap { trim: false });
     f.render_widget(preamble, preamble_inner);
@@ -326,11 +353,26 @@ fn render_storage(
     } else {
         Style::new().fg(TEXT_MAIN)
     };
+    let path1_value: String = if is_focused(form, 9) && form.is_editing() {
+        if let Some(buf) = &form.edit_buffer {
+            let cur = form.edit_cursor.min(buf.len());
+            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+        } else {
+            String::new()
+        }
+    } else {
+        config.session_db_path.clone()
+    };
+    let path1_value_style = if is_focused(form, 9) {
+        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(CYAN)
+    };
     f.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled(path1_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{:<16}", "Session DB Path"), path1_label_style),
-            Span::styled(&config.session_db_path, if is_focused(form, 9) { Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD) } else { Style::new().fg(CYAN) }),
+            Span::styled(path1_value, path1_value_style),
             Span::styled("  ", Style::new().fg(TEXT_DIM)),
             Span::styled("[Browse]", Style::new().fg(ACCENT)),
         ])),
@@ -343,11 +385,26 @@ fn render_storage(
     } else {
         Style::new().fg(TEXT_MAIN)
     };
+    let path2_value: String = if is_focused(form, 10) && form.is_editing() {
+        if let Some(buf) = &form.edit_buffer {
+            let cur = form.edit_cursor.min(buf.len());
+            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+        } else {
+            String::new()
+        }
+    } else {
+        config.rag_db_path.clone()
+    };
+    let path2_value_style = if is_focused(form, 10) {
+        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(CYAN)
+    };
     f.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled(path2_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{:<16}", "RAG DB Path"), path2_label_style),
-            Span::styled(&config.rag_db_path, if is_focused(form, 10) { Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD) } else { Style::new().fg(CYAN) }),
+            Span::styled(path2_value, path2_value_style),
             Span::styled("  ", Style::new().fg(TEXT_DIM)),
             Span::styled("[Browse]", Style::new().fg(ACCENT)),
         ])),
@@ -356,7 +413,7 @@ fn render_storage(
 
     let max_search_str = config.max_search_items.to_string();
     f.render_widget(
-        Paragraph::new(numeric_row("Max search items", &max_search_str, is_focused(form, 11))),
+        Paragraph::new(numeric_row("Max search items", &max_search_str, is_focused(form, 11), is_focused(form, 11) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref())),
         chunks[2],
     );
 
@@ -399,11 +456,11 @@ fn render_embedding(
     let rag_top_k_str = config.rag_top_k.to_string();
     let sim_thresh_str = config.similarity_threshold.to_string();
     f.render_widget(
-        Paragraph::new(numeric_row("RAG Top-K", &rag_top_k_str, is_focused(form, 13))),
+        Paragraph::new(numeric_row("RAG Top-K", &rag_top_k_str, is_focused(form, 13), is_focused(form, 13) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref())),
         chunks[1],
     );
     f.render_widget(
-        Paragraph::new(numeric_row("Similarity Threshold", &sim_thresh_str, is_focused(form, 14))),
+        Paragraph::new(numeric_row("Similarity Threshold", &sim_thresh_str, is_focused(form, 14), is_focused(form, 14) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref())),
         chunks[2],
     );
     f.render_widget(
