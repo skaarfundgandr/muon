@@ -5,6 +5,7 @@ pub const BG_DARK: Color = Color::Rgb(0x16, 0x16, 0x1e);
 pub const BG_HIGHLIGHT: Color = Color::Rgb(0x24, 0x28, 0x3b);
 pub const BORDER: Color = Color::Rgb(0x41, 0x48, 0x68);
 pub const BORDER_FOCUS: Color = Color::Rgb(0x7a, 0xa2, 0xf7);
+pub const BORDER_HOVER: Color = Color::Rgb(0x56, 0x5f, 0x89);
 pub const TEXT_MAIN: Color = Color::Rgb(0xc0, 0xca, 0xf5);
 pub const TEXT_DIM: Color = Color::Rgb(0x56, 0x5f, 0x89);
 pub const TEXT_DARK: Color = Color::Rgb(0x34, 0x3b, 0x58);
@@ -23,6 +24,8 @@ pub const HEADER_STYLE: Style = Style::new()
 pub const BORDER_STYLE: Style = Style::new().fg(BORDER);
 
 pub const BORDER_FOCUS_STYLE: Style = Style::new().fg(BORDER_FOCUS);
+
+pub const BORDER_HOVER_STYLE: Style = Style::new().fg(BORDER_HOVER);
 
 pub const ACTIVE_STYLE: Style = Style::new().fg(ACCENT).add_modifier(Modifier::BOLD);
 
@@ -43,6 +46,7 @@ pub struct Theme {
     pub bg_highlight: Color,
     pub border: Color,
     pub border_focus: Color,
+    pub border_hover: Color,
     pub text_main: Color,
     pub text_dim: Color,
     pub text_dark: Color,
@@ -62,6 +66,7 @@ impl Theme {
             bg_highlight: BG_HIGHLIGHT,
             border: BORDER,
             border_focus: BORDER_FOCUS,
+            border_hover: BORDER_HOVER,
             text_main: TEXT_MAIN,
             text_dim: TEXT_DIM,
             text_dark: TEXT_DARK,
