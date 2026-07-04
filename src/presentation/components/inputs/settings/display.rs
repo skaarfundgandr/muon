@@ -1,4 +1,5 @@
 use crate::config::DisplayConfig;
+use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme::{BORDER, BORDER_FOCUS, CYAN, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -35,13 +36,13 @@ fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    render_left(f, grid[0], config, form);
+    render_left(f, grid[0], config, form, hit_registry);
     render_right(f, grid[1]);
 }
 
@@ -89,6 +90,7 @@ fn render_left(
     area: Rect,
     config: &DisplayConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let block = section_block("TERMINAL DISPLAY SETTINGS");
     let inner = block.inner(area);
@@ -103,6 +105,15 @@ fn render_left(
             Constraint::Min(0),
         ])
         .split(inner);
+
+    hit_registry.push(ClickTarget {
+        rect: chunks[0],
+        action: ClickAction::ActivateField(0),
+    });
+    hit_registry.push(ClickTarget {
+        rect: chunks[1],
+        action: ClickAction::ActivateField(1),
+    });
 
     f.render_widget(
         dropdown_line("Visual Theme", &config.visual_theme, is_focused(form, 0)),

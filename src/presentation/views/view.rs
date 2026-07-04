@@ -3,6 +3,7 @@ use ratatui::layout::Rect;
 
 use crate::application::pipeline::PipelineState;
 use crate::config::MuonConfig;
+use crate::presentation::click::ClickTarget;
 use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::form::FormState;
 use crate::session::SessionSummary;
@@ -26,6 +27,7 @@ pub struct RenderParams<'a> {
     pub config: &'a MuonConfig,
     pub forms: &'a [FormState; 5],
     pub settings_tab: SettingsTab,
+    pub hit_registry: &'a mut Vec<ClickTarget>,
 }
 
 impl View {
@@ -64,7 +66,7 @@ impl View {
         self,
         f: &mut ratatui::Frame,
         area: Rect,
-        params: &RenderParams,
+        params: &mut RenderParams,
     ) {
         match self {
             View::Welcome => {
@@ -76,18 +78,19 @@ impl View {
                     area,
                     params.query_input,
                     params.sessions,
+                    params.hit_registry,
                 );
             }
             View::Progress => {
-                crate::presentation::layouts::progress::render(f, area, params.pipeline);
+                crate::presentation::layouts::progress::render(f, area, params.pipeline, params.hit_registry);
             }
             View::Results => {
-                crate::presentation::layouts::results::render(f, area, params.pipeline);
+                crate::presentation::layouts::results::render(f, area, params.pipeline, params.hit_registry);
             }
             View::Settings => {
                 let tab = params.settings_tab;
                 let form = &params.forms[tab as usize];
-                crate::presentation::layouts::settings::render(f, area, tab, params.config, form);
+                crate::presentation::layouts::settings::render(f, area, tab, params.config, form, params.hit_registry);
             }
         }
     }

@@ -1,4 +1,5 @@
 use crate::config::{AgentsConfig, DeepResearcherConfig};
+use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme::{ACCENT, BORDER, BORDER_FOCUS, PURPLE, SUCCESS, TEXT_DIM};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -118,7 +119,7 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
 }
 
 #[allow(clippy::vec_init_then_push)]
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AgentsConfig, form: &FormState) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AgentsConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0)])
@@ -139,10 +140,27 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AgentsConfig, form: &
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(grid[1]);
 
-    render_intent_classifier(f, left_chunks[0], &config.intent_classifier, form);
-    render_clarifier(f, left_chunks[1], &config.clarifier, form);
-    render_shallow_researcher(f, right_chunks[0], &config.shallow_researcher, form);
-    render_deep_researcher(f, right_chunks[1], &config.deep_researcher, form);
+    hit_registry.push(ClickTarget {
+        rect: left_chunks[0],
+        action: ClickAction::FocusField(0),
+    });
+    hit_registry.push(ClickTarget {
+        rect: left_chunks[1],
+        action: ClickAction::FocusField(4),
+    });
+    hit_registry.push(ClickTarget {
+        rect: right_chunks[0],
+        action: ClickAction::FocusField(9),
+    });
+    hit_registry.push(ClickTarget {
+        rect: right_chunks[1],
+        action: ClickAction::FocusField(13),
+    });
+
+    render_intent_classifier(f, left_chunks[0], &config.intent_classifier, form, hit_registry);
+    render_clarifier(f, left_chunks[1], &config.clarifier, form, hit_registry);
+    render_shallow_researcher(f, right_chunks[0], &config.shallow_researcher, form, hit_registry);
+    render_deep_researcher(f, right_chunks[1], &config.deep_researcher, form, hit_registry);
 }
 
 fn agent_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
@@ -232,9 +250,30 @@ fn render_intent_classifier(
     area: Rect,
     cfg: &crate::config::AgentEntryConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 0, 3);
     let timeout_str = cfg.timeout_sec.to_string();
+    let inner = agent_block("INTENT CLASSIFIER", focused).inner(area);
+    f.render_widget(agent_block("INTENT CLASSIFIER", focused), area);
+
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ])
+        .split(inner);
+
+    for (i, row_rect) in rows.iter().enumerate() {
+        hit_registry.push(ClickTarget {
+            rect: *row_rect,
+            action: ClickAction::ActivateField(i),
+        });
+    }
+
     let lines: Vec<Line> = vec![
         dropdown_line("Model", &cfg.model, is_focused(form, 0)),
         dropdown_line("Provider", &cfg.provider, is_focused(form, 1)),
@@ -242,10 +281,7 @@ fn render_intent_classifier(
         checkbox_line("Verbose Output ", cfg.verbose, is_focused(form, 3)),
     ];
 
-    f.render_widget(
-        Paragraph::new(lines).block(agent_block("INTENT CLASSIFIER", focused)),
-        area,
-    );
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 fn render_clarifier(
@@ -253,10 +289,32 @@ fn render_clarifier(
     area: Rect,
     cfg: &crate::config::ClarifierConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 4, 8);
     let max_turns_str = cfg.max_turns.to_string();
     let max_iters_str = cfg.max_iterations.to_string();
+    let inner = agent_block("CLARIFIER (HITL)", focused).inner(area);
+    f.render_widget(agent_block("CLARIFIER (HITL)", focused), area);
+
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ])
+        .split(inner);
+
+    for (i, row_rect) in rows.iter().enumerate() {
+        hit_registry.push(ClickTarget {
+            rect: *row_rect,
+            action: ClickAction::ActivateField(4 + i),
+        });
+    }
+
     let lines: Vec<Line> = vec![
         dropdown_line("Model", &cfg.model, is_focused(form, 4)),
         dropdown_line("Provider", &cfg.provider, is_focused(form, 5)),
@@ -265,10 +323,7 @@ fn render_clarifier(
         input_line("Max iterations", &max_iters_str, is_focused(form, 8), is_focused(form, 8) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
     ];
 
-    f.render_widget(
-        Paragraph::new(lines).block(agent_block("CLARIFIER (HITL)", focused)),
-        area,
-    );
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 fn render_shallow_researcher(
@@ -276,10 +331,31 @@ fn render_shallow_researcher(
     area: Rect,
     cfg: &crate::config::ShallowResearcherConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 9, 12);
     let llm_turns_str = cfg.max_llm_turns.to_string();
     let tool_iters_str = cfg.max_tool_iters.to_string();
+    let inner = agent_block("SHALLOW RESEARCHER", focused).inner(area);
+    f.render_widget(agent_block("SHALLOW RESEARCHER", focused), area);
+
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ])
+        .split(inner);
+
+    for (i, row_rect) in rows.iter().enumerate() {
+        hit_registry.push(ClickTarget {
+            rect: *row_rect,
+            action: ClickAction::ActivateField(9 + i),
+        });
+    }
+
     let lines: Vec<Line> = vec![
         dropdown_line("Model", &cfg.model, is_focused(form, 9)),
         dropdown_line("Provider", &cfg.provider, is_focused(form, 10)),
@@ -287,10 +363,7 @@ fn render_shallow_researcher(
         input_line("Max tool iters", &tool_iters_str, is_focused(form, 12), is_focused(form, 12) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
     ];
 
-    f.render_widget(
-        Paragraph::new(lines).block(agent_block("SHALLOW RESEARCHER", focused)),
-        area,
-    );
+    f.render_widget(Paragraph::new(lines), inner);
 }
 
 fn render_deep_researcher(
@@ -298,6 +371,7 @@ fn render_deep_researcher(
     area: Rect,
     cfg: &DeepResearcherConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 13, 20);
     let block = agent_block("DEEP RESEARCHER", focused);
@@ -314,6 +388,16 @@ fn render_deep_researcher(
             Constraint::Length(1),
         ])
         .split(inner);
+
+    let field_map: [Option<usize>; 6] = [None, Some(13), Some(15), Some(17), Some(19), Some(20)];
+    for (i, row_rect) in grid.iter().enumerate() {
+        if let Some(field_idx) = field_map[i] {
+            hit_registry.push(ClickTarget {
+                rect: *row_rect,
+                action: ClickAction::ActivateField(field_idx),
+            });
+        }
+    }
 
     let title = Line::from(Span::styled(
         "4. DEEP RESEARCHER",

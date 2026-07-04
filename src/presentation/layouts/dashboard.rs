@@ -2,6 +2,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::Block;
 
+use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
 use crate::presentation::theme::BG_MAIN;
@@ -14,6 +15,7 @@ pub fn render(
     area: Rect,
     query: &QueryInput,
     sessions: &[SessionSummary],
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
 
@@ -31,7 +33,7 @@ pub fn render(
     let footer_area = vertical[2];
 
     header::render(f, header_area, HeaderConfig::for_view(View::Dashboard, 0));
-    footer::render(f, footer_area, View::Dashboard);
+    footer::render(f, footer_area, View::Dashboard, hit_registry);
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
@@ -58,6 +60,10 @@ pub fn render(
         ])
         .split(main_area);
 
+    hit_registry.push(ClickTarget {
+        rect: main_split[0],
+        action: ClickAction::ActivateQueryInput,
+    });
     query_input::render(f, main_split[0], query);
     pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render));
     source_registry::render(f, main_split[2]);

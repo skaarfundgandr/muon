@@ -1,4 +1,5 @@
 use crate::config::DataSourcesConfig;
+use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme::{
     ACCENT, BORDER, BORDER_FOCUS, CYAN, ERROR, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING,
@@ -60,14 +61,15 @@ pub fn render(
     area: Rect,
     config: &DataSourcesConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    render_source_providers(f, grid[0], config, form);
-    render_rag_indexes(f, grid[1], form);
+    render_source_providers(f, grid[0], config, form, hit_registry);
+    render_rag_indexes(f, grid[1], form, hit_registry);
 }
 
 fn section_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
@@ -89,6 +91,7 @@ fn render_source_providers(
     area: Rect,
     config: &DataSourcesConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let block = section_block(
         "SOURCE PROVIDERS",
@@ -96,6 +99,11 @@ fn render_source_providers(
     );
     let inner = block.inner(area);
     f.render_widget(block, area);
+
+    hit_registry.push(ClickTarget {
+        rect: area,
+        action: ClickAction::FocusField(0),
+    });
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -106,6 +114,13 @@ fn render_source_providers(
             Constraint::Length(2),
         ])
         .split(inner);
+
+    for (i, row_rect) in rows.iter().enumerate() {
+        hit_registry.push(ClickTarget {
+            rect: *row_rect,
+            action: ClickAction::ActivateField(i),
+        });
+    }
 
     let cards: &[(&str, &str, bool)] = &[
         (
@@ -172,7 +187,7 @@ fn render_source_providers(
 }
 
 #[allow(clippy::vec_init_then_push)]
-fn render_rag_indexes(f: &mut ratatui::Frame, area: Rect, form: &FormState) {
+fn render_rag_indexes(f: &mut ratatui::Frame, area: Rect, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
     let block = section_block(
         "KNOWLEDGE LAYER / RAG INDEXES",
         is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6),
@@ -180,17 +195,22 @@ fn render_rag_indexes(f: &mut ratatui::Frame, area: Rect, form: &FormState) {
     let inner = block.inner(area);
     f.render_widget(block, area);
 
+    hit_registry.push(ClickTarget {
+        rect: area,
+        action: ClickAction::FocusField(4),
+    });
+
     let sections = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
         .split(inner);
 
-    render_add_source_form(f, sections[0], form);
+    render_add_source_form(f, sections[0], form, hit_registry);
     render_source_table(f, sections[1]);
 }
 
 #[allow(clippy::vec_init_then_push)]
-fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState) {
+fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
     let form_cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -199,6 +219,19 @@ fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState) 
             Constraint::Percentage(15),
         ])
         .split(area);
+
+    hit_registry.push(ClickTarget {
+        rect: form_cols[0],
+        action: ClickAction::ActivateField(4),
+    });
+    hit_registry.push(ClickTarget {
+        rect: form_cols[1],
+        action: ClickAction::ActivateField(5),
+    });
+    hit_registry.push(ClickTarget {
+        rect: form_cols[2],
+        action: ClickAction::ActivateField(6),
+    });
 
     let path_prefix = if is_focused(form, 4) { "> " } else { "  " };
     let path_value: String = if is_focused(form, 4) && form.is_editing() {

@@ -2,6 +2,7 @@ use ratatui::layout::{Alignment, Constraint, Direction, Layout, Margin, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
+use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::theme::{ACTIVE_STYLE, DIM_STYLE, HEADER_STYLE};
 use crate::presentation::views::View;
 
@@ -66,7 +67,7 @@ impl FooterConfig {
     }
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, active: View) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, active: View, hit_registry: &mut Vec<ClickTarget>) {
     let block = Block::default().style(HEADER_STYLE);
     f.render_widget(block, area);
 
@@ -89,16 +90,34 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, active: View) {
         }
     }
 
+    let tabs_rect = Rect {
+        x: chunks[0].x,
+        y: chunks[0].y,
+        width: chunks[0].width,
+        height: 1,
+    };
     let tabs_line = Line::from(spans);
-    f.render_widget(
-        Paragraph::new(tabs_line),
-        Rect {
-            x: chunks[0].x,
-            y: chunks[0].y,
-            width: chunks[0].width,
-            height: 1,
-        },
-    );
+    f.render_widget(Paragraph::new(tabs_line), tabs_rect);
+
+    let mut cursor: u16 = tabs_rect.x;
+    let _ = cursor;
+    for (_i, (_key, _label, view)) in config.tabs.iter().enumerate() {
+        if let Some(v) = view {
+            let key_w = _key.chars().count() as u16;
+            let label_w = _label.chars().count() as u16;
+            let seg_w = key_w + label_w + 2;
+            let seg_rect = Rect::new(cursor, tabs_rect.y, seg_w, 1);
+            hit_registry.push(ClickTarget {
+                rect: seg_rect,
+                action: ClickAction::SwitchView(*v),
+            });
+            cursor = cursor.saturating_add(seg_w + 3);
+        } else {
+            let key_w = _key.chars().count() as u16;
+            let label_w = _label.chars().count() as u16;
+            cursor = cursor.saturating_add(key_w + label_w + 3);
+        }
+    }
 
     let mut right_spans: Vec<Span> = Vec::new();
     for (i, (key, label)) in config.right_hint.iter().enumerate() {

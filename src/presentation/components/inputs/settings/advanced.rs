@@ -1,4 +1,5 @@
 use crate::config::AdvancedConfig;
+use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme::{ACCENT, BORDER, BORDER_FOCUS, CYAN, ERROR, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -96,7 +97,7 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
     (start..=end).any(|i| is_focused(form, i))
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form: &FormState) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -112,10 +113,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form:
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(rows[1]);
 
-    render_pipeline_knobs(f, top_cols[0], config, form);
-    render_compaction(f, top_cols[1], config, form);
-    render_storage(f, bot_cols[0], config, form);
-    render_embedding(f, bot_cols[1], config, form);
+    render_pipeline_knobs(f, top_cols[0], config, form, hit_registry);
+    render_compaction(f, top_cols[1], config, form, hit_registry);
+    render_storage(f, bot_cols[0], config, form, hit_registry);
+    render_embedding(f, bot_cols[1], config, form, hit_registry);
 }
 
 fn section_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
@@ -212,11 +213,17 @@ fn render_pipeline_knobs(
     area: Rect,
     config: &AdvancedConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 0, 6);
     let block = section_block("PIPELINE KNOB SETTINGS", focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
+
+    hit_registry.push(ClickTarget {
+        rect: area,
+        action: ClickAction::FocusField(0),
+    });
 
     let s1 = config.max_researcher_loops.to_string();
     let s2 = config.max_clarifier_turns.to_string();
@@ -252,11 +259,17 @@ fn render_compaction(
     area: Rect,
     config: &AdvancedConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 7, 8);
     let block = section_block("COMPACTION & PREAMBLE", focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
+
+    hit_registry.push(ClickTarget {
+        rect: area,
+        action: ClickAction::FocusField(7),
+    });
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -266,6 +279,15 @@ fn render_compaction(
             Constraint::Length(1),
         ])
         .split(inner);
+
+    hit_registry.push(ClickTarget {
+        rect: chunks[0],
+        action: ClickAction::ActivateField(7),
+    });
+    hit_registry.push(ClickTarget {
+        rect: chunks[1],
+        action: ClickAction::ActivateField(8),
+    });
 
     let ratio_block = Block::default()
         .borders(Borders::ALL)
@@ -331,11 +353,17 @@ fn render_storage(
     area: Rect,
     config: &AdvancedConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 9, 11);
     let block = section_block("STORAGE CONFIGURATION", focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
+
+    hit_registry.push(ClickTarget {
+        rect: area,
+        action: ClickAction::FocusField(9),
+    });
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -346,6 +374,19 @@ fn render_storage(
             Constraint::Min(0),
         ])
         .split(inner);
+
+    hit_registry.push(ClickTarget {
+        rect: chunks[0],
+        action: ClickAction::ActivateField(9),
+    });
+    hit_registry.push(ClickTarget {
+        rect: chunks[1],
+        action: ClickAction::ActivateField(10),
+    });
+    hit_registry.push(ClickTarget {
+        rect: chunks[2],
+        action: ClickAction::ActivateField(11),
+    });
 
     let path1_prefix = if is_focused(form, 9) { "> " } else { "  " };
     let path1_label_style = if is_focused(form, 9) {
@@ -429,11 +470,17 @@ fn render_embedding(
     area: Rect,
     config: &AdvancedConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 12, 14);
     let block = section_block("EMBEDDING & RAG", focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
+
+    hit_registry.push(ClickTarget {
+        rect: area,
+        action: ClickAction::FocusField(12),
+    });
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -447,6 +494,19 @@ fn render_embedding(
             Constraint::Min(0),
         ])
         .split(inner);
+
+    hit_registry.push(ClickTarget {
+        rect: chunks[0],
+        action: ClickAction::ActivateField(12),
+    });
+    hit_registry.push(ClickTarget {
+        rect: chunks[1],
+        action: ClickAction::ActivateField(13),
+    });
+    hit_registry.push(ClickTarget {
+        rect: chunks[2],
+        action: ClickAction::ActivateField(14),
+    });
 
     f.render_widget(
         Paragraph::new(dropdown_line("Embedding Model", &config.embedding_model, is_focused(form, 12))),

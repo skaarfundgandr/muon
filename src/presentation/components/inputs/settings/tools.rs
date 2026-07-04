@@ -1,4 +1,5 @@
 use crate::config::ToolsConfig;
+use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme::{ACCENT, BORDER, BORDER_FOCUS, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -57,7 +58,7 @@ fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &ToolsConfig, form: &FormState) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &ToolsConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
     let outer = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0), Constraint::Length(3)])
@@ -68,8 +69,8 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &ToolsConfig, form: &F
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(outer[0]);
 
-    render_model_providers(f, grid[0], config, form);
-    render_search_providers(f, grid[1], config, form);
+    render_model_providers(f, grid[0], config, form, hit_registry);
+    render_search_providers(f, grid[1], config, form, hit_registry);
     render_bottom_note(f, outer[1]);
 }
 
@@ -137,10 +138,16 @@ fn render_model_providers(
     area: Rect,
     config: &ToolsConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let block = section_block("MODEL PROVIDERS API KEYS", is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2));
     let inner = block.inner(area);
     f.render_widget(block, area);
+
+    hit_registry.push(ClickTarget {
+        rect: area,
+        action: ClickAction::FocusField(0),
+    });
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -150,6 +157,19 @@ fn render_model_providers(
             Constraint::Length(3),
         ])
         .split(inner);
+
+    hit_registry.push(ClickTarget {
+        rect: rows[0],
+        action: ClickAction::ActivateField(0),
+    });
+    hit_registry.push(ClickTarget {
+        rect: rows[1],
+        action: ClickAction::ActivateField(1),
+    });
+    hit_registry.push(ClickTarget {
+        rect: rows[2],
+        action: ClickAction::ActivateField(2),
+    });
 
     let opencode_lines = vec![
         Line::from(vec![
@@ -217,10 +237,16 @@ fn render_search_providers(
     area: Rect,
     config: &ToolsConfig,
     form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
 ) {
     let block = section_block("SEARCH PROVIDERS CONFIGURATION", is_focused(form, 3) || is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6) || is_focused(form, 7));
     let inner = block.inner(area);
     f.render_widget(block, area);
+
+    hit_registry.push(ClickTarget {
+        rect: area,
+        action: ClickAction::FocusField(3),
+    });
 
     let sections = Layout::default()
         .direction(Direction::Vertical)
@@ -231,6 +257,23 @@ fn render_search_providers(
             Constraint::Length(2),
         ])
         .split(inner);
+
+    hit_registry.push(ClickTarget {
+        rect: sections[0],
+        action: ClickAction::ActivateField(3),
+    });
+    hit_registry.push(ClickTarget {
+        rect: sections[1],
+        action: ClickAction::ActivateField(4),
+    });
+    hit_registry.push(ClickTarget {
+        rect: sections[2],
+        action: ClickAction::ActivateField(6),
+    });
+    hit_registry.push(ClickTarget {
+        rect: sections[3],
+        action: ClickAction::ActivateField(7),
+    });
 
     let has_brave_key = !config.brave_api_key.is_empty();
     let brave_status = if has_brave_key { "\u{2713}" } else { "\u{26A0}" };
