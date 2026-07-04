@@ -9,6 +9,10 @@ pub struct QueryInput {
     pub buffer: String,
     pub cursor: usize,
     pub active: bool,
+    /// Last known mouse column for the query input region.
+    pub mouse_col: u16,
+    /// Last known mouse row for the query input region.
+    pub mouse_row: u16,
 }
 
 impl QueryInput {

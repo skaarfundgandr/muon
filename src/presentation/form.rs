@@ -50,6 +50,10 @@ pub struct FormState {
     pub dropdown_cursor: usize,
     /// True if there are unsaved changes (shows "UNSAVED CHANGES" in header).
     pub dirty: bool,
+    /// Last known mouse column for this form's region (for hover styling).
+    pub mouse_col: u16,
+    /// Last known mouse row for this form's region (for hover styling).
+    pub mouse_row: u16,
 }
 
 impl FormState {
