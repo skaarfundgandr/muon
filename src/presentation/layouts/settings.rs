@@ -61,18 +61,29 @@ pub fn render(
 }
 
 fn render_tab_bar(f: &mut ratatui::Frame, area: Rect, active: SettingsTab, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
-    let labels: Vec<&'static str> = SettingsTab::ALL.iter().map(|t| t.label()).collect();
-    let per_segment = (area.width as usize).max(1) / labels.len().max(1);
     let mut spans: Vec<Span> = Vec::new();
-    for (i, tab) in SettingsTab::ALL.iter().enumerate() {
-        let seg_x = area.x.saturating_add((i as u16) * (per_segment as u16));
-        let seg_w = per_segment as u16;
-        let seg_rect = Rect::new(seg_x, area.y, seg_w, area.height);
+    let mut col = area.x;
+    let tabs = SettingsTab::ALL;
+
+    for (i, tab) in tabs.iter().enumerate() {
+        let is_active = *tab == active;
+        let label = tab.label();
+
+        // Compute this tab's rendered width (label + optional brackets + separator)
+        let rendered_width = if is_active {
+            // "[LABEL]" + 4-space separator (except last)
+            (label.len() + 2 + if i < tabs.len() - 1 { 4 } else { 0 }) as u16
+        } else {
+            // "LABEL" + 4-space separator (except last)
+            (label.len() + if i < tabs.len() - 1 { 4 } else { 0 }) as u16
+        };
+
+        let seg_rect = Rect::new(col, area.y, rendered_width, area.height);
         hit_registry.push(ClickTarget {
             rect: seg_rect,
             action: ClickAction::SwitchSettingsTab(*tab),
         });
-        let is_active = *tab == active;
+
         let hovered = is_hovering(seg_rect, mouse_col, mouse_row);
         let label_color = if is_active {
             ACCENT
@@ -86,17 +97,22 @@ fn render_tab_bar(f: &mut ratatui::Frame, area: Rect, active: SettingsTab, hit_r
         } else {
             Style::default().fg(label_color)
         };
+
         if is_active {
             spans.push(Span::styled("[", label_style));
-            spans.push(Span::styled(tab.label(), label_style));
+            spans.push(Span::styled(label, label_style));
             spans.push(Span::styled("]", label_style));
         } else {
-            spans.push(Span::styled(tab.label(), label_style));
+            spans.push(Span::styled(label, label_style));
         }
-        if i < SettingsTab::ALL.len() - 1 {
+        if i < tabs.len() - 1 {
             spans.push(Span::raw("    "));
         }
+
+        col = col.saturating_add(rendered_width);
     }
+
+    // Remove unused import for per_segment — we don't use the labels vec anymore either
     f.render_widget(
         Paragraph::new(Line::from(spans)).block(Block::default()),
         area,

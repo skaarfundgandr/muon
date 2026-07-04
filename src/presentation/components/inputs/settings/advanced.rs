@@ -273,6 +273,14 @@ fn render_pipeline_knobs(
         ])
         .split(inner);
 
+    // Register click targets for each pipeline knob row
+    for (i, row_rect) in row_rects.iter().enumerate() {
+        hit_registry.push(ClickTarget {
+            rect: *row_rect,
+            action: ClickAction::ActivateField(i),
+        });
+    }
+
     let lines: Vec<Line> = vec![
         numeric_row("Max Researcher Loops", &s1, is_focused(form, 0), is_focused(form, 0) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(row_rects[0], form.mouse_col, form.mouse_row) && !is_focused(form, 0)),
         numeric_row("Max Clarifier Turns", &s2, is_focused(form, 1), is_focused(form, 1) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(row_rects[1], form.mouse_col, form.mouse_row) && !is_focused(form, 1)),
@@ -362,12 +370,12 @@ fn render_compaction(
     f.render_widget(preamble_block, chunks[1]);
 
     let preamble_editing = is_focused(form, 8) && form.is_editing();
-    let preamble_text: String = if let Some(buf) = &form.edit_buffer {
-        if preamble_editing {
+    let preamble_text: String = if preamble_editing {
+        if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
-            format!("{}{}{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..], "\n", "Default system prompt injected for all agent instances.")
+            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
         } else {
-            buf.clone()
+            String::new()
         }
     } else {
         config.agent_preamble.clone()
