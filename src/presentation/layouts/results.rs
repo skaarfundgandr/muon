@@ -10,7 +10,7 @@ use crate::presentation::components::*;
 use crate::presentation::theme::{BG_MAIN, BORDER, PURPLE, TEXT_DIM, TEXT_MAIN};
 use crate::presentation::views::View;
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_registry: &mut Vec<ClickTarget>) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
     let total_time_secs = pipeline.elapsed_secs();
     f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
 
@@ -34,7 +34,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_
         header_area,
         HeaderConfig::for_view(View::Results, total_time_secs),
     );
-    footer::render(f, footer_area, View::Results, hit_registry);
+    footer::render(f, footer_area, View::Results, hit_registry, mouse_col, mouse_row);
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)

@@ -36,7 +36,7 @@ fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -56,7 +56,7 @@ fn section_block<'a>(title: &'a str) -> Block<'a> {
         ))
 }
 
-fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> {
+fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: bool) -> Line<'a> {
     if focused {
         Line::from(vec![
             Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
@@ -65,6 +65,15 @@ fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> 
             Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled("\u{25BC}", Style::new().fg(BORDER_FOCUS)),
             Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+        ])
+    } else if hovered {
+        Line::from(vec![
+            Span::styled("  ", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(format!("{:<14}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled("[", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(value, Style::new().fg(TEXT_MAIN)),
+            Span::styled("\u{25BC}", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled("]", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
         ])
     } else {
         Line::from(vec![
@@ -116,10 +125,10 @@ fn render_left(
     });
 
     f.render_widget(
-        dropdown_line("Visual Theme", &config.visual_theme, is_focused(form, 0)),
+        dropdown_line("Visual Theme", &config.visual_theme, is_focused(form, 0), crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row) && !is_focused(form, 0)),
         chunks[0],
     );
-    f.render_widget(dropdown_line("Font Size", &config.font_size, is_focused(form, 1)), chunks[1]);
+    f.render_widget(dropdown_line("Font Size", &config.font_size, is_focused(form, 1), crate::presentation::click::is_hovering(chunks[1], form.mouse_col, form.mouse_row) && !is_focused(form, 1)), chunks[1]);
     f.render_widget(
         Paragraph::new(Span::styled("Live Preview", Style::new().fg(TEXT_DIM))),
         chunks[2],

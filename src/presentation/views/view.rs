@@ -28,6 +28,8 @@ pub struct RenderParams<'a> {
     pub forms: &'a [FormState; 5],
     pub settings_tab: SettingsTab,
     pub hit_registry: &'a mut Vec<ClickTarget>,
+    pub mouse_col: u16,
+    pub mouse_row: u16,
 }
 
 impl View {
@@ -79,18 +81,20 @@ impl View {
                     params.query_input,
                     params.sessions,
                     params.hit_registry,
+                    params.mouse_col,
+                    params.mouse_row,
                 );
             }
             View::Progress => {
-                crate::presentation::layouts::progress::render(f, area, params.pipeline, params.hit_registry);
+                crate::presentation::layouts::progress::render(f, area, params.pipeline, params.hit_registry, params.mouse_col, params.mouse_row);
             }
             View::Results => {
-                crate::presentation::layouts::results::render(f, area, params.pipeline, params.hit_registry);
+                crate::presentation::layouts::results::render(f, area, params.pipeline, params.hit_registry, params.mouse_col, params.mouse_row);
             }
             View::Settings => {
                 let tab = params.settings_tab;
                 let form = &params.forms[tab as usize];
-                crate::presentation::layouts::settings::render(f, area, tab, params.config, form, params.hit_registry);
+                crate::presentation::layouts::settings::render(f, area, tab, params.config, form, params.hit_registry, params.mouse_col, params.mouse_row);
             }
         }
     }

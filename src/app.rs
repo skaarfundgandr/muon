@@ -68,6 +68,8 @@ fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
         forms: &app.forms,
         settings_tab: app.router.settings_tab(),
         hit_registry: &mut app.hit_registry,
+        mouse_col: app.mouse_col,
+        mouse_row: app.mouse_row,
     });
 }
 

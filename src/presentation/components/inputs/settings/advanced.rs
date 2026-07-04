@@ -97,7 +97,7 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
     (start..=end).any(|i| is_focused(form, i))
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -119,8 +119,14 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form:
     render_embedding(f, bot_cols[1], config, form, hit_registry);
 }
 
-fn section_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
-    let border_color = if focused { BORDER_FOCUS } else { BORDER };
+fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
+    let border_color = if focused {
+        BORDER_FOCUS
+    } else if hovered {
+        crate::presentation::theme::BORDER_HOVER
+    } else {
+        BORDER
+    };
     Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(border_color))
@@ -132,7 +138,7 @@ fn section_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
         ))
 }
 
-fn numeric_row<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, cursor: usize, buffer: Option<&'a str>) -> Line<'a> {
+fn numeric_row<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, cursor: usize, buffer: Option<&'a str>, hovered: bool) -> Line<'a> {
     if editing {
         let buf = buffer.unwrap_or("");
         let cur = cursor.min(buf.len());
@@ -155,6 +161,13 @@ fn numeric_row<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool,
             Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled("]", Style::new().fg(BORDER_FOCUS)),
         ])
+    } else if hovered {
+        Line::from(vec![
+            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled("[", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(value, Style::new().fg(SUCCESS)),
+            Span::styled("]", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+        ])
     } else {
         Line::from(vec![
             Span::styled(format!("{:<24}", label), Style::new().fg(TEXT_MAIN)),
@@ -165,7 +178,7 @@ fn numeric_row<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool,
     }
 }
 
-fn checkbox_row<'a>(label: &'a str, hint: &'a str, checked: bool, focused: bool) -> Line<'a> {
+fn checkbox_row<'a>(label: &'a str, hint: &'a str, checked: bool, focused: bool, hovered: bool) -> Line<'a> {
     let mark = if checked { "[\u{2713}]" } else { "[ ]" };
     let mark_color = if checked { SUCCESS } else { TEXT_DIM };
     if focused {
@@ -175,6 +188,13 @@ fn checkbox_row<'a>(label: &'a str, hint: &'a str, checked: bool, focused: bool)
             Span::styled(mark, Style::new().fg(BORDER_FOCUS)),
             Span::styled(" ", Style::new().fg(BORDER_FOCUS)),
             Span::styled(hint, Style::new().fg(BORDER_FOCUS)),
+        ])
+    } else if hovered {
+        Line::from(vec![
+            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(mark, Style::new().fg(mark_color)),
+            Span::styled(" ", Style::new().fg(TEXT_DIM)),
+            Span::styled(hint, Style::new().fg(TEXT_DIM)),
         ])
     } else {
         Line::from(vec![
@@ -186,7 +206,7 @@ fn checkbox_row<'a>(label: &'a str, hint: &'a str, checked: bool, focused: bool)
     }
 }
 
-fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> {
+fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: bool) -> Line<'a> {
     if focused {
         Line::from(vec![
             Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
@@ -195,6 +215,14 @@ fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> 
             Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled(" \u{25BC}", Style::new().fg(BORDER_FOCUS)),
             Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+        ])
+    } else if hovered {
+        Line::from(vec![
+            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled("[", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(value, Style::new().fg(CYAN)),
+            Span::styled(" \u{25BC}", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled("]", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
         ])
     } else {
         Line::from(vec![
@@ -216,7 +244,8 @@ fn render_pipeline_knobs(
     hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 0, 6);
-    let block = section_block("PIPELINE KNOB SETTINGS", focused);
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
+    let block = section_block("PIPELINE KNOB SETTINGS", focused, hovered && !focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
 
@@ -231,23 +260,38 @@ fn render_pipeline_knobs(
     let s4 = config.max_shallow_turns.to_string();
     let s5 = config.max_deep_turns.to_string();
 
+    let row_rects = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ])
+        .split(inner);
+
     let lines: Vec<Line> = vec![
-        numeric_row("Max Researcher Loops", &s1, is_focused(form, 0), is_focused(form, 0) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
-        numeric_row("Max Clarifier Turns", &s2, is_focused(form, 1), is_focused(form, 1) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
-        numeric_row("Max Plan Iterations", &s3, is_focused(form, 2), is_focused(form, 2) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
-        numeric_row("Max Shallow Turns", &s4, is_focused(form, 3), is_focused(form, 3) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
-        numeric_row("Max Deep Turns", &s5, is_focused(form, 4), is_focused(form, 4) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        numeric_row("Max Researcher Loops", &s1, is_focused(form, 0), is_focused(form, 0) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(row_rects[0], form.mouse_col, form.mouse_row) && !is_focused(form, 0)),
+        numeric_row("Max Clarifier Turns", &s2, is_focused(form, 1), is_focused(form, 1) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(row_rects[1], form.mouse_col, form.mouse_row) && !is_focused(form, 1)),
+        numeric_row("Max Plan Iterations", &s3, is_focused(form, 2), is_focused(form, 2) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(row_rects[2], form.mouse_col, form.mouse_row) && !is_focused(form, 2)),
+        numeric_row("Max Shallow Turns", &s4, is_focused(form, 3), is_focused(form, 3) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(row_rects[3], form.mouse_col, form.mouse_row) && !is_focused(form, 3)),
+        numeric_row("Max Deep Turns", &s5, is_focused(form, 4), is_focused(form, 4) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(row_rects[4], form.mouse_col, form.mouse_row) && !is_focused(form, 4)),
         checkbox_row(
             "Escalate Agent",
             "Enable Shallow -> Deep escalation",
             config.escalate_agent,
             is_focused(form, 5),
+            crate::presentation::click::is_hovering(row_rects[5], form.mouse_col, form.mouse_row) && !is_focused(form, 5),
         ),
         checkbox_row(
             "Plan Approval",
             "Enable Clarifier approval gates",
             config.plan_approval,
             is_focused(form, 6),
+            crate::presentation::click::is_hovering(row_rects[6], form.mouse_col, form.mouse_row) && !is_focused(form, 6),
         ),
     ];
 
@@ -262,7 +306,8 @@ fn render_compaction(
     hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 7, 8);
-    let block = section_block("COMPACTION & PREAMBLE", focused);
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
+    let block = section_block("COMPACTION & PREAMBLE", focused, hovered && !focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
 
@@ -297,7 +342,7 @@ fn render_compaction(
 
     let threshold_str = config.compaction_threshold.to_string();
     let ratio_lines: Vec<Line> = vec![
-        numeric_row("Compaction Threshold", &threshold_str, is_focused(form, 7), is_focused(form, 7) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        numeric_row("Compaction Threshold", &threshold_str, is_focused(form, 7), is_focused(form, 7) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row) && !is_focused(form, 7)),
         Line::from(Span::styled(
             "0.0-1.0: context fill ratio that triggers message summary/compaction",
             Style::new().fg(TEXT_DIM),
@@ -356,7 +401,8 @@ fn render_storage(
     hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 9, 11);
-    let block = section_block("STORAGE CONFIGURATION", focused);
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
+    let block = section_block("STORAGE CONFIGURATION", focused, hovered && !focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
 
@@ -454,7 +500,7 @@ fn render_storage(
 
     let max_search_str = config.max_search_items.to_string();
     f.render_widget(
-        Paragraph::new(numeric_row("Max search items", &max_search_str, is_focused(form, 11), is_focused(form, 11) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref())),
+        Paragraph::new(numeric_row("Max search items", &max_search_str, is_focused(form, 11), is_focused(form, 11) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[2], form.mouse_col, form.mouse_row) && !is_focused(form, 11))),
         chunks[2],
     );
 
@@ -473,7 +519,8 @@ fn render_embedding(
     hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 12, 14);
-    let block = section_block("EMBEDDING & RAG", focused);
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
+    let block = section_block("EMBEDDING & RAG", focused, hovered && !focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
 
@@ -509,18 +556,18 @@ fn render_embedding(
     });
 
     f.render_widget(
-        Paragraph::new(dropdown_line("Embedding Model", &config.embedding_model, is_focused(form, 12))),
+        Paragraph::new(dropdown_line("Embedding Model", &config.embedding_model, is_focused(form, 12), crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row) && !is_focused(form, 12))),
         chunks[0],
     );
 
     let rag_top_k_str = config.rag_top_k.to_string();
     let sim_thresh_str = config.similarity_threshold.to_string();
     f.render_widget(
-        Paragraph::new(numeric_row("RAG Top-K", &rag_top_k_str, is_focused(form, 13), is_focused(form, 13) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref())),
+        Paragraph::new(numeric_row("RAG Top-K", &rag_top_k_str, is_focused(form, 13), is_focused(form, 13) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[1], form.mouse_col, form.mouse_row) && !is_focused(form, 13))),
         chunks[1],
     );
     f.render_widget(
-        Paragraph::new(numeric_row("Similarity Threshold", &sim_thresh_str, is_focused(form, 14), is_focused(form, 14) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref())),
+        Paragraph::new(numeric_row("Similarity Threshold", &sim_thresh_str, is_focused(form, 14), is_focused(form, 14) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[2], form.mouse_col, form.mouse_row) && !is_focused(form, 14))),
         chunks[2],
     );
     f.render_widget(

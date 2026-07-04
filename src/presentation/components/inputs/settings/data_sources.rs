@@ -62,6 +62,8 @@ pub fn render(
     config: &DataSourcesConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
+    _mouse_col: u16,
+    _mouse_row: u16,
 ) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
@@ -72,8 +74,14 @@ pub fn render(
     render_rag_indexes(f, grid[1], form, hit_registry);
 }
 
-fn section_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
-    let border_color = if focused { BORDER_FOCUS } else { BORDER };
+fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
+    let border_color = if focused {
+        BORDER_FOCUS
+    } else if hovered {
+        crate::presentation::theme::BORDER_HOVER
+    } else {
+        BORDER
+    };
     Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(border_color))
@@ -93,9 +101,11 @@ fn render_source_providers(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
 ) {
+    let any_focused = is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2) || is_focused(form, 3);
     let block = section_block(
         "SOURCE PROVIDERS",
-        is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2) || is_focused(form, 3),
+        any_focused,
+        crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row) && !any_focused,
     );
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -188,9 +198,11 @@ fn render_source_providers(
 
 #[allow(clippy::vec_init_then_push)]
 fn render_rag_indexes(f: &mut ratatui::Frame, area: Rect, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
+    let any_focused = is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6);
     let block = section_block(
         "KNOWLEDGE LAYER / RAG INDEXES",
-        is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6),
+        any_focused,
+        crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row) && !any_focused,
     );
     let inner = block.inner(area);
     f.render_widget(block, area);

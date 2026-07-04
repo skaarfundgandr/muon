@@ -119,7 +119,7 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
 }
 
 #[allow(clippy::vec_init_then_push)]
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AgentsConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AgentsConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0)])
@@ -163,8 +163,14 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AgentsConfig, form: &
     render_deep_researcher(f, right_chunks[1], &config.deep_researcher, form, hit_registry);
 }
 
-fn agent_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
-    let border_color = if focused { BORDER_FOCUS } else { BORDER };
+fn agent_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
+    let border_color = if focused {
+        BORDER_FOCUS
+    } else if hovered {
+        crate::presentation::theme::BORDER_HOVER
+    } else {
+        BORDER
+    };
     Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(border_color))
@@ -174,7 +180,7 @@ fn agent_block<'a>(title: &'a str, focused: bool) -> Block<'a> {
         ))
 }
 
-fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> {
+fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: bool) -> Line<'a> {
     if focused {
         Line::from(vec![
             Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
@@ -183,6 +189,14 @@ fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> 
             Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled("\u{25BC}", Style::new().fg(BORDER_FOCUS)),
             Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+        ])
+    } else if hovered {
+        Line::from(vec![
+            Span::styled(format!("{:<14}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled("[", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(value, Style::new().fg(ACCENT)),
+            Span::styled("\u{25BC}", Style::new().fg(ACCENT)),
+            Span::styled("]", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
         ])
     } else {
         Line::from(vec![
@@ -195,7 +209,7 @@ fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool) -> Line<'a> 
     }
 }
 
-fn input_line<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, cursor: usize, buffer: Option<&'a str>) -> Line<'a> {
+fn input_line<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, cursor: usize, buffer: Option<&'a str>, hovered: bool) -> Line<'a> {
     if editing {
         let buf = buffer.unwrap_or("");
         let cur = cursor.min(buf.len());
@@ -218,6 +232,13 @@ fn input_line<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, 
             Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled("]", Style::new().fg(BORDER_FOCUS)),
         ])
+    } else if hovered {
+        Line::from(vec![
+            Span::styled(format!("{:<14}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled("[", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(value, Style::new().fg(SUCCESS)),
+            Span::styled("]", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+        ])
     } else {
         Line::from(vec![
             Span::styled(format!("{:<14}", label), Style::new().fg(TEXT_DIM)),
@@ -228,7 +249,7 @@ fn input_line<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, 
     }
 }
 
-fn checkbox_line(label: &str, checked: bool, focused: bool) -> Line<'_> {
+fn checkbox_line(label: &str, checked: bool, focused: bool, hovered: bool) -> Line<'_> {
     let mark = if checked { "[\u{2713}]" } else { "[ ]" };
     let mark_color = if checked { SUCCESS } else { TEXT_DIM };
     if focused {
@@ -236,6 +257,11 @@ fn checkbox_line(label: &str, checked: bool, focused: bool) -> Line<'_> {
             Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{} ", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
             Span::styled(mark, Style::new().fg(BORDER_FOCUS)),
+        ])
+    } else if hovered {
+        Line::from(vec![
+            Span::styled(format!("{} ", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(mark, Style::new().fg(mark_color)),
         ])
     } else {
         Line::from(vec![
@@ -254,8 +280,9 @@ fn render_intent_classifier(
 ) {
     let focused = section_has_focus(form, 0, 3);
     let timeout_str = cfg.timeout_sec.to_string();
-    let inner = agent_block("INTENT CLASSIFIER", focused).inner(area);
-    f.render_widget(agent_block("INTENT CLASSIFIER", focused), area);
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
+    let inner = agent_block("INTENT CLASSIFIER", focused, hovered && !focused).inner(area);
+    f.render_widget(agent_block("INTENT CLASSIFIER", focused, hovered && !focused), area);
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -275,10 +302,10 @@ fn render_intent_classifier(
     }
 
     let lines: Vec<Line> = vec![
-        dropdown_line("Model", &cfg.model, is_focused(form, 0)),
-        dropdown_line("Provider", &cfg.provider, is_focused(form, 1)),
-        input_line("Timeout (sec)", &timeout_str, is_focused(form, 2), is_focused(form, 2) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
-        checkbox_line("Verbose Output ", cfg.verbose, is_focused(form, 3)),
+        dropdown_line("Model", &cfg.model, is_focused(form, 0), crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row) && !is_focused(form, 0)),
+        dropdown_line("Provider", &cfg.provider, is_focused(form, 1), crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row) && !is_focused(form, 1)),
+        input_line("Timeout (sec)", &timeout_str, is_focused(form, 2), is_focused(form, 2) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row) && !is_focused(form, 2)),
+        checkbox_line("Verbose Output ", cfg.verbose, is_focused(form, 3), crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row) && !is_focused(form, 3)),
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
@@ -294,8 +321,9 @@ fn render_clarifier(
     let focused = section_has_focus(form, 4, 8);
     let max_turns_str = cfg.max_turns.to_string();
     let max_iters_str = cfg.max_iterations.to_string();
-    let inner = agent_block("CLARIFIER (HITL)", focused).inner(area);
-    f.render_widget(agent_block("CLARIFIER (HITL)", focused), area);
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
+    let inner = agent_block("CLARIFIER (HITL)", focused, hovered && !focused).inner(area);
+    f.render_widget(agent_block("CLARIFIER (HITL)", focused, hovered && !focused), area);
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -316,11 +344,11 @@ fn render_clarifier(
     }
 
     let lines: Vec<Line> = vec![
-        dropdown_line("Model", &cfg.model, is_focused(form, 4)),
-        dropdown_line("Provider", &cfg.provider, is_focused(form, 5)),
-        input_line("Max turns", &max_turns_str, is_focused(form, 6), is_focused(form, 6) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
-        checkbox_line("Plan approval  ", cfg.plan_approval, is_focused(form, 7)),
-        input_line("Max iterations", &max_iters_str, is_focused(form, 8), is_focused(form, 8) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        dropdown_line("Model", &cfg.model, is_focused(form, 4), crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row) && !is_focused(form, 4)),
+        dropdown_line("Provider", &cfg.provider, is_focused(form, 5), crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row) && !is_focused(form, 5)),
+        input_line("Max turns", &max_turns_str, is_focused(form, 6), is_focused(form, 6) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row) && !is_focused(form, 6)),
+        checkbox_line("Plan approval  ", cfg.plan_approval, is_focused(form, 7), crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row) && !is_focused(form, 7)),
+        input_line("Max iterations", &max_iters_str, is_focused(form, 8), is_focused(form, 8) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[4], form.mouse_col, form.mouse_row) && !is_focused(form, 8)),
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
@@ -336,8 +364,9 @@ fn render_shallow_researcher(
     let focused = section_has_focus(form, 9, 12);
     let llm_turns_str = cfg.max_llm_turns.to_string();
     let tool_iters_str = cfg.max_tool_iters.to_string();
-    let inner = agent_block("SHALLOW RESEARCHER", focused).inner(area);
-    f.render_widget(agent_block("SHALLOW RESEARCHER", focused), area);
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
+    let inner = agent_block("SHALLOW RESEARCHER", focused, hovered && !focused).inner(area);
+    f.render_widget(agent_block("SHALLOW RESEARCHER", focused, hovered && !focused), area);
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -357,10 +386,10 @@ fn render_shallow_researcher(
     }
 
     let lines: Vec<Line> = vec![
-        dropdown_line("Model", &cfg.model, is_focused(form, 9)),
-        dropdown_line("Provider", &cfg.provider, is_focused(form, 10)),
-        input_line("Max LLM turns", &llm_turns_str, is_focused(form, 11), is_focused(form, 11) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
-        input_line("Max tool iters", &tool_iters_str, is_focused(form, 12), is_focused(form, 12) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref()),
+        dropdown_line("Model", &cfg.model, is_focused(form, 9), crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row) && !is_focused(form, 9)),
+        dropdown_line("Provider", &cfg.provider, is_focused(form, 10), crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row) && !is_focused(form, 10)),
+        input_line("Max LLM turns", &llm_turns_str, is_focused(form, 11), is_focused(form, 11) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row) && !is_focused(form, 11)),
+        input_line("Max tool iters", &tool_iters_str, is_focused(form, 12), is_focused(form, 12) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row) && !is_focused(form, 12)),
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
@@ -374,7 +403,8 @@ fn render_deep_researcher(
     hit_registry: &mut Vec<ClickTarget>,
 ) {
     let focused = section_has_focus(form, 13, 20);
-    let block = agent_block("DEEP RESEARCHER", focused);
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
+    let block = agent_block("DEEP RESEARCHER", focused, hovered && !focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
     let grid = Layout::default()
@@ -467,10 +497,10 @@ fn render_deep_researcher(
 
     // Iterations (19)
     let iter_str = cfg.iterations.to_string();
-    let iter_line = input_line("Iterations", &iter_str, is_focused(form, 19), is_focused(form, 19) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref());
+    let iter_line = input_line("Iterations", &iter_str, is_focused(form, 19), is_focused(form, 19) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(grid[4], form.mouse_col, form.mouse_row) && !is_focused(form, 19));
     f.render_widget(Paragraph::new(iter_line), grid[4]);
 
     // Citation Verify (20)
-    let cit_line = checkbox_line("Citation Verify", cfg.citation_verify, is_focused(form, 20));
+    let cit_line = checkbox_line("Citation Verify", cfg.citation_verify, is_focused(form, 20), crate::presentation::click::is_hovering(grid[5], form.mouse_col, form.mouse_row) && !is_focused(form, 20));
     f.render_widget(Paragraph::new(cit_line), grid[5]);
 }

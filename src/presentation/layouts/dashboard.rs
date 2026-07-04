@@ -16,6 +16,8 @@ pub fn render(
     query: &QueryInput,
     sessions: &[SessionSummary],
     hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
 ) {
     f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
 
@@ -33,7 +35,7 @@ pub fn render(
     let footer_area = vertical[2];
 
     header::render(f, header_area, HeaderConfig::for_view(View::Dashboard, 0));
-    footer::render(f, footer_area, View::Dashboard, hit_registry);
+    footer::render(f, footer_area, View::Dashboard, hit_registry, mouse_col, mouse_row);
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)

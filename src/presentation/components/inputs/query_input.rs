@@ -1,4 +1,5 @@
-use crate::presentation::theme::{ACCENT, BORDER, BORDER_FOCUS, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::click::is_hovering;
+use crate::presentation::theme::{ACCENT, BORDER, BORDER_FOCUS, BORDER_HOVER, TEXT_DIM, TEXT_MAIN};
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -82,7 +83,14 @@ impl QueryInput {
 }
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, query: &QueryInput) {
-    let border_color = if query.active { BORDER_FOCUS } else { BORDER };
+    let hovered = is_hovering(area, query.mouse_col, query.mouse_row);
+    let border_color = if query.active {
+        BORDER_FOCUS
+    } else if hovered {
+        BORDER_HOVER
+    } else {
+        BORDER
+    };
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" RESEARCH CONSOLE ")

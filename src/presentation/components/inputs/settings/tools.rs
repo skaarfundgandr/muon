@@ -58,7 +58,7 @@ fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &ToolsConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &ToolsConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
     let outer = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0), Constraint::Length(3)])
@@ -74,8 +74,14 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &ToolsConfig, form: &F
     render_bottom_note(f, outer[1]);
 }
 
-fn section_block(title: &str, focused: bool) -> Block<'_> {
-    let border_color = if focused { BORDER_FOCUS } else { BORDER };
+fn section_block(title: &str, focused: bool, hovered: bool) -> Block<'_> {
+    let border_color = if focused {
+        BORDER_FOCUS
+    } else if hovered {
+        crate::presentation::theme::BORDER_HOVER
+    } else {
+        BORDER
+    };
     Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(border_color))
@@ -140,7 +146,7 @@ fn render_model_providers(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
 ) {
-    let block = section_block("MODEL PROVIDERS API KEYS", is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2));
+    let block = section_block("MODEL PROVIDERS API KEYS", is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2), crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row) && !(is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2)));
     let inner = block.inner(area);
     f.render_widget(block, area);
 
@@ -239,7 +245,7 @@ fn render_search_providers(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
 ) {
-    let block = section_block("SEARCH PROVIDERS CONFIGURATION", is_focused(form, 3) || is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6) || is_focused(form, 7));
+    let block = section_block("SEARCH PROVIDERS CONFIGURATION", is_focused(form, 3) || is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6) || is_focused(form, 7), crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row) && !(is_focused(form, 3) || is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6) || is_focused(form, 7)));
     let inner = block.inner(area);
     f.render_widget(block, area);
 
