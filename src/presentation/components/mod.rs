@@ -1,14 +1,12 @@
-pub mod clarifier_panel;
-pub mod footer;
-pub mod header;
-pub mod live_feed;
-pub mod pipeline_graph;
-pub mod query_input;
-pub mod report_view;
-pub mod resource_monitor;
-pub mod session_list;
-pub mod source_card;
-pub mod source_registry;
-pub mod telemetry_panel;
-pub mod welcome_logo;
-pub mod settings;
+pub mod cards;
+pub mod chrome;
+pub mod graphs;
+pub mod inputs;
+pub mod panels;
+
+// Re-export everything for backward compatibility — layouts use `components::*`
+pub use cards::*;
+pub use chrome::*;
+pub use graphs::*;
+pub use inputs::*;
+pub use panels::*;
