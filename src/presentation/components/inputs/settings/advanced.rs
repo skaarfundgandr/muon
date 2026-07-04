@@ -372,9 +372,7 @@ fn render_compaction(
     } else {
         config.agent_preamble.clone()
     };
-    let preamble_style = if preamble_editing {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
-    } else if is_focused(form, 8) {
+    let preamble_style = if preamble_editing || is_focused(form, 8) {
         Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(TEXT_MAIN)

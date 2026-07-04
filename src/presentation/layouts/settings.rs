@@ -12,6 +12,7 @@ use crate::presentation::form::FormState;
 use crate::presentation::theme::{ACCENT, BG_MAIN, BORDER_HOVER, TEXT_DIM};
 use crate::presentation::views::{SettingsTab, View};
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     f: &mut ratatui::Frame,
     area: Rect,
