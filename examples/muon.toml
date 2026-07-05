@@ -1,0 +1,85 @@
+# μon configuration example
+# Copy to ~/.config/muon/config.toml
+
+[agents]
+
+# Intent classifier — first stage, classifies query type and depth.
+[agents.intent_classifier]
+model = "gpt-4o-mini"
+provider = "openai"
+timeout_sec = 10
+verbose = false
+
+# Clarifier — interactive HITL disambiguation before research.
+[agents.clarifier]
+model = "gpt-4o-mini"
+provider = "openai"
+max_turns = 3
+plan_approval = true
+max_iterations = 10
+
+# Shallow researcher — single-pass synthesis of search results.
+[agents.shallow_researcher]
+model = "gpt-4o"
+provider = "openai"
+max_llm_turns = 10
+max_tool_iters = 5
+
+# Deep researcher — orchestrator/planner/researcher sub-agents.
+[agents.deep_researcher]
+iterations = 2
+citation_verify = true
+
+[agents.deep_researcher.orchestrator]
+model = "gpt-4o"
+provider = "openai"
+
+[agents.deep_researcher.planner]
+model = "gpt-4o"
+provider = "openai"
+
+[agents.deep_researcher.researcher]
+model = "gpt-4o"
+provider = "openai"
+
+# API keys — placeholder strings shown for clarity.
+# μon does NOT interpolate env vars; paste the literal key or leave empty.
+[tools]
+opencode_go_api_key = ""
+neuralwatt_api_key = ""
+clinepass_api_key = ""
+brave_api_key = ""
+searxng_url = "https://searxng.local"
+searxng_api_key = ""
+semantic_scholar_api_key = ""
+arxiv_enabled = true
+
+# Data source toggles.
+[data_sources]
+web_search = true
+paper_search = true
+enterprise_systems = false
+knowledge_layer_rag = true
+
+# Display preferences.
+[display]
+visual_theme = "Tokyo Night"
+font_size = "Medium 14px"
+
+# Advanced pipeline and storage settings.
+[advanced]
+max_researcher_loops = 2
+max_clarifier_turns = 3
+max_plan_iterations = 10
+max_shallow_turns = 10
+max_deep_turns = 25
+escalate_agent = true
+plan_approval = true
+compaction_threshold = 0.80
+agent_preamble = "You are μon, a deep research agent. Be extremely precise, fact-check everything, compile structured summaries, and cite sources in full formatting."
+session_db_path = "~/.local/share/muon/sessions.db"
+rag_db_path = "~/.local/share/muon/rag.db"
+max_search_items = 15
+embedding_model = "Xenova/bge-small-en-v1.5"
+rag_top_k = 5
+similarity_threshold = 0.70

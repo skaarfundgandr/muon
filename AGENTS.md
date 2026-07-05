@@ -4,14 +4,16 @@ Terminal-based deep research agent TUI. Rust, ratatui, crossterm, tokio.
 
 ## Architecture
 
-CLEAN layered architecture. Presentation → Application → Domain → Infrastructure (domain and infrastructure layers not yet created).
+CLEAN layered architecture. Presentation → Application → Domain → Infrastructure.
 
 - **Presentation** (`src/presentation/`): ratatui rendering. Components in 5 categories: chrome, inputs, panels, cards, graphs. 5 views (Welcome, Dashboard, Progress, Results, Settings) with handlers, layouts, form system, click-target registry.
 - **Application** (`src/application/`): pipeline state machine (`PipelineStage` idle → intent → clarify → shallow → deep → complete/cancelled).
-- **Domain** (`src/domain/`): not yet created. SPEC describes pure models and traits (ports): SearchProvider, VectorStore, SessionStore, MuonAgent.
-- **Infrastructure** (`src/infrastructure/`): not yet created. SPEC describes agent_rs wrappers, search providers, diesel storage, export.
+- **Domain** (`src/domain/`): pure models and port traits (MuonAgent, SearchProvider, VectorStore, SessionStore).
+- **Infrastructure** (`src/infrastructure/`): agent_rs ReAct wrappers, Diesel storage (SQLite), RAG (TurboVec + FastEmbed), search providers (Brave/SearXNG/SemanticScholar/arXiv), export (Markdown/Obsidian).
 
 **Bootstrap:** `src/main.rs` calls `app::run()` which sets up terminal (raw mode, alternate screen, mouse capture), spawns tokio event task (250ms poll on mpsc channel), runs main loop.
+
+**Headless CLI:** `muon run --headless --mock "query"` prints report to stdout without TUI. `muon export <session> <format> -o path` exports completed sessions. `MUON_LIVE=1` env var gates real OpenAI/Diesel/RAG adapters; default is mock.
 
 ## Module Conventions
 
@@ -50,4 +52,19 @@ Reference these by path only. The SPEC is the source of truth for planned featur
 
 ## Test Conventions
 
-No tests exist yet. When added: `#[cfg(test)]` modules inline in `src/` files or `tests/` directory for integration tests. No test framework dependency currently in `Cargo.toml`.
+All tests go in `tests/` (integration tests). No `#[cfg(test)]` inline modules in `src/`.
+
+### Clippy in Test Code
+
+The Cargo.toml clippy lints (`unwrap_used = "deny"`, `expect_used = "deny"`, `panic = "deny"`) apply to `src/` production code only. Test code in `tests/` must opt out at the module level:
+
+```rust
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+```
+
+## Documentation
+
+- `docs/backend.md` — architecture overview, pipeline state machine, storage schema, citation verifier, export, LangSmith, headless CLI.
+- `docs/agents.md` — how to author agent definition files (frontmatter schema, prompt body, template variables, pipeline routing).
+- `examples/agents/` — six example agent definitions (intent-classifier, clarifier, shallow-researcher, deep-orchestrator, planner, researcher).
+- `examples/muon.toml` — complete example configuration file.

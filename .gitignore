@@ -8,3 +8,4 @@ mcp.json
 !README.md
 !AGENTS.md
 !docs/**/*.md
+*.db
