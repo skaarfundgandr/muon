@@ -1,7 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
 use crate::app::AppState;
-use crate::presentation::views::View;
 
 pub fn handle(app: &mut AppState, key: KeyEvent) {
     if app.query_input.active {
@@ -19,10 +18,31 @@ pub fn handle(app: &mut AppState, key: KeyEvent) {
                     let _ = app.sessions.create(&query);
                     app.spawn_pipeline(&query);
                 }
-                app.router.transition(View::Progress);
             }
             KeyCode::Esc => app.query_input.active = false,
             _ => {}
+        }
+    } else if app.clarifier_pending.is_some() {
+        match key.code {
+            KeyCode::Char(c) => app.clarifier_response.push(c),
+            KeyCode::Backspace => {
+                app.clarifier_response.pop();
+            }
+            KeyCode::Enter => {
+                if let Some(pending) = app.clarifier_pending.take() {
+                    let response = std::mem::take(&mut app.clarifier_response);
+                    let _ = pending.responder.send(response);
+                }
+            }
+            KeyCode::Esc => {
+                app.clarifier_response.clear();
+                if let Some(pending) = app.clarifier_pending.take() {
+                    let _ = pending.responder.send(String::new());
+                }
+            }
+            _ => {
+                let _ = app.router.handle_key(key);
+            }
         }
     } else {
         match key.code {

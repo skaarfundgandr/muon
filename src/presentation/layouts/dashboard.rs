@@ -2,6 +2,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::Block;
 
+use crate::application::pipeline::PipelineState;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
@@ -10,14 +11,18 @@ use crate::presentation::views::View;
 use crate::session::SessionSummary;
 use crate::presentation::components::query_input::QueryInput;
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     f: &mut ratatui::Frame,
     area: Rect,
     query: &QueryInput,
     sessions: &[SessionSummary],
+    pipeline: &PipelineState,
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
+    clarifier_question: Option<&str>,
+    clarifier_response: &str,
 ) {
     f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
 
@@ -50,7 +55,7 @@ pub fn render(
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(sidebar_area);
 
-    session_list::render(f, sidebar_split[0], sessions);
+    session_list::render(f, sidebar_split[0], sessions, hit_registry, mouse_col, mouse_row);
     telemetry_panel::render(f, sidebar_split[1]);
 
     let main_split = Layout::default()
@@ -67,6 +72,15 @@ pub fn render(
         action: ClickAction::ActivateQueryInput,
     });
     query_input::render(f, main_split[0], query);
-    pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render));
+    let mut clarifier_input_rect: Option<ratatui::layout::Rect> = None;
+    pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render), clarifier_question, clarifier_response, mouse_col, mouse_row, pipeline, &mut clarifier_input_rect);
+    if let Some(rect) = clarifier_input_rect
+        && clarifier_question.is_some()
+    {
+        hit_registry.push(ClickTarget {
+            rect,
+            action: ClickAction::ActivateClarifier,
+        });
+    }
     source_registry::render(f, main_split[2]);
 }

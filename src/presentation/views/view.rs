@@ -30,6 +30,8 @@ pub struct RenderParams<'a> {
     pub hit_registry: &'a mut Vec<ClickTarget>,
     pub mouse_col: u16,
     pub mouse_row: u16,
+    pub clarifier_question: Option<&'a str>,
+    pub clarifier_response: &'a str,
 }
 
 impl View {
@@ -80,9 +82,12 @@ impl View {
                     area,
                     params.query_input,
                     params.sessions,
+                    params.pipeline,
                     params.hit_registry,
                     params.mouse_col,
                     params.mouse_row,
+                    params.clarifier_question,
+                    params.clarifier_response,
                 );
             }
             View::Progress => {

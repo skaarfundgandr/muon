@@ -37,6 +37,7 @@ pub struct AppState {
     pub term_rows: u16,
     pub hit_registry: Vec<ClickTarget>,
     pub clarifier_pending: Option<ClarifierPending>,
+    pub clarifier_response: String,
     pub plan_pending: Option<PlanPending>,
     pub agent_tx: Option<mpsc::UnboundedSender<AgentEvent>>,
     pub infra: Arc<InfrastructureContext>,
