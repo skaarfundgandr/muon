@@ -109,6 +109,8 @@ fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
     app.term_rows = frame.area().height;
     app.hit_registry.clear();
     let view = app.router.active();
+    let clarifier_question = app.clarifier_pending.as_ref().map(|c| c.question.as_str());
+    let clarifier_response = app.clarifier_response.as_str();
     view.render(frame, frame.area(), &mut RenderParams {
         query_input: &app.query_input,
         sessions: app.sessions.list(),
@@ -119,6 +121,8 @@ fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
         hit_registry: &mut app.hit_registry,
         mouse_col: app.mouse_col,
         mouse_row: app.mouse_row,
+        clarifier_question,
+        clarifier_response,
     });
 }
 
@@ -152,7 +156,11 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         app.forms[tab_idx].begin_edit(&current);
                     }
                     crate::presentation::form::FieldKind::Dropdown => {
-                        app.forms[tab_idx].open_dropdown();
+                        if app.forms[tab_idx].dropdown_open {
+                            app.forms[tab_idx].dropdown_open = false;
+                        } else {
+                            app.forms[tab_idx].open_dropdown();
+                        }
                     }
                     crate::presentation::form::FieldKind::Checkbox => {
                         match tab {
@@ -204,6 +212,45 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
             ClickAction::ActivateQueryInput => {
                 app.query_input.active = true;
             }
+            ClickAction::SelectSession(idx) => {
+                app.sessions.select(*idx);
+            }
+            ClickAction::SelectDropdownOption(idx) => {
+                let tab = app.router.settings_tab();
+                let tab_idx = tab as usize;
+                let fields = match tab {
+                    SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::fields(),
+                    SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::fields(),
+                    SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::fields(),
+                    SettingsTab::Display => crate::presentation::components::inputs::settings::display::fields(),
+                    SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::fields(),
+                };
+                if *idx < fields[app.forms[tab_idx].focus].options.len() {
+                    let val = fields[app.forms[tab_idx].focus].options[*idx].to_string();
+                    app.forms[tab_idx].dropdown_open = false;
+                    match tab {
+                        SettingsTab::Agents => {
+                            crate::presentation::components::inputs::settings::agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
+                        }
+                        SettingsTab::Tools => {
+                            crate::presentation::components::inputs::settings::tools::set_field(&mut app.config.tools, app.forms[tab_idx].focus, &val);
+                        }
+                        SettingsTab::DataSources => {
+                            crate::presentation::components::inputs::settings::data_sources::set_field(&mut app.config.data_sources, app.forms[tab_idx].focus, &val);
+                        }
+                        SettingsTab::Display => {
+                            crate::presentation::components::inputs::settings::display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
+                        }
+                        SettingsTab::Advanced => {
+                            crate::presentation::components::inputs::settings::advanced::set_field(&mut app.config.advanced, app.forms[tab_idx].focus, &val);
+                        }
+                    }
+                    app.forms[tab_idx].dirty = true;
+                }
+            }
+            ClickAction::ActivateClarifier => {
+                app.query_input.active = false;
+            }
         }
         return;
     }
@@ -239,12 +286,6 @@ fn handle_event(app: &mut AppState, event: Event) {
         }
         Event::AgentEvent(AgentEvent::StageChanged(stage)) => {
             app.pipeline.set_stage(stage);
-            if matches!(
-                stage,
-                PipelineStage::Complete | PipelineStage::Cancelled
-            ) {
-                app.router.transition(View::Results);
-            }
         }
         Event::AgentEvent(AgentEvent::Log(entry)) => {
             if let Some(active) = app.sessions.active() {
@@ -259,6 +300,7 @@ fn handle_event(app: &mut AppState, event: Event) {
             question,
             responder,
         }) => {
+            app.query_input.active = false;
             app.clarifier_pending = Some(ClarifierPending { question, responder });
         }
         Event::AgentEvent(AgentEvent::PlanProposed { plan, responder }) => {
@@ -266,7 +308,6 @@ fn handle_event(app: &mut AppState, event: Event) {
         }
         Event::AgentEvent(AgentEvent::Final(text)) => {
             tracing::info!(target: "muon::final", "{}", text);
-            app.router.transition(View::Results);
         }
         Event::AgentEvent(AgentEvent::Error(msg)) => {
             tracing::error!(target: "muon::agent", "{}", msg);
@@ -339,6 +380,7 @@ async fn run_loop(
         term_rows: 0,
         hit_registry: Vec::new(),
         clarifier_pending: None,
+        clarifier_response: String::new(),
         plan_pending: None,
         agent_tx: None,
         infra: Arc::new(InfrastructureContext::mock()),
