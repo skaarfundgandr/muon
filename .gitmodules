@@ -1,0 +1,3 @@
+[submodule "SPEC"]
+	path = SPEC
+	url = https://github.com/skaarfundgandr/muon-spec.git
