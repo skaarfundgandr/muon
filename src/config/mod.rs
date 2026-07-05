@@ -1,12 +1,23 @@
-use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::time::Duration;
 
-fn config_path() -> Option<std::path::PathBuf> {
+use futures::Stream;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc;
+
+fn config_dir() -> Option<PathBuf> {
     let home = std::env::var("HOME").ok()?;
-    let mut p = std::path::PathBuf::from(home);
+    let mut p = PathBuf::from(home);
     p.push(".config");
     p.push("muon");
-    p.push("config.toml");
     Some(p)
+}
+
+fn config_path() -> Option<PathBuf> {
+    let mut dir = config_dir()?;
+    dir.push("config.toml");
+    Some(dir)
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -18,19 +29,82 @@ pub struct MuonConfig {
     pub advanced: AdvancedConfig,
 }
 
-
-
 impl MuonConfig {
     pub fn load() -> Self {
         let path = match config_path() {
             Some(p) => p,
             None => return Self::default(),
         };
-        let content = match std::fs::read_to_string(&path) {
+        Self::load_from_path(&path)
+    }
+
+    pub fn load_from_path(path: &std::path::Path) -> Self {
+        let content = match std::fs::read_to_string(path) {
             Ok(c) => c,
             Err(_) => return Self::default(),
         };
         toml::from_str(&content).unwrap_or_default()
+    }
+
+    pub fn watch() -> impl Stream<Item = MuonConfig> {
+        let dir = config_dir().unwrap_or_else(|| PathBuf::from("."));
+        Self::watch_inner(dir)
+    }
+
+    pub fn watch_path(path: PathBuf) -> impl Stream<Item = MuonConfig> {
+        Self::watch_inner(path)
+    }
+
+    fn watch_inner(dir: PathBuf) -> impl Stream<Item = MuonConfig> {
+        let (signal_tx, mut signal_rx) = mpsc::channel::<()>(8);
+        let (config_tx, config_rx) = mpsc::channel::<MuonConfig>(4);
+
+        let watch_dir = dir.clone();
+        std::thread::Builder::new()
+            .name("config-watcher".to_string())
+            .spawn(move || {
+                let mut watcher: RecommendedWatcher =
+                    match notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
+                        let Ok(event) = res else {
+                            return;
+                        };
+                        match event.kind {
+                            notify::EventKind::Create(_)
+                            | notify::EventKind::Modify(_) => {
+                                let _ = signal_tx.blocking_send(());
+                            }
+                            _ => {}
+                        }
+                    }) {
+                        Ok(w) => w,
+                        Err(_) => return,
+                    };
+
+                if watcher.watch(&watch_dir, RecursiveMode::NonRecursive).is_err() {
+                    return;
+                }
+
+                loop {
+                    std::thread::sleep(Duration::from_secs(3600));
+                }
+            })
+            .ok();
+
+        let config_file = dir.join("config.toml");
+        tokio::spawn(async move {
+            while let Some(()) = signal_rx.recv().await {
+                tokio::time::sleep(Duration::from_millis(300)).await;
+                while signal_rx.try_recv().is_ok() {}
+
+                let config = MuonConfig::load_from_path(&config_file);
+                if config_tx.send(config).await.is_err() {
+                    break;
+                }
+            }
+        });
+
+        let mut inner_rx = config_rx;
+        futures::stream::poll_fn(move |cx| inner_rx.poll_recv(cx))
     }
 
     pub fn save(&self) {
@@ -56,8 +130,6 @@ pub struct AgentsConfig {
     pub shallow_researcher: ShallowResearcherConfig,
     pub deep_researcher: DeepResearcherConfig,
 }
-
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentEntryConfig {

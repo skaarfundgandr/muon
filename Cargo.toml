@@ -7,8 +7,8 @@ edition = "2024"
 unwrap_used = "deny"
 expect_used = "deny"
 panic = "deny"
-todo = "forbid"
-unimplemented = "forbid"
+todo = "deny"
+unimplemented = "deny"
 
 [profile.release]
 opt-level = 3
@@ -22,6 +22,29 @@ crossterm = "0.29"
 tokio = { version = "1", features = ["full"] }
 thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "serde"] }
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 toml = "0.8"
+async-trait = "0.1"
+futures = "0.3"
+quick-xml = "0.36"
+anyhow = "1"
+url = "2"
+tracing = "0.1"
+agent_rs = { path = "../agent_rs", features = ["rag", "opentelemetry"] }
+diesel = { version = "2.3", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
+diesel-async = { version = "0.9", features = ["sqlite", "deadpool"] }
+diesel_migrations = "2.3"
+turbovec = "0.9"
+regex = "1"
+rig-core = "0.39"
+rig-fastembed = "0.39"
+reqwest = { version = "0.13", features = ["json", "rustls"] }
+dirs = "6"
+clap = { version = "4", features = ["derive"] }
+notify = "6"
+notify-debouncer-mini = "0.5"
+
+[dev-dependencies]
+tempfile = "3"
