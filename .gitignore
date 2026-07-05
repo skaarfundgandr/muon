@@ -9,3 +9,4 @@ mcp.json
 !AGENTS.md
 !docs/**/*.md
 *.db
+!examples/**
