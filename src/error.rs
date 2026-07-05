@@ -16,6 +16,45 @@ pub enum MuonError {
 
     #[error("cancelled")]
     Cancelled,
+
+    #[error("agent {agent} failed: {message}")]
+    Agent { agent: String, message: String },
+
+    #[error("search provider {provider} failed: {message}")]
+    Search { provider: String, message: String },
+
+    #[error("database error: {0}")]
+    Database(String),
+
+    #[error("session error: {0}")]
+    Session(String),
+
+    #[error("timeout: agent {agent}")]
+    Timeout { agent: String },
+
+    #[error("pipeline error: {0}")]
+    Pipeline(String),
 }
 
 pub type Result<T> = std::result::Result<T, MuonError>;
+
+impl<T> From<tokio::sync::mpsc::error::SendError<T>> for MuonError {
+    fn from(_: tokio::sync::mpsc::error::SendError<T>) -> Self {
+        Self::Pipeline("agent event channel closed".to_string())
+    }
+}
+
+impl From<agent_rs::domain::errors::ReActError> for MuonError {
+    fn from(e: agent_rs::domain::errors::ReActError) -> Self {
+        Self::Agent {
+            agent: "unknown".to_string(),
+            message: e.to_string(),
+        }
+    }
+}
+
+impl From<anyhow::Error> for MuonError {
+    fn from(e: anyhow::Error) -> Self {
+        Self::Pipeline(e.to_string())
+    }
+}
