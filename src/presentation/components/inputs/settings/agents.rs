@@ -309,6 +309,13 @@ fn render_intent_classifier(
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
+
+    if form.dropdown_open && (form.focus == 0 || form.focus == 1) {
+        let row_below = rows[form.focus];
+        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
+            f, row_below, crate::presentation::components::inputs::settings::agents::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+        );
+    }
 }
 
 fn render_clarifier(
@@ -352,6 +359,13 @@ fn render_clarifier(
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
+
+    if form.dropdown_open && (form.focus == 4 || form.focus == 5) {
+        let row_below = rows[form.focus - 4];
+        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
+            f, row_below, crate::presentation::components::inputs::settings::agents::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+        );
+    }
 }
 
 fn render_shallow_researcher(
@@ -393,6 +407,13 @@ fn render_shallow_researcher(
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
+
+    if form.dropdown_open && (form.focus == 9 || form.focus == 10) {
+        let row_below = rows[form.focus - 9];
+        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
+            f, row_below, crate::presentation::components::inputs::settings::agents::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+        );
+    }
 }
 
 fn render_deep_researcher(
@@ -503,4 +524,16 @@ fn render_deep_researcher(
     // Citation Verify (20)
     let cit_line = checkbox_line("Citation Verify", cfg.citation_verify, is_focused(form, 20), crate::presentation::click::is_hovering(grid[5], form.mouse_col, form.mouse_row) && !is_focused(form, 20));
     f.render_widget(Paragraph::new(cit_line), grid[5]);
+
+    if form.dropdown_open && (13..=18).contains(&form.focus) {
+        let grid_idx = match form.focus {
+            13 | 14 => 1,
+            15 | 16 => 2,
+            17 | 18 => 3,
+            _ => 0,
+        };
+        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
+            f, grid[grid_idx], crate::presentation::components::inputs::settings::agents::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+        );
+    }
 }

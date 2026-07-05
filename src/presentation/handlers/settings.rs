@@ -179,7 +179,11 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                         app.forms[tab_idx].begin_edit(&val);
                     }
                     FieldKind::Dropdown => {
-                        app.forms[tab_idx].open_dropdown();
+                        if app.forms[tab_idx].dropdown_open {
+                            app.forms[tab_idx].dropdown_open = false;
+                        } else {
+                            app.forms[tab_idx].open_dropdown();
+                        }
                     }
                     FieldKind::Checkbox => {
                         match tab {

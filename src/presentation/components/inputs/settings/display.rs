@@ -43,7 +43,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: 
         .split(area);
 
     render_left(f, grid[0], config, form, hit_registry);
-    render_right(f, grid[1]);
+    render_right(f, grid[1], config);
 }
 
 fn section_block<'a>(title: &'a str) -> Block<'a> {
@@ -134,6 +134,7 @@ fn render_left(
         chunks[2],
     );
 
+
     let preview_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(BORDER));
@@ -156,12 +157,26 @@ fn render_left(
         Line::from(Span::styled("0123456789", Style::new().fg(TEXT_MAIN))),
     ];
     f.render_widget(Paragraph::new(preview_lines), preview_inner);
+
+    if form.dropdown_open && (form.focus == 0 || form.focus == 1) {
+        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
+            f, chunks[form.focus], crate::presentation::components::inputs::settings::display::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+        );
+    }
 }
 
-fn render_right(f: &mut ratatui::Frame, area: Rect) {
+fn render_right(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig) {
     let block = section_block("STATUS BAR & ENVIRONMENT INFO (READ-ONLY)");
     let inner = block.inner(area);
     f.render_widget(block, area);
+
+    // Pull the numeric px out of the saved font_size option (e.g. "Medium 14px").
+    let px = config
+        .font_size
+        .split_whitespace()
+        .find(|t| t.chars().any(|c| c.is_ascii_digit()))
+        .unwrap_or("14");
+    let font_stack = format!("{} / {} / JetBrains Mono", config.visual_theme, px);
 
     let lines: Vec<Line> = vec![
         info_row(
@@ -169,11 +184,7 @@ fn render_right(f: &mut ratatui::Frame, area: Rect) {
             "HTML TUI Emulator (Bex/Ratatui Mock)",
             Style::new().fg(CYAN),
         ),
-        info_row(
-            "Font Stack:",
-            "Tokyo Night / 14px / JetBrains Mono",
-            Style::new().fg(PURPLE),
-        ),
+        info_row("Font Stack:", &font_stack, Style::new().fg(PURPLE)),
         info_row(
             "Terminal Encoding:",
             "UTF-8 / Unicode Standard",
@@ -188,6 +199,11 @@ fn render_right(f: &mut ratatui::Frame, area: Rect) {
             "Window Size:",
             "1200 x 800 (Simulated Viewport)",
             Style::new().fg(CYAN),
+        ),
+        info_row(
+            "Note:",
+            "Font size is terminal-emulator controlled.",
+            Style::new().fg(TEXT_DIM),
         ),
     ];
     f.render_widget(Paragraph::new(lines), inner);

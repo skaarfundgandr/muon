@@ -36,6 +36,7 @@ pub fn fields() -> &'static [FieldDef] {
         FieldDef::dropdown("Embedding Model", EMBEDDING_MODELS),
         FieldDef::number("RAG Top-K"),
         FieldDef::number("Similarity Threshold"),
+        FieldDef::button("Rebuild Index"),
     ])) as &'static [FieldDef]
 }
 
@@ -524,7 +525,7 @@ fn render_embedding(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
 ) {
-    let focused = section_has_focus(form, 12, 14);
+    let focused = section_has_focus(form, 12, 15);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let block = section_block("EMBEDDING & RAG", focused, hovered && !focused);
     let inner = block.inner(area);
@@ -560,6 +561,10 @@ fn render_embedding(
         rect: chunks[2],
         action: ClickAction::ActivateField(14),
     });
+    hit_registry.push(ClickTarget {
+        rect: chunks[5],
+        action: ClickAction::ActivateField(15),
+    });
 
     f.render_widget(
         Paragraph::new(dropdown_line("Embedding Model", &config.embedding_model, is_focused(form, 12), crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row) && !is_focused(form, 12))),
@@ -583,14 +588,24 @@ fn render_embedding(
         )),
         chunks[3],
     );
-
+    let btn_focused = is_focused(form, 15);
+    let btn_hovered = crate::presentation::click::is_hovering(chunks[5], form.mouse_col, form.mouse_row) && !btn_focused;
+    let btn_color = if btn_focused {
+        BORDER_FOCUS
+    } else if btn_hovered {
+        crate::presentation::theme::BORDER_HOVER
+    } else {
+        WARNING
+    };
+    let btn_prefix = if btn_focused { "> " } else { "  " };
     f.render_widget(
-        Paragraph::new(Line::from(vec![Span::styled(
-            "[ Rebuild Index ]",
-            Style::new()
-                .fg(WARNING)
-                .add_modifier(Modifier::BOLD),
-        )])),
+        Paragraph::new(Line::from(vec![
+            Span::styled(btn_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "[ Rebuild Index ]",
+                Style::new().fg(btn_color).add_modifier(Modifier::BOLD),
+            ),
+        ])),
         chunks[5],
     );
     f.render_widget(
@@ -608,4 +623,10 @@ fn render_embedding(
         ])),
         chunks[6],
     );
+
+    if form.dropdown_open && form.focus == 12 {
+        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
+            f, chunks[0], crate::presentation::components::inputs::settings::advanced::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+        );
+    }
 }
