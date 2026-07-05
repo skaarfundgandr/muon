@@ -16,6 +16,9 @@ pub enum ClickAction {
     SwitchView(View),
     ActivateQueryInput,
     FocusField(usize),
+    SelectSession(usize),
+    SelectDropdownOption(usize),
+    ActivateClarifier,
 }
 
 pub fn is_hovering(rect: Rect, col: u16, row: u16) -> bool {

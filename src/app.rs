@@ -11,7 +11,7 @@ use ratatui::backend::CrosstermBackend;
 use tokio::sync::mpsc;
 
 use crate::application::bridge::{AgentEvent, BridgeChannels, PlanDecision};
-use crate::application::pipeline::{PipelineStage, PipelineState};
+use crate::application::pipeline::PipelineState;
 use crate::config::MuonConfig;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::infrastructure::context::InfrastructureContext;

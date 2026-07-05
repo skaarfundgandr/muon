@@ -43,6 +43,17 @@ impl SessionService {
     pub fn active(&self) -> Option<&SessionSummary> {
         self.sessions.iter().find(|s| s.is_active)
     }
+
+    /// Mark the session at `index` (0-based in `list()` order) as the active one.
+    pub fn select(&mut self, index: usize) {
+        if index >= self.sessions.len() {
+            return;
+        }
+        for s in &mut self.sessions {
+            s.is_active = false;
+        }
+        self.sessions[index].is_active = true;
+    }
 }
 
 fn derive_title(query: &str) -> String {
