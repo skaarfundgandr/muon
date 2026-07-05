@@ -11,10 +11,8 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
     if key.code == KeyCode::Esc {
         if view == View::Progress {
             app.pipeline.cancel();
-            app.router.transition(View::Dashboard);
-        } else {
-            app.running = false;
         }
+        app.running = false;
         return true;
     }
 

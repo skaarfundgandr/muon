@@ -49,6 +49,9 @@ pub fn handle(app: &mut AppState, key: KeyEvent) {
             KeyCode::Enter | KeyCode::Char('i') => {
                 app.query_input.active = true;
             }
+            KeyCode::Esc => {
+                app.running = false;
+            }
             _ => {
                 let _ = app.router.handle_key(key);
             }

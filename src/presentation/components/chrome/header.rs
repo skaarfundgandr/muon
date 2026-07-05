@@ -3,7 +3,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Paragraph;
 
-use crate::presentation::theme::{ACCENT, DIM_STYLE, SUCCESS, SUCCESS_STYLE, WARNING};
+use crate::presentation::theme;
 use crate::presentation::views::View;
 
 pub struct HeaderConfig {
@@ -15,9 +15,9 @@ impl HeaderConfig {
     pub fn for_settings(elapsed_secs: u64, dirty: bool) -> Self {
         let _ = elapsed_secs;
         let (text, color) = if dirty {
-            ("UNSAVED CHANGES", WARNING)
+            ("UNSAVED CHANGES", theme::warning())
         } else {
-            ("SAVED", SUCCESS)
+            ("SAVED", theme::success())
         };
         Self {
             badge: Some("CONFIGURATION CONSOLE"),
@@ -38,21 +38,21 @@ impl HeaderConfig {
                 badge: Some("RESEARCHING [DEEP]"),
                 extra_right: vec![Span::styled(
                     format!("ELAPSED: {}", format_elapsed(elapsed_secs)),
-                    Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                    Style::default().fg(theme::accent()).add_modifier(Modifier::BOLD),
                 )],
             },
             View::Results => Self {
                 badge: Some("RESEARCH COMPLETE"),
                 extra_right: vec![Span::styled(
                     format!("TOTAL TIME: {}", format_elapsed(elapsed_secs)),
-                    Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                    Style::default().fg(theme::success()).add_modifier(Modifier::BOLD),
                 )],
             },
             View::Settings => Self {
                 badge: Some("CONFIGURATION CONSOLE"),
                 extra_right: vec![Span::styled(
                     "UNSAVED CHANGES",
-                    Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+                    Style::default().fg(theme::warning()).add_modifier(Modifier::BOLD),
                 )],
             },
             View::Welcome => Self {
@@ -76,15 +76,15 @@ pub fn format_elapsed(total_secs: u64) -> String {
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, config: HeaderConfig) {
     let badge_color = match config.badge {
-        Some("RESEARCH COMPLETE") => SUCCESS,
-        Some("RESEARCHING [DEEP]") => ACCENT,
-        Some("CONFIGURATION CONSOLE") => ACCENT,
-        _ => ACCENT,
+        Some("RESEARCH COMPLETE") => theme::success(),
+        Some("RESEARCHING [DEEP]") => theme::accent(),
+        Some("CONFIGURATION CONSOLE") => theme::accent(),
+        _ => theme::accent(),
     };
 
     let mut left_spans: Vec<Span> = vec![Span::styled(
         "μon // Deep Research Agent",
-        Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+        Style::default().fg(theme::accent()).add_modifier(Modifier::BOLD),
     )];
 
     if let Some(text) = config.badge {
@@ -95,11 +95,11 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: HeaderConfig) {
                 .fg(badge_color)
                 .add_modifier(Modifier::BOLD),
         ));
-        left_spans.push(Span::styled(" ●", SUCCESS_STYLE));
+        left_spans.push(Span::styled(" ●", theme::success_style()));
     } else {
-        left_spans.push(Span::styled(" v0.1.0", DIM_STYLE));
-        left_spans.push(Span::styled("  ●", SUCCESS_STYLE));
-        left_spans.push(Span::styled(" CONNECTED", SUCCESS_STYLE));
+        left_spans.push(Span::styled(" v0.1.0", theme::dim_style()));
+        left_spans.push(Span::styled("  ●", theme::success_style()));
+        left_spans.push(Span::styled(" CONNECTED", theme::success_style()));
     }
 
     let sys_time = chrono::Local::now().format("%H:%M:%S");
@@ -115,11 +115,11 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: HeaderConfig) {
         right_spans.push(span.clone());
     }
     if !config.extra_right.is_empty() {
-        right_spans.push(Span::styled("  ", DIM_STYLE));
+        right_spans.push(Span::styled("  ", theme::dim_style()));
     }
-    right_spans.push(Span::styled(format!("SYS: {}", sys_time), DIM_STYLE));
-    right_spans.push(Span::styled("  ", DIM_STYLE));
-    right_spans.push(Span::styled(ws_dir, DIM_STYLE));
+    right_spans.push(Span::styled(format!("SYS: {}", sys_time), theme::dim_style()));
+    right_spans.push(Span::styled("  ", theme::dim_style()));
+    right_spans.push(Span::styled(ws_dir, theme::dim_style()));
 
     let chunks = Layout::default()
         .direction(Direction::Horizontal)

@@ -3,7 +3,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::presentation::theme::{ACCENT, BORDER, CYAN, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme;
 
 fn citation_line<'a>(text: &'a str, citations: &[&'a str]) -> Line<'a> {
     let mut spans = Vec::new();
@@ -11,14 +11,14 @@ fn citation_line<'a>(text: &'a str, citations: &[&'a str]) -> Line<'a> {
     for cite in citations {
         if let Some(idx) = rest.find(cite) {
             if idx > 0 {
-                spans.push(Span::styled(&rest[..idx], Style::new().fg(TEXT_MAIN)));
+                spans.push(Span::styled(&rest[..idx], Style::new().fg(theme::text_main())));
             }
-            spans.push(Span::styled(*cite, Style::new().fg(CYAN)));
+            spans.push(Span::styled(*cite, Style::new().fg(theme::cyan())));
             rest = &rest[idx + cite.len()..];
         }
     }
     if !rest.is_empty() {
-        spans.push(Span::styled(rest, Style::new().fg(TEXT_MAIN)));
+        spans.push(Span::styled(rest, Style::new().fg(theme::text_main())));
     }
     Line::from(spans)
 }
@@ -30,10 +30,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
 
     let block = Block::new()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER))
+        .border_style(Style::new().fg(theme::border()))
         .title(Span::styled(
             " RESEARCH REPORT SUMMARY ",
-            Style::new().fg(BORDER),
+            Style::new().fg(theme::border()),
         ));
 
     let inner = block.inner(area);
@@ -52,7 +52,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(
             "Economic Impacts of Renewable Energy in Germany & Japan",
-            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
         ))),
         chunks[0],
     );
@@ -66,8 +66,8 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
 
     let stats_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER))
-        .title(Span::styled(" STATS ", Style::new().fg(BORDER)));
+        .border_style(Style::new().fg(theme::border()))
+        .title(Span::styled(" STATS ", Style::new().fg(theme::border())));
     let stats_inner = stats_block.inner(chunks[2]);
     f.render_widget(stats_block, chunks[2]);
 
@@ -83,52 +83,52 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
 
     f.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("Sources Analyzed:    ", Style::new().fg(TEXT_DIM)),
+            Span::styled("Sources Analyzed:    ", Style::new().fg(theme::text_dim())),
             Span::styled(
                 "47",
-                Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
+                Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
             ),
         ])),
         stats_rows[0],
     );
     f.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("Documents Deep-Read:  ", Style::new().fg(TEXT_DIM)),
+            Span::styled("Documents Deep-Read:  ", Style::new().fg(theme::text_dim())),
             Span::styled(
                 "12",
-                Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
+                Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
             ),
         ])),
         stats_rows[1],
     );
     f.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("Citations Verified:   ", Style::new().fg(TEXT_DIM)),
+            Span::styled("Citations Verified:   ", Style::new().fg(theme::text_dim())),
             Span::styled(
                 "8 / 8 (100% ✓)",
-                Style::new().fg(SUCCESS).add_modifier(Modifier::BOLD),
+                Style::new().fg(theme::success()).add_modifier(Modifier::BOLD),
             ),
         ])),
         stats_rows[2],
     );
     f.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled("Overall Confidence:  ", Style::new().fg(TEXT_DIM)),
-            Span::styled("87%", Style::new().fg(CYAN).add_modifier(Modifier::BOLD)),
+            Span::styled("Overall Confidence:  ", Style::new().fg(theme::text_dim())),
+            Span::styled("87%", Style::new().fg(theme::cyan()).add_modifier(Modifier::BOLD)),
         ])),
         stats_rows[3],
     );
 
     let tag_line = Line::from(vec![
-        Span::styled("#renewable", Style::new().fg(PURPLE)),
+        Span::styled("#renewable", Style::new().fg(theme::purple())),
         Span::raw("  "),
-        Span::styled("#energy", Style::new().fg(PURPLE)),
+        Span::styled("#energy", Style::new().fg(theme::purple())),
         Span::raw("  "),
-        Span::styled("#germany", Style::new().fg(PURPLE)),
+        Span::styled("#germany", Style::new().fg(theme::purple())),
         Span::raw("  "),
-        Span::styled("#japan", Style::new().fg(PURPLE)),
+        Span::styled("#japan", Style::new().fg(theme::purple())),
         Span::raw("  "),
-        Span::styled("#gdp", Style::new().fg(PURPLE)),
+        Span::styled("#gdp", Style::new().fg(theme::purple())),
     ]);
     f.render_widget(Paragraph::new(tag_line), chunks[3]);
 }

@@ -9,7 +9,7 @@ use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
 use crate::presentation::components::settings::{advanced, agents, data_sources, display, tools};
 use crate::presentation::form::FormState;
-use crate::presentation::theme::{ACCENT, BG_MAIN, BORDER_HOVER, TEXT_DIM};
+use crate::presentation::theme;
 use crate::presentation::views::{SettingsTab, View};
 
 #[allow(clippy::too_many_arguments)]
@@ -23,7 +23,7 @@ pub fn render(
     mouse_col: u16,
     mouse_row: u16,
 ) {
-    let bg = Block::default().style(Style::default().bg(BG_MAIN));
+    let bg = Block::default().style(Style::default().bg(theme::bg_main()));
     f.render_widget(bg, area);
 
     let chunks = Layout::default()
@@ -86,11 +86,11 @@ fn render_tab_bar(f: &mut ratatui::Frame, area: Rect, active: SettingsTab, hit_r
 
         let hovered = is_hovering(seg_rect, mouse_col, mouse_row);
         let label_color = if is_active {
-            ACCENT
+            theme::accent()
         } else if hovered {
-            BORDER_HOVER
+            theme::border_hover()
         } else {
-            TEXT_DIM
+            theme::text_dim()
         };
         let label_style = if is_active {
             Style::default().fg(label_color).add_modifier(Modifier::BOLD)

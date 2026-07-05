@@ -1,7 +1,7 @@
 use crate::config::AdvancedConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
-use crate::presentation::theme::{ACCENT, BORDER, BORDER_FOCUS, CYAN, ERROR, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
+use crate::presentation::theme;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -122,11 +122,11 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form:
 
 fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
     let border_color = if focused {
-        BORDER_FOCUS
+        theme::border_focus()
     } else if hovered {
-        crate::presentation::theme::BORDER_HOVER
+        crate::presentation::theme::border_hover()
     } else {
-        BORDER
+        theme::border()
     };
     Block::default()
         .borders(Borders::ALL)
@@ -134,7 +134,7 @@ fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> 
         .title(Span::styled(
             format!(" {} ", title),
             Style::new()
-                .fg(PURPLE)
+                .fg(theme::purple())
                 .add_modifier(Modifier::BOLD),
         ))
 }
@@ -146,63 +146,63 @@ fn numeric_row<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool,
         let pre = &buf[..cur];
         let post = &buf[cur..];
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<24}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled("[", Style::new().fg(BORDER_FOCUS)),
-            Span::styled(pre.to_string(), Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
-            Span::styled("\u{258E}", Style::new().fg(BORDER_FOCUS)),
-            Span::styled(post.to_string(), Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)),
-            Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled("[", Style::new().fg(theme::border_focus())),
+            Span::styled(pre.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled("\u{258E}", Style::new().fg(theme::border_focus())),
+            Span::styled(post.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
     } else if focused {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<24}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled("[", Style::new().fg(BORDER_FOCUS)),
-            Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled("[", Style::new().fg(theme::border_focus())),
+            Span::styled(value, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
     } else if hovered {
         Line::from(vec![
-            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled("[", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled(value, Style::new().fg(SUCCESS)),
-            Span::styled("]", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled("[", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(value, Style::new().fg(theme::success())),
+            Span::styled("]", Style::new().fg(crate::presentation::theme::border_hover())),
         ])
     } else {
         Line::from(vec![
-            Span::styled(format!("{:<24}", label), Style::new().fg(TEXT_MAIN)),
-            Span::styled("[", Style::new().fg(TEXT_DIM)),
-            Span::styled(value, Style::new().fg(SUCCESS)),
-            Span::styled("]", Style::new().fg(TEXT_DIM)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(theme::text_main())),
+            Span::styled("[", Style::new().fg(theme::text_dim())),
+            Span::styled(value, Style::new().fg(theme::success())),
+            Span::styled("]", Style::new().fg(theme::text_dim())),
         ])
     }
 }
 
 fn checkbox_row<'a>(label: &'a str, hint: &'a str, checked: bool, focused: bool, hovered: bool) -> Line<'a> {
     let mark = if checked { "[\u{2713}]" } else { "[ ]" };
-    let mark_color = if checked { SUCCESS } else { TEXT_DIM };
+    let mark_color = if checked { theme::success() } else { theme::text_dim() };
     if focused {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<24}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled(mark, Style::new().fg(BORDER_FOCUS)),
-            Span::styled(" ", Style::new().fg(BORDER_FOCUS)),
-            Span::styled(hint, Style::new().fg(BORDER_FOCUS)),
+            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(mark, Style::new().fg(theme::border_focus())),
+            Span::styled(" ", Style::new().fg(theme::border_focus())),
+            Span::styled(hint, Style::new().fg(theme::border_focus())),
         ])
     } else if hovered {
         Line::from(vec![
-            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::border_hover())),
             Span::styled(mark, Style::new().fg(mark_color)),
-            Span::styled(" ", Style::new().fg(TEXT_DIM)),
-            Span::styled(hint, Style::new().fg(TEXT_DIM)),
+            Span::styled(" ", Style::new().fg(theme::text_dim())),
+            Span::styled(hint, Style::new().fg(theme::text_dim())),
         ])
     } else {
         Line::from(vec![
-            Span::styled(format!("{:<24}", label), Style::new().fg(TEXT_MAIN)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(theme::text_main())),
             Span::styled(mark, Style::new().fg(mark_color)),
-            Span::styled(" ", Style::new().fg(TEXT_DIM)),
-            Span::styled(hint, Style::new().fg(TEXT_DIM)),
+            Span::styled(" ", Style::new().fg(theme::text_dim())),
+            Span::styled(hint, Style::new().fg(theme::text_dim())),
         ])
     }
 }
@@ -210,28 +210,28 @@ fn checkbox_row<'a>(label: &'a str, hint: &'a str, checked: bool, focused: bool,
 fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: bool) -> Line<'a> {
     if focused {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<24}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled("[", Style::new().fg(BORDER_FOCUS)),
-            Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled(" \u{25BC}", Style::new().fg(BORDER_FOCUS)),
-            Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled("[", Style::new().fg(theme::border_focus())),
+            Span::styled(value, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(" \u{25BC}", Style::new().fg(theme::border_focus())),
+            Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
     } else if hovered {
         Line::from(vec![
-            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled("[", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled(value, Style::new().fg(CYAN)),
-            Span::styled(" \u{25BC}", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled("]", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled("[", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(value, Style::new().fg(theme::cyan())),
+            Span::styled(" \u{25BC}", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled("]", Style::new().fg(crate::presentation::theme::border_hover())),
         ])
     } else {
         Line::from(vec![
-            Span::styled(format!("{:<24}", label), Style::new().fg(TEXT_MAIN)),
-            Span::styled("[", Style::new().fg(TEXT_DIM)),
-            Span::styled(value, Style::new().fg(CYAN)),
-            Span::styled(" \u{25BC}", Style::new().fg(TEXT_DIM)),
-            Span::styled("]", Style::new().fg(TEXT_DIM)),
+            Span::styled(format!("{:<24}", label), Style::new().fg(theme::text_main())),
+            Span::styled("[", Style::new().fg(theme::text_dim())),
+            Span::styled(value, Style::new().fg(theme::cyan())),
+            Span::styled(" \u{25BC}", Style::new().fg(theme::text_dim())),
+            Span::styled("]", Style::new().fg(theme::text_dim())),
         ])
     }
 }
@@ -345,7 +345,7 @@ fn render_compaction(
 
     let ratio_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(if is_focused(form, 7) { BORDER_FOCUS } else { BORDER }));
+        .border_style(Style::new().fg(if is_focused(form, 7) { theme::border_focus() } else { theme::border() }));
     let ratio_inner = ratio_block.inner(chunks[0]);
     f.render_widget(ratio_block, chunks[0]);
 
@@ -354,18 +354,18 @@ fn render_compaction(
         numeric_row("Compaction Threshold", &threshold_str, is_focused(form, 7), is_focused(form, 7) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row) && !is_focused(form, 7)),
         Line::from(Span::styled(
             "0.0-1.0: context fill ratio that triggers message summary/compaction",
-            Style::new().fg(TEXT_DIM),
+            Style::new().fg(theme::text_dim()),
         )),
     ];
     f.render_widget(Paragraph::new(ratio_lines), ratio_inner);
 
-    let preamble_border = if is_focused(form, 8) { BORDER_FOCUS } else { BORDER };
+    let preamble_border = if is_focused(form, 8) { theme::border_focus() } else { theme::border() };
     let preamble_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(preamble_border))
         .title(Span::styled(
             " Agent Preamble ",
-            Style::new().fg(PURPLE),
+            Style::new().fg(theme::purple()),
         ));
     let preamble_inner = preamble_block.inner(chunks[1]);
     f.render_widget(preamble_block, chunks[1]);
@@ -382,9 +382,9 @@ fn render_compaction(
         config.agent_preamble.clone()
     };
     let preamble_style = if preamble_editing || is_focused(form, 8) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_MAIN)
+        Style::new().fg(theme::text_main())
     };
     let preamble = Paragraph::new(preamble_text)
         .style(preamble_style)
@@ -394,7 +394,7 @@ fn render_compaction(
     f.render_widget(
         Paragraph::new(Span::styled(
             "Default system prompt injected for all agent instances.",
-            Style::new().fg(TEXT_DIM),
+            Style::new().fg(theme::text_dim()),
         )),
         chunks[2],
     );
@@ -443,9 +443,9 @@ fn render_storage(
 
     let path1_prefix = if is_focused(form, 9) { "> " } else { "  " };
     let path1_label_style = if is_focused(form, 9) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_MAIN)
+        Style::new().fg(theme::text_main())
     };
     let path1_value: String = if is_focused(form, 9) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
@@ -458,26 +458,26 @@ fn render_storage(
         config.session_db_path.clone()
     };
     let path1_value_style = if is_focused(form, 9) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(CYAN)
+        Style::new().fg(theme::cyan())
     };
     f.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled(path1_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled(path1_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{:<16}", "Session DB Path"), path1_label_style),
             Span::styled(path1_value, path1_value_style),
-            Span::styled("  ", Style::new().fg(TEXT_DIM)),
-            Span::styled("[Browse]", Style::new().fg(ACCENT)),
+            Span::styled("  ", Style::new().fg(theme::text_dim())),
+            Span::styled("[Browse]", Style::new().fg(theme::accent())),
         ])),
         chunks[0],
     );
 
     let path2_prefix = if is_focused(form, 10) { "> " } else { "  " };
     let path2_label_style = if is_focused(form, 10) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_MAIN)
+        Style::new().fg(theme::text_main())
     };
     let path2_value: String = if is_focused(form, 10) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
@@ -490,17 +490,17 @@ fn render_storage(
         config.rag_db_path.clone()
     };
     let path2_value_style = if is_focused(form, 10) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(CYAN)
+        Style::new().fg(theme::cyan())
     };
     f.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled(path2_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled(path2_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
             Span::styled(format!("{:<16}", "RAG DB Path"), path2_label_style),
             Span::styled(path2_value, path2_value_style),
-            Span::styled("  ", Style::new().fg(TEXT_DIM)),
-            Span::styled("[Browse]", Style::new().fg(ACCENT)),
+            Span::styled("  ", Style::new().fg(theme::text_dim())),
+            Span::styled("[Browse]", Style::new().fg(theme::accent())),
         ])),
         chunks[1],
     );
@@ -513,7 +513,7 @@ fn render_storage(
 
     let help = Span::styled(
         "Max retrieval items returned per search provider query.",
-        Style::new().fg(TEXT_DIM),
+        Style::new().fg(theme::text_dim()),
     );
     f.render_widget(Paragraph::new(help), chunks[3]);
 }
@@ -584,23 +584,23 @@ fn render_embedding(
     f.render_widget(
         Paragraph::new(Span::styled(
             "Cosine distance similarity threshold for retrieving text chunks.",
-            Style::new().fg(TEXT_DIM),
+            Style::new().fg(theme::text_dim()),
         )),
         chunks[3],
     );
     let btn_focused = is_focused(form, 15);
     let btn_hovered = crate::presentation::click::is_hovering(chunks[5], form.mouse_col, form.mouse_row) && !btn_focused;
     let btn_color = if btn_focused {
-        BORDER_FOCUS
+        theme::border_focus()
     } else if btn_hovered {
-        crate::presentation::theme::BORDER_HOVER
+        crate::presentation::theme::border_hover()
     } else {
-        WARNING
+        theme::warning()
     };
     let btn_prefix = if btn_focused { "> " } else { "  " };
     f.render_widget(
         Paragraph::new(Line::from(vec![
-            Span::styled(btn_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+            Span::styled(btn_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
             Span::styled(
                 "[ Rebuild Index ]",
                 Style::new().fg(btn_color).add_modifier(Modifier::BOLD),
@@ -613,12 +613,12 @@ fn render_embedding(
             Span::styled(
                 "Warning: ",
                 Style::new()
-                    .fg(ERROR)
+                    .fg(theme::error())
                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 "Clears vector tables and re-embeds all active sources.",
-                Style::new().fg(TEXT_DIM),
+                Style::new().fg(theme::text_dim()),
             ),
         ])),
         chunks[6],

@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::application::pipeline::PipelineStage;
-use crate::presentation::theme::{ACCENT, BORDER, ERROR, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
+use crate::presentation::theme;
 
 /// Function-pointer signature for rendering the clarifier sub-panel inside the
 /// pipeline routing graph. Carries the pending question (if any) and the
@@ -25,10 +25,10 @@ pub fn render_horizontal(
 ) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER))
+        .border_style(Style::new().fg(theme::border()))
         .title(Span::styled(
             " PIPELINE ROUTING ",
-            Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
+            Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
         ));
 
     let inner = block.inner(area);
@@ -52,24 +52,24 @@ pub fn render_horizontal(
 
     let stage = pipeline.stage;
     let (ic_status, ic_color) = match stage {
-        PipelineStage::Idle => ("○ Pending", TEXT_DIM),
-        PipelineStage::IntentClassification => ("◉ Classifying", ACCENT),
-        _ => ("✓ Complete", SUCCESS),
+        PipelineStage::Idle => ("○ Pending", theme::text_dim()),
+        PipelineStage::IntentClassification => ("◉ Classifying", theme::accent()),
+        _ => ("✓ Complete", theme::success()),
     };
     let (dr_status, dr_color) = match stage {
         PipelineStage::Idle | PipelineStage::IntentClassification => {
-            ("○ Awaiting routing", TEXT_DIM)
+            ("○ Awaiting routing", theme::text_dim())
         }
-        PipelineStage::Clarification => ("◉ Awaiting input", WARNING),
-        PipelineStage::ShallowResearch => ("◉ Shallow researching", ACCENT),
-        PipelineStage::DeepResearch => ("◉ Research \u{2192} Deep", ACCENT),
-        _ => ("✓ Complete", SUCCESS),
+        PipelineStage::Clarification => ("◉ Awaiting input", theme::warning()),
+        PipelineStage::ShallowResearch => ("◉ Shallow researching", theme::accent()),
+        PipelineStage::DeepResearch => ("◉ Research \u{2192} Deep", theme::accent()),
+        _ => ("✓ Complete", theme::success()),
     };
     let (deep_status, deep_color) = match stage {
-        PipelineStage::DeepResearch => ("◉ Deep researching", ACCENT),
-        PipelineStage::Complete => ("\u{2713} Complete", SUCCESS),
-        PipelineStage::Cancelled => ("\u{2717} Cancelled", ERROR),
-        _ => ("○ Pending", TEXT_DIM),
+        PipelineStage::DeepResearch => ("◉ Deep researching", theme::accent()),
+        PipelineStage::Complete => ("\u{2713} Complete", theme::success()),
+        PipelineStage::Cancelled => ("\u{2717} Cancelled", theme::error()),
+        _ => ("○ Pending", theme::text_dim()),
     };
 
     let arrow1_active = !matches!(
@@ -104,14 +104,14 @@ fn render_horizontal_node(
 ) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER));
+        .border_style(Style::new().fg(theme::border()));
 
     let inner = block.inner(area);
     f.render_widget(block, area);
 
     let title_line = Line::from(Span::styled(
         title,
-        Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
+        Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
     ));
     let status_line = Line::from(Span::styled(status, Style::new().fg(color)));
 
@@ -137,9 +137,9 @@ fn render_horizontal_node(
 
 fn render_horizontal_arrow(f: &mut ratatui::Frame, area: Rect, active: bool) {
     let style = if active {
-        Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(BORDER)
+        Style::new().fg(theme::border())
     };
     let line = Line::from(Span::styled("→", style));
     let para = Paragraph::new(line).alignment(ratatui::layout::Alignment::Center);
@@ -157,7 +157,7 @@ fn render_horizontal_arrow(f: &mut ratatui::Frame, area: Rect, active: bool) {
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER));
+        .border_style(Style::new().fg(theme::border()));
 
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -178,10 +178,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         chunks[0],
         "Intent Classifier",
         "✓ done",
-        SUCCESS,
+        theme::success(),
         "research → deep",
     );
-    let conn1 = Paragraph::new(Line::from(Span::styled(" │", Style::new().fg(BORDER))));
+    let conn1 = Paragraph::new(Line::from(Span::styled(" │", Style::new().fg(theme::border()))));
     f.render_widget(conn1, chunks[1]);
 
     render_node_with_body(
@@ -189,10 +189,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         chunks[2],
         "Clarifier",
         "✓ 2 rounds | Plan approved",
-        SUCCESS,
+        theme::success(),
         "Focus on Germany and Japan",
     );
-    let conn2 = Paragraph::new(Line::from(Span::styled(" │", Style::new().fg(BORDER))));
+    let conn2 = Paragraph::new(Line::from(Span::styled(" │", Style::new().fg(theme::border()))));
     f.render_widget(conn2, chunks[3]);
 
     render_deep_researcher(f, chunks[4]);
@@ -208,14 +208,14 @@ fn render_node_with_body(
 ) {
     let node_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER));
+        .border_style(Style::new().fg(theme::border()));
 
     let inner = node_block.inner(area);
     f.render_widget(node_block, area);
 
     let title_line = Line::from(Span::styled(
         title,
-        Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD),
+        Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
     ));
     let status_line = Line::from(Span::styled(status, Style::new().fg(color)));
     let body_line = Line::from(Span::styled(body, Style::new().fg(color)));
@@ -252,22 +252,22 @@ fn render_node_with_body(
 fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect) {
     let outer_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER))
+        .border_style(Style::new().fg(theme::border()))
         .title(Span::styled(
             " Deep Researcher ",
-            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
         ));
 
     let inner = outer_block.inner(area);
     f.render_widget(outer_block, area);
 
     let subagents = [
-        ("Orchestrator", "◉", "Coordinating", ACCENT),
-        ("Planner", "✓", "5 queries, 4 sections", SUCCESS),
-        ("Researcher [Round 1/2]", "◉", "23/47 sources", ACCENT),
-        ("Researcher [Round 2/2]", "○", "pending", TEXT_DIM),
-        ("Citation Verification", "○", "pending", TEXT_DIM),
-        ("Final Report", "○", "pending", TEXT_DIM),
+        ("Orchestrator", "◉", "Coordinating", theme::accent()),
+        ("Planner", "✓", "5 queries, 4 sections", theme::success()),
+        ("Researcher [Round 1/2]", "◉", "23/47 sources", theme::accent()),
+        ("Researcher [Round 2/2]", "○", "pending", theme::text_dim()),
+        ("Citation Verification", "○", "pending", theme::text_dim()),
+        ("Final Report", "○", "pending", theme::text_dim()),
     ];
 
     for (i, (name, icon, detail, color)) in subagents.iter().enumerate() {
@@ -277,10 +277,10 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect) {
         }
 
         let line = Line::from(vec![
-            Span::styled("    ", Style::new().fg(TEXT_DIM)),
+            Span::styled("    ", Style::new().fg(theme::text_dim())),
             Span::styled(format!("{} ", icon), Style::new().fg(*color)),
-            Span::styled(format!("{:<22}", name), Style::new().fg(TEXT_MAIN)),
-            Span::styled(*detail, Style::new().fg(TEXT_DIM)),
+            Span::styled(format!("{:<22}", name), Style::new().fg(theme::text_main())),
+            Span::styled(*detail, Style::new().fg(theme::text_dim())),
         ]);
         f.render_widget(
             line,

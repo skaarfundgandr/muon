@@ -1,4 +1,4 @@
-use crate::presentation::theme::{BORDER, SUCCESS, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
@@ -8,24 +8,24 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let block = Block::default()
         .title(" AGENT TELEMETRY ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(BORDER));
+        .border_style(Style::default().fg(theme::border()));
 
     let lines = vec![
         Line::from(vec![
-            Span::styled("Sessions:      ", Style::default().fg(TEXT_DIM)),
-            Span::styled("12", Style::default().fg(TEXT_MAIN)),
+            Span::styled("Sessions:      ", Style::default().fg(theme::text_dim())),
+            Span::styled("12", Style::default().fg(theme::text_main())),
         ]),
         Line::from(vec![
-            Span::styled("Total Tokens:  ", Style::default().fg(TEXT_DIM)),
-            Span::styled("847,291", Style::default().fg(TEXT_MAIN)),
+            Span::styled("Total Tokens:  ", Style::default().fg(theme::text_dim())),
+            Span::styled("847,291", Style::default().fg(theme::text_main())),
         ]),
         Line::from(vec![
-            Span::styled("Est. Cost:     ", Style::default().fg(TEXT_DIM)),
-            Span::styled("$1.84", Style::default().fg(SUCCESS)),
+            Span::styled("Est. Cost:     ", Style::default().fg(theme::text_dim())),
+            Span::styled("$1.84", Style::default().fg(theme::success())),
         ]),
         Line::from(vec![
-            Span::styled("Framework:     ", Style::default().fg(TEXT_DIM)),
-            Span::styled("rig 0.39", Style::default().fg(TEXT_MAIN)),
+            Span::styled("Framework:     ", Style::default().fg(theme::text_dim())),
+            Span::styled("rig 0.39", Style::default().fg(theme::text_main())),
         ]),
     ];
 

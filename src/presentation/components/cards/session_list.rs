@@ -3,7 +3,7 @@ use chrono::Utc;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::session::{SessionSummary, format_relative_time};
 use crate::presentation::click::is_hovering;
-use crate::presentation::theme::{BG_DARK, BORDER, SUCCESS, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -13,7 +13,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
     let block = Block::default()
         .title(" RECENT SESSIONS ")
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER));
+        .border_style(Style::new().fg(theme::border()));
 
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -26,7 +26,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
         f.render_widget(
             Paragraph::new(Line::from(vec![Span::styled(
                 "No sessions yet. Press Enter to start researching.",
-                Style::new().fg(TEXT_DIM),
+                Style::new().fg(theme::text_dim()),
             )])),
             inner,
         );
@@ -41,9 +41,9 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
 
     for (i, session) in sessions.iter().enumerate() {
         let dot_style = if session.is_active {
-            Style::new().fg(SUCCESS).add_modifier(Modifier::BOLD)
+            Style::new().fg(theme::success()).add_modifier(Modifier::BOLD)
         } else {
-            Style::new().fg(TEXT_DIM)
+            Style::new().fg(theme::text_dim())
         };
 
         let time_str = format_relative_time(now, session.created_at);
@@ -55,25 +55,25 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
         let title_line = if hovered {
             Line::from(vec![
                 Span::styled("●", dot_style),
-                Span::styled(format!(" {} ", session.title), Style::new().fg(TEXT_MAIN).bg(BG_DARK)),
-                Span::styled(time_str, Style::new().fg(TEXT_DIM).bg(BG_DARK)),
+                Span::styled(format!(" {} ", session.title), Style::new().fg(theme::text_main()).bg(theme::bg_dark())),
+                Span::styled(time_str, Style::new().fg(theme::text_dim()).bg(theme::bg_dark())),
             ])
         } else {
             Line::from(vec![
                 Span::styled("●", dot_style),
-                Span::styled(format!(" {} ", session.title), Style::new().fg(TEXT_MAIN)),
-                Span::styled(time_str, Style::new().fg(TEXT_DIM)),
+                Span::styled(format!(" {} ", session.title), Style::new().fg(theme::text_main())),
+                Span::styled(time_str, Style::new().fg(theme::text_dim())),
             ])
         };
         let query_line = if hovered {
             Line::from(vec![Span::styled(
                 format!("   {}", session.query),
-                Style::new().fg(TEXT_DIM).bg(BG_DARK),
+                Style::new().fg(theme::text_dim()).bg(theme::bg_dark()),
             )])
         } else {
             Line::from(vec![Span::styled(
                 format!("   {}", session.query),
-                Style::new().fg(TEXT_DIM),
+                Style::new().fg(theme::text_dim()),
             )])
         };
 
@@ -82,7 +82,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
         if offset < inner.height {
             let row_rect = Rect { x: inner.x, y: inner.y + offset, width: inner.width, height: 1 };
             if hovered {
-                f.render_widget(Paragraph::new(title_line).style(Style::default().bg(BG_DARK)), row_rect);
+                f.render_widget(Paragraph::new(title_line).style(Style::default().bg(theme::bg_dark())), row_rect);
             } else {
                 f.render_widget(title_line, row_rect);
             }
@@ -90,7 +90,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
         if offset + 1 < inner.height {
             let row_rect = Rect { x: inner.x, y: inner.y + offset + 1, width: inner.width, height: 1 };
             if hovered {
-                f.render_widget(Paragraph::new(query_line).style(Style::default().bg(BG_DARK)), row_rect);
+                f.render_widget(Paragraph::new(query_line).style(Style::default().bg(theme::bg_dark())), row_rect);
             } else {
                 f.render_widget(query_line, row_rect);
             }

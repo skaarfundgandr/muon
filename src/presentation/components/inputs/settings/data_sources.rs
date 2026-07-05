@@ -1,9 +1,7 @@
 use crate::config::DataSourcesConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
-use crate::presentation::theme::{
-    ACCENT, BORDER, BORDER_FOCUS, CYAN, ERROR, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING,
-};
+use crate::presentation::theme;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -76,11 +74,11 @@ pub fn render(
 
 fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
     let border_color = if focused {
-        BORDER_FOCUS
+        theme::border_focus()
     } else if hovered {
-        crate::presentation::theme::BORDER_HOVER
+        crate::presentation::theme::border_hover()
     } else {
-        BORDER
+        theme::border()
     };
     Block::default()
         .borders(Borders::ALL)
@@ -88,7 +86,7 @@ fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> 
         .title(Span::styled(
             format!(" {} ", title),
             Style::new()
-                .fg(PURPLE)
+                .fg(theme::purple())
                 .add_modifier(Modifier::BOLD),
         ))
 }
@@ -162,23 +160,23 @@ fn render_source_providers(
         } else {
             "\u{25CB} DISABLED"
         };
-        let status_color = if *enabled { SUCCESS } else { TEXT_DIM };
+        let status_color = if *enabled { theme::success() } else { theme::text_dim() };
         let checkbox_str = if *enabled { "[\u{2713}]" } else { "[ ]" };
-        let checkbox_color = if *enabled { SUCCESS } else { TEXT_DIM };
+        let checkbox_color = if *enabled { theme::success() } else { theme::text_dim() };
 
         let prefix = if focused { "> " } else { "  " };
         let title_style = if focused {
-            Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
         } else {
-            Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)
+            Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD)
         };
 
         let card_lines = vec![
             Line::from(vec![
-                Span::styled(prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+                Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
                 Span::styled(
                     format!("[{}] ", i + 1),
-                    Style::new().fg(TEXT_DIM),
+                    Style::new().fg(theme::text_dim()),
                 ),
                 Span::styled(*title, title_style),
                 Span::raw("  "),
@@ -188,7 +186,7 @@ fn render_source_providers(
             ]),
             Line::from(vec![Span::styled(
                 format!("      {}", desc),
-                Style::new().fg(TEXT_DIM),
+                Style::new().fg(theme::text_dim()),
             )]),
         ];
 
@@ -257,38 +255,38 @@ fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState, 
         "~/documents/research/".to_string()
     };
     let path_value_style = if is_focused(form, 4) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_MAIN)
+        Style::new().fg(theme::text_main())
     };
     let path_line = Line::from(vec![
-        Span::styled(path_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+        Span::styled(path_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
         Span::styled(path_value, path_value_style),
     ]);
     f.render_widget(Paragraph::new(path_line), form_cols[0]);
 
     let type_prefix = if is_focused(form, 5) { "> " } else { "  " };
     let type_label_style = if is_focused(form, 5) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_DIM)
+        Style::new().fg(theme::text_dim())
     };
     let type_line = Line::from(vec![
-        Span::styled(type_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+        Span::styled(type_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
         Span::styled("[", type_label_style),
-        Span::styled("Directory\u{25BC}", if is_focused(form, 5) { Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD) } else { Style::new().fg(ACCENT) }),
+        Span::styled("Directory\u{25BC}", if is_focused(form, 5) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }),
         Span::styled("]", type_label_style),
     ]);
     f.render_widget(Paragraph::new(type_line), form_cols[1]);
 
     let btn_prefix = if is_focused(form, 6) { "> " } else { "  " };
     let btn_style = if is_focused(form, 6) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
     };
     let btn_line = Line::from(vec![
-        Span::styled(btn_prefix, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
+        Span::styled(btn_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
         Span::styled("[ + Add ]", btn_style),
     ]);
     f.render_widget(Paragraph::new(btn_line), form_cols[2]);
@@ -314,38 +312,38 @@ fn render_source_table(f: &mut ratatui::Frame, area: Rect) {
         Span::styled(
             format!("{:<width$}", "SOURCE PATH", width = col_path),
             Style::new()
-                .fg(PURPLE)
+                .fg(theme::purple())
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             format!("{:<width$}", "TYPE", width = col_type),
             Style::new()
-                .fg(PURPLE)
+                .fg(theme::purple())
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             format!("{:<width$}", "STATUS", width = col_status),
             Style::new()
-                .fg(PURPLE)
+                .fg(theme::purple())
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             format!("{:<width$}", "CHUNKS", width = col_chunks),
             Style::new()
-                .fg(PURPLE)
+                .fg(theme::purple())
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             format!("{:<width$}", "ACTIONS", width = col_actions),
             Style::new()
-                .fg(PURPLE)
+                .fg(theme::purple())
                 .add_modifier(Modifier::BOLD),
         ),
     ]);
 
     let separator = Line::from(Span::styled(
         "\u{2500}".repeat(usable_w),
-        Style::new().fg(BORDER),
+        Style::new().fg(theme::border()),
     ));
 
     let rows_data: &[(&str, &str, &str, &str)] = &[
@@ -360,20 +358,20 @@ fn render_source_table(f: &mut ratatui::Frame, area: Rect) {
 
     for (path, kind, status, chunks) in rows_data {
         let status_color = match *status {
-            "\u{2713} indexed" => SUCCESS,
-            "\u{25C9} indexing" => ACCENT,
-            "\u{25CB} pending" => WARNING,
-            _ => TEXT_DIM,
+            "\u{2713} indexed" => theme::success(),
+            "\u{25C9} indexing" => theme::accent(),
+            "\u{25CB} pending" => theme::warning(),
+            _ => theme::text_dim(),
         };
 
         lines.push(Line::from(vec![
             Span::styled(
                 format!("{:<width$}", path, width = col_path),
-                Style::new().fg(TEXT_MAIN),
+                Style::new().fg(theme::text_main()),
             ),
             Span::styled(
                 format!("{:<width$}", kind, width = col_type),
-                Style::new().fg(CYAN),
+                Style::new().fg(theme::cyan()),
             ),
             Span::styled(
                 format!("{:<width$}", status, width = col_status),
@@ -381,13 +379,13 @@ fn render_source_table(f: &mut ratatui::Frame, area: Rect) {
             ),
             Span::styled(
                 format!("{:<width$}", chunks, width = col_chunks),
-                Style::new().fg(TEXT_MAIN),
+                Style::new().fg(theme::text_main()),
             ),
-            Span::styled("[", Style::new().fg(TEXT_DIM)),
-            Span::styled("\u{21BB}", Style::new().fg(ACCENT)),
-            Span::styled("] [", Style::new().fg(TEXT_DIM)),
-            Span::styled("\u{00D7}", Style::new().fg(ERROR)),
-            Span::styled("]", Style::new().fg(TEXT_DIM)),
+            Span::styled("[", Style::new().fg(theme::text_dim())),
+            Span::styled("\u{21BB}", Style::new().fg(theme::accent())),
+            Span::styled("] [", Style::new().fg(theme::text_dim())),
+            Span::styled("\u{00D7}", Style::new().fg(theme::error())),
+            Span::styled("]", Style::new().fg(theme::text_dim())),
         ]));
     }
 

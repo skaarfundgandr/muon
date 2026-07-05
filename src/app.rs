@@ -240,6 +240,11 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         }
                         SettingsTab::Display => {
                             crate::presentation::components::inputs::settings::display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
+                            if app.forms[tab_idx].focus == 0
+                                && let Some(palette) = crate::presentation::theme::for_name(&val)
+                            {
+                                crate::presentation::theme::replace(palette);
+                            }
                         }
                         SettingsTab::Advanced => {
                             crate::presentation::components::inputs::settings::advanced::set_field(&mut app.config.advanced, app.forms[tab_idx].focus, &val);
@@ -386,6 +391,10 @@ async fn run_loop(
         infra: Arc::new(InfrastructureContext::mock()),
         config_reload_rx: Some(config_reload_rx),
     };
+
+    if let Some(palette) = crate::presentation::theme::for_name(&app.config.display.visual_theme) {
+        crate::presentation::theme::replace(palette);
+    }
 
     let (event_tx, mut event_rx) = mpsc::unbounded_channel::<Event>();
     let (agent_tx, mut agent_rx) = mpsc::unbounded_channel::<AgentEvent>();

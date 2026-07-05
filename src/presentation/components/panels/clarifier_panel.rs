@@ -1,5 +1,5 @@
 use crate::presentation::click::is_hovering;
-use crate::presentation::theme::{ACCENT, BORDER, BORDER_HOVER, SUCCESS, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
@@ -8,7 +8,7 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 pub fn render(f: &mut ratatui::Frame, area: Rect, question: Option<&str>, response: &str, mouse_col: u16, mouse_row: u16) -> Option<Rect> {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER))
+        .border_style(Style::new().fg(theme::border()))
         .title(" CLARIFIER ");
 
     let inner = block.inner(area);
@@ -24,33 +24,33 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, question: Option<&str>, respon
     match question {
         Some(q) => {
             lines.push(Line::from(vec![
-                Span::styled("Status: ", Style::new().fg(TEXT_DIM)),
-                Span::styled(" ◉ Awaiting your input", Style::new().fg(ACCENT)),
+                Span::styled("Status: ", Style::new().fg(theme::text_dim())),
+                Span::styled(" ◉ Awaiting your input", Style::new().fg(theme::accent())),
             ]));
             lines.push(Line::from(""));
             lines.push(Line::from(Span::styled(
                 "Clarification required:",
-                Style::new().fg(TEXT_DIM),
+                Style::new().fg(theme::text_dim()),
             )));
             lines.push(Line::from(vec![
-                Span::styled("> ", Style::new().fg(ACCENT)),
-                Span::styled(q, Style::new().fg(TEXT_MAIN)),
+                Span::styled("> ", Style::new().fg(theme::accent())),
+                Span::styled(q, Style::new().fg(theme::text_main())),
             ]));
         }
         None => {
             lines.push(Line::from(vec![
-                Span::styled("Status: ", Style::new().fg(TEXT_DIM)),
-                Span::styled(" ✓ 2 rounds complete", Style::new().fg(SUCCESS)),
-                Span::styled("  Plan approved", Style::new().fg(ACCENT)),
+                Span::styled("Status: ", Style::new().fg(theme::text_dim())),
+                Span::styled(" ✓ 2 rounds complete", Style::new().fg(theme::success())),
+                Span::styled("  Plan approved", Style::new().fg(theme::accent())),
             ]));
             lines.push(Line::from(""));
             lines.push(Line::from(Span::styled(
                 "Last clarification:",
-                Style::new().fg(TEXT_DIM),
+                Style::new().fg(theme::text_dim()),
             )));
             lines.push(Line::from(vec![
-                Span::styled("> ", Style::new().fg(ACCENT)),
-                Span::styled("'Focus on Germany and Japan'", Style::new().fg(TEXT_MAIN)),
+                Span::styled("> ", Style::new().fg(theme::accent())),
+                Span::styled("'Focus on Germany and Japan'", Style::new().fg(theme::text_main())),
             ]));
             lines.push(Line::from(""));
         }
@@ -63,21 +63,21 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, question: Option<&str>, respon
     let input_hovered = is_hovering(input_area, mouse_col, mouse_row);
     let input_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(if input_hovered { BORDER_HOVER } else { BORDER }));
+        .border_style(Style::new().fg(if input_hovered { theme::border_hover() } else { theme::border() }));
 
     let input_line = if question.is_some() {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(ACCENT).add_modifier(ratatui::style::Modifier::BOLD)),
-            Span::styled(response.to_string(), Style::new().fg(TEXT_MAIN)),
+            Span::styled("> ", Style::new().fg(theme::accent()).add_modifier(ratatui::style::Modifier::BOLD)),
+            Span::styled(response.to_string(), Style::new().fg(theme::text_main())),
             Span::styled(
                 "\u{258E}",
-                Style::new().fg(ACCENT).add_modifier(ratatui::style::Modifier::BOLD),
+                Style::new().fg(theme::accent()).add_modifier(ratatui::style::Modifier::BOLD),
             ),
         ])
     } else {
         Line::from(Span::styled(
             "[Type response to clarify...]",
-            Style::new().fg(TEXT_DIM),
+            Style::new().fg(theme::text_dim()),
         ))
     };
 

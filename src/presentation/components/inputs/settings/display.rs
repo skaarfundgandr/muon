@@ -1,7 +1,7 @@
 use crate::config::DisplayConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
-use crate::presentation::theme::{BORDER, BORDER_FOCUS, CYAN, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
+use crate::presentation::theme;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -49,47 +49,47 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: 
 fn section_block<'a>(title: &'a str) -> Block<'a> {
     Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER))
+        .border_style(Style::new().fg(theme::border()))
         .title(Span::styled(
             format!(" {} ", title),
-            Style::new().fg(PURPLE).add_modifier(Modifier::BOLD),
+            Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ))
 }
 
 fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: bool) -> Line<'a> {
     if focused {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<14}", label), Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled("[", Style::new().fg(BORDER_FOCUS)),
-            Span::styled(value, Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)),
-            Span::styled("\u{25BC}", Style::new().fg(BORDER_FOCUS)),
-            Span::styled("]", Style::new().fg(BORDER_FOCUS)),
+            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(format!("{:<14}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled("[", Style::new().fg(theme::border_focus())),
+            Span::styled(value, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled("\u{25BC}", Style::new().fg(theme::border_focus())),
+            Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
     } else if hovered {
         Line::from(vec![
-            Span::styled("  ", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled(format!("{:<14}", label), Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled("[", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled(value, Style::new().fg(TEXT_MAIN)),
-            Span::styled("\u{25BC}", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
-            Span::styled("]", Style::new().fg(crate::presentation::theme::BORDER_HOVER)),
+            Span::styled("  ", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(format!("{:<14}", label), Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled("[", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(value, Style::new().fg(theme::text_main())),
+            Span::styled("\u{25BC}", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled("]", Style::new().fg(crate::presentation::theme::border_hover())),
         ])
     } else {
         Line::from(vec![
-            Span::styled("  ", Style::new().fg(TEXT_DIM)),
-            Span::styled(format!("{:<14}", label), Style::new().fg(TEXT_DIM)),
-            Span::styled("[", Style::new().fg(TEXT_DIM)),
-            Span::styled(value, Style::new().fg(TEXT_MAIN)),
-            Span::styled("\u{25BC}", Style::new().fg(TEXT_DIM)),
-            Span::styled("]", Style::new().fg(TEXT_DIM)),
+            Span::styled("  ", Style::new().fg(theme::text_dim())),
+            Span::styled(format!("{:<14}", label), Style::new().fg(theme::text_dim())),
+            Span::styled("[", Style::new().fg(theme::text_dim())),
+            Span::styled(value, Style::new().fg(theme::text_main())),
+            Span::styled("\u{25BC}", Style::new().fg(theme::text_dim())),
+            Span::styled("]", Style::new().fg(theme::text_dim())),
         ])
     }
 }
 
 fn info_row<'a>(label: &'a str, value: &'a str, val_style: Style) -> Line<'a> {
     Line::from(vec![
-        Span::styled(format!("{:<22}", label), Style::new().fg(TEXT_DIM)),
+        Span::styled(format!("{:<22}", label), Style::new().fg(theme::text_dim())),
         Span::styled(value, val_style.add_modifier(Modifier::BOLD)),
     ])
 }
@@ -130,31 +130,31 @@ fn render_left(
     );
     f.render_widget(dropdown_line("Font Size", &config.font_size, is_focused(form, 1), crate::presentation::click::is_hovering(chunks[1], form.mouse_col, form.mouse_row) && !is_focused(form, 1)), chunks[1]);
     f.render_widget(
-        Paragraph::new(Span::styled("Live Preview", Style::new().fg(TEXT_DIM))),
+        Paragraph::new(Span::styled("Live Preview", Style::new().fg(theme::text_dim()))),
         chunks[2],
     );
 
 
     let preview_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER));
+        .border_style(Style::new().fg(theme::border()));
     let preview_inner = preview_block.inner(chunks[3]);
     f.render_widget(preview_block, chunks[3]);
 
     let preview_lines: Vec<Line> = vec![
         Line::from(Span::styled(
             "The quick brown fox jumps over the lazy dog.",
-            Style::new().fg(TEXT_MAIN),
+            Style::new().fg(theme::text_main()),
         )),
         Line::from(Span::styled(
             "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-            Style::new().fg(TEXT_MAIN),
+            Style::new().fg(theme::text_main()),
         )),
         Line::from(Span::styled(
             "abcdefghijklmnopqrstuvwxyz",
-            Style::new().fg(TEXT_MAIN),
+            Style::new().fg(theme::text_main()),
         )),
-        Line::from(Span::styled("0123456789", Style::new().fg(TEXT_MAIN))),
+        Line::from(Span::styled("0123456789", Style::new().fg(theme::text_main()))),
     ];
     f.render_widget(Paragraph::new(preview_lines), preview_inner);
 
@@ -182,28 +182,28 @@ fn render_right(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig) {
         info_row(
             "Active Renderer:",
             "HTML TUI Emulator (Bex/Ratatui Mock)",
-            Style::new().fg(CYAN),
+            Style::new().fg(theme::cyan()),
         ),
-        info_row("Font Stack:", &font_stack, Style::new().fg(PURPLE)),
+        info_row("Font Stack:", &font_stack, Style::new().fg(theme::purple())),
         info_row(
             "Terminal Encoding:",
             "UTF-8 / Unicode Standard",
-            Style::new().fg(SUCCESS),
+            Style::new().fg(theme::success()),
         ),
         info_row(
             "Color Standard:",
             "True Color (24-bit RGB)",
-            Style::new().fg(WARNING),
+            Style::new().fg(theme::warning()),
         ),
         info_row(
             "Window Size:",
             "1200 x 800 (Simulated Viewport)",
-            Style::new().fg(CYAN),
+            Style::new().fg(theme::cyan()),
         ),
         info_row(
             "Note:",
             "Font size is terminal-emulator controlled.",
-            Style::new().fg(TEXT_DIM),
+            Style::new().fg(theme::text_dim()),
         ),
     ];
     f.render_widget(Paragraph::new(lines), inner);

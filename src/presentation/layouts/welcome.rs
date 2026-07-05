@@ -4,10 +4,10 @@ use ratatui::text::Line;
 use ratatui::widgets::{Block, Paragraph};
 
 use crate::presentation::components::*;
-use crate::presentation::theme::{BG_DARK, BG_MAIN, BORDER, TEXT_DIM};
+use crate::presentation::theme;
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
-    let bg = Block::default().style(Style::default().bg(BG_MAIN));
+    let bg = Block::default().style(Style::default().bg(theme::bg_main()));
     f.render_widget(bg, area);
 
     let chunks = Layout::default()
@@ -18,14 +18,14 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     welcome_logo::render(f, chunks[0]);
 
     let footer_block = Block::default()
-        .style(Style::default().bg(BG_DARK))
-        .border_style(Style::default().fg(BORDER));
+        .style(Style::default().bg(theme::bg_dark()))
+        .border_style(Style::default().fg(theme::border()));
 
     let footer = Paragraph::new(Line::from(ratatui::text::Span::styled(
         " Built with Rust • Powered by rig • Tokyo Night Theme ",
-        Style::default().fg(TEXT_DIM).bg(BG_DARK),
+        Style::default().fg(theme::text_dim()).bg(theme::bg_dark()),
     )))
-    .style(Style::default().bg(BG_DARK))
+    .style(Style::default().bg(theme::bg_dark()))
     .block(footer_block);
 
     f.render_widget(footer, chunks[1]);

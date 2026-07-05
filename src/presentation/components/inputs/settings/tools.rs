@@ -1,7 +1,7 @@
 use crate::config::ToolsConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
-use crate::presentation::theme::{ACCENT, BORDER, BORDER_FOCUS, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING};
+use crate::presentation::theme;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -76,11 +76,11 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &ToolsConfig, form: &F
 
 fn section_block(title: &str, focused: bool, hovered: bool) -> Block<'_> {
     let border_color = if focused {
-        BORDER_FOCUS
+        theme::border_focus()
     } else if hovered {
-        crate::presentation::theme::BORDER_HOVER
+        crate::presentation::theme::border_hover()
     } else {
-        BORDER
+        theme::border()
     };
     Block::default()
         .borders(Borders::ALL)
@@ -88,7 +88,7 @@ fn section_block(title: &str, focused: bool, hovered: bool) -> Block<'_> {
         .title(Span::styled(
             format!(" {} ", title),
             Style::new()
-                .fg(PURPLE)
+                .fg(theme::purple())
                 .add_modifier(Modifier::BOLD),
         ))
 }
@@ -101,17 +101,17 @@ fn provider_row<'a>(
     focused: bool,
 ) -> Line<'a> {
     let label_style = if focused {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD)
     };
     Line::from(vec![
         Span::styled(format!("{:<18}", label), label_style),
-        Span::styled(masked, Style::new().fg(SUCCESS)),
-        Span::styled(" ", Style::new().fg(TEXT_DIM)),
-        Span::styled("[Reveal]", Style::new().fg(ACCENT)),
-        Span::styled(" ", Style::new().fg(TEXT_DIM)),
-        Span::styled("[Test]", Style::new().fg(ACCENT)),
+        Span::styled(masked, Style::new().fg(theme::success())),
+        Span::styled(" ", Style::new().fg(theme::text_dim())),
+        Span::styled("[Reveal]", Style::new().fg(theme::accent())),
+        Span::styled(" ", Style::new().fg(theme::text_dim())),
+        Span::styled("[Test]", Style::new().fg(theme::accent())),
         Span::styled(format!(" {}", status), Style::new().fg(status_color)),
     ])
 }
@@ -124,17 +124,17 @@ fn provider_row_empty<'a>(
     focused: bool,
 ) -> Line<'a> {
     let label_style = if focused {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD)
     };
     Line::from(vec![
         Span::styled(format!("{:<18}", label), label_style),
-        Span::styled(placeholder, Style::new().fg(TEXT_DIM)),
-        Span::styled(" ", Style::new().fg(TEXT_DIM)),
-        Span::styled("[Reveal]", Style::new().fg(ACCENT)),
-        Span::styled(" ", Style::new().fg(TEXT_DIM)),
-        Span::styled("[Test]", Style::new().fg(ACCENT)),
+        Span::styled(placeholder, Style::new().fg(theme::text_dim())),
+        Span::styled(" ", Style::new().fg(theme::text_dim())),
+        Span::styled("[Reveal]", Style::new().fg(theme::accent())),
+        Span::styled(" ", Style::new().fg(theme::text_dim())),
+        Span::styled("[Test]", Style::new().fg(theme::accent())),
         Span::styled(format!(" {}", status), Style::new().fg(status_color)),
     ])
 }
@@ -182,17 +182,17 @@ fn render_model_providers(
             Span::styled(
                 format!("{:<16}", "OpenCode-Go"),
                 Style::new()
-                    .fg(TEXT_MAIN)
+                    .fg(theme::text_main())
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled("$OPENCODE_API_KEY", Style::new().fg(SUCCESS)),
+            Span::styled("$OPENCODE_API_KEY", Style::new().fg(theme::success())),
         ]),
-        provider_row("", "\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}", "\u{2713}", SUCCESS, is_focused(form, 0)),
+        provider_row("", "\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}", "\u{2713}", theme::success(), is_focused(form, 0)),
         Line::from(vec![
-            Span::styled("  ", Style::new().fg(TEXT_DIM)),
+            Span::styled("  ", Style::new().fg(theme::text_dim())),
             Span::styled(
                 "Using system environment override. File secret ignored.",
-                Style::new().fg(SUCCESS),
+                Style::new().fg(theme::success()),
             ),
         ]),
     ];
@@ -200,12 +200,12 @@ fn render_model_providers(
 
     let has_nw_key = !config.neuralwatt_api_key.is_empty();
     let nw_status = if has_nw_key { "\u{2713}" } else { "\u{26A0}" };
-    let nw_color = if has_nw_key { SUCCESS } else { WARNING };
+    let nw_color = if has_nw_key { theme::success() } else { theme::warning() };
     let neural_lines = vec![
         Line::from(Span::styled(
             format!("{:<16}", "NeuralWatt"),
             Style::new()
-                .fg(TEXT_MAIN)
+                .fg(theme::text_main())
                 .add_modifier(Modifier::BOLD),
         )),
         provider_row_empty(
@@ -220,7 +220,7 @@ fn render_model_providers(
 
     let has_cp_key = !config.clinepass_api_key.is_empty();
     let cp_status = if has_cp_key { "\u{2713}" } else { "\u{26A0}" };
-    let cp_color = if has_cp_key { SUCCESS } else { WARNING };
+    let cp_color = if has_cp_key { theme::success() } else { theme::warning() };
     let cp_mask = if has_cp_key {
         "\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}"
     } else {
@@ -230,7 +230,7 @@ fn render_model_providers(
         Line::from(Span::styled(
             format!("{:<16}", "ClinePass"),
             Style::new()
-                .fg(TEXT_MAIN)
+                .fg(theme::text_main())
                 .add_modifier(Modifier::BOLD),
         )),
         provider_row(cp_mask, "", cp_status, cp_color, is_focused(form, 2)),
@@ -283,29 +283,28 @@ fn render_search_providers(
 
     let has_brave_key = !config.brave_api_key.is_empty();
     let brave_status = if has_brave_key { "\u{2713}" } else { "\u{26A0}" };
-    let brave_color = if has_brave_key { SUCCESS } else { WARNING };
+    let brave_color = if has_brave_key { theme::success() } else { theme::warning() };
     let brave_lines = vec![
         Line::from(vec![
             Span::styled(
                 format!("{:<18}", "Brave Search"),
                 Style::new()
-                    .fg(TEXT_MAIN)
+                    .fg(theme::text_main())
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled("web default", Style::new().fg(ACCENT)),
+            Span::styled("web default", Style::new().fg(theme::accent())),
         ]),
         provider_row("", "\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}", brave_status, brave_color, is_focused(form, 3)),
     ];
     f.render_widget(Paragraph::new(brave_lines), sections[0]);
 
-    use crate::presentation::theme::CYAN;
-    let searx_border = if is_focused(form, 4) || is_focused(form, 5) { BORDER_FOCUS } else { CYAN };
+    let searx_border = if is_focused(form, 4) || is_focused(form, 5) { theme::border_focus() } else { theme::cyan() };
     let searx_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(searx_border))
         .title(Span::styled(
             " SearXNG Custom Instance ",
-            Style::new().fg(CYAN),
+            Style::new().fg(theme::cyan()),
         ));
     let searx_inner = searx_block.inner(sections[1]);
     f.render_widget(searx_block, sections[1]);
@@ -320,9 +319,9 @@ fn render_search_providers(
         .split(searx_inner);
 
     let url_label_style = if is_focused(form, 4) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_DIM)
+        Style::new().fg(theme::text_dim())
     };
     let url_value: String = if is_focused(form, 4) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
@@ -335,9 +334,9 @@ fn render_search_providers(
         config.searxng_url.clone()
     };
     let url_value_style = if is_focused(form, 4) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(CYAN)
+        Style::new().fg(theme::cyan())
     };
     let url_line = Line::from(vec![
         Span::styled(format!("{:<18}", "Instance URL"), url_label_style),
@@ -347,40 +346,40 @@ fn render_search_providers(
 
     let has_sx_key = !config.searxng_api_key.is_empty();
     let sx_status = if has_sx_key { "\u{2713}" } else { "\u{26A0}" };
-    let sx_color = if has_sx_key { SUCCESS } else { WARNING };
+    let sx_color = if has_sx_key { theme::success() } else { theme::warning() };
     let sx_mask = if has_sx_key {
         "\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}\u{25CF}"
     } else {
         ""
     };
     let sx_label_style = if is_focused(form, 5) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_DIM)
+        Style::new().fg(theme::text_dim())
     };
     let api_line = Line::from(vec![
         Span::styled(format!("{:<18}", "API Key"), sx_label_style),
-        Span::styled(sx_mask, Style::new().fg(SUCCESS)),
-        Span::styled(" ", Style::new().fg(TEXT_DIM)),
-        Span::styled("[Reveal]", Style::new().fg(ACCENT)),
-        Span::styled(" ", Style::new().fg(TEXT_DIM)),
-        Span::styled("[Test]", Style::new().fg(ACCENT)),
+        Span::styled(sx_mask, Style::new().fg(theme::success())),
+        Span::styled(" ", Style::new().fg(theme::text_dim())),
+        Span::styled("[Reveal]", Style::new().fg(theme::accent())),
+        Span::styled(" ", Style::new().fg(theme::text_dim())),
+        Span::styled("[Test]", Style::new().fg(theme::accent())),
         Span::styled(format!(" {}", sx_status), Style::new().fg(sx_color)),
     ]);
     f.render_widget(Paragraph::new(api_line), searx_rows[1]);
 
     let has_ss_key = !config.semantic_scholar_api_key.is_empty();
     let ss_status = if has_ss_key { "\u{2713}" } else { "\u{26A0}" };
-    let ss_color = if has_ss_key { SUCCESS } else { WARNING };
+    let ss_color = if has_ss_key { theme::success() } else { theme::warning() };
     let sem_lines = vec![
         Line::from(vec![
             Span::styled(
                 format!("{:<18}", "Semantic Scholar"),
                 Style::new()
-                    .fg(TEXT_MAIN)
+                    .fg(theme::text_main())
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled("papers default", Style::new().fg(ACCENT)),
+            Span::styled("papers default", Style::new().fg(theme::accent())),
         ]),
         provider_row_empty(
             "",
@@ -394,15 +393,15 @@ fn render_search_providers(
 
     let arxiv_mark = if config.arxiv_enabled { "[\u{2713}] " } else { "[ ] " };
     let arxiv_label_style = if is_focused(form, 7) {
-        Style::new().fg(BORDER_FOCUS).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
-        Style::new().fg(TEXT_MAIN).add_modifier(Modifier::BOLD)
+        Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD)
     };
     let arxiv_line = Line::from(vec![
         Span::styled(format!("{:<18}", "ArXiv Search"), arxiv_label_style),
-        Span::styled(arxiv_mark, Style::new().fg(SUCCESS)),
-        Span::styled("Enabled ", Style::new().fg(TEXT_MAIN)),
-        Span::styled("(No Key Required)", Style::new().fg(SUCCESS)),
+        Span::styled(arxiv_mark, Style::new().fg(theme::success())),
+        Span::styled("Enabled ", Style::new().fg(theme::text_main())),
+        Span::styled("(No Key Required)", Style::new().fg(theme::success())),
     ]);
     f.render_widget(Paragraph::new(arxiv_line), sections[3]);
 }
@@ -410,21 +409,21 @@ fn render_search_providers(
 fn render_bottom_note(f: &mut ratatui::Frame, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(TEXT_DIM));
+        .border_style(Style::new().fg(theme::text_dim()));
 
     let note = Line::from(vec![
-        Span::styled("[i] ", Style::new().fg(WARNING)),
+        Span::styled("[i] ", Style::new().fg(theme::warning())),
         Span::styled(
             "Keys are stored locally in ",
-            Style::new().fg(TEXT_DIM),
+            Style::new().fg(theme::text_dim()),
         ),
         Span::styled(
             "~/.config/muon/secrets.toml",
-            Style::new().fg(PURPLE),
+            Style::new().fg(theme::purple()),
         ),
         Span::styled(
             ". Environment variables override file values.",
-            Style::new().fg(TEXT_DIM),
+            Style::new().fg(theme::text_dim()),
         ),
     ]);
     f.render_widget(Paragraph::new(note).block(block), area);

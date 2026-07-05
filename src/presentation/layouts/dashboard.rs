@@ -6,7 +6,7 @@ use crate::application::pipeline::PipelineState;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
-use crate::presentation::theme::BG_MAIN;
+use crate::presentation::theme;
 use crate::presentation::views::View;
 use crate::session::SessionSummary;
 use crate::presentation::components::query_input::QueryInput;
@@ -24,7 +24,7 @@ pub fn render(
     clarifier_question: Option<&str>,
     clarifier_response: &str,
 ) {
-    f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
+    f.render_widget(Block::default().style(Style::default().bg(theme::bg_main())), area);
 
     let vertical = Layout::default()
         .direction(Direction::Vertical)

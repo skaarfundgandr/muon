@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
 use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
-use crate::presentation::theme::{ACTIVE_STYLE, BORDER_HOVER, DIM_STYLE, HEADER_STYLE};
+use crate::presentation::theme;
 use crate::presentation::views::View;
 
 pub struct FooterConfig {
@@ -31,7 +31,7 @@ impl FooterConfig {
                     .filter(|(k, _, _)| *k != "? ")
                     .collect(),
                 right_hint: vec![
-                    ("[Esc]", "Pause"),
+                    ("[Esc]", "Exit"),
                     ("[Tab]", "Navigate"),
                     ("[Ctrl+C]", "Abort"),
                 ],
@@ -69,7 +69,7 @@ impl FooterConfig {
 }
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, active: View, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
-    let block = Block::default().style(HEADER_STYLE);
+    let block = Block::default().style(theme::header_style());
     f.render_widget(block, area);
 
     let config = FooterConfig::for_view(active);
@@ -90,16 +90,16 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, active: View, hit_registry: &m
         let seg_rect = Rect::new(cursor, chunks[0].y, seg_w, 1);
         let hovered = is_hovering(seg_rect, mouse_col, mouse_row);
         let style = if is_active {
-            ACTIVE_STYLE
+            theme::active_style()
         } else if hovered {
-            Style::default().fg(BORDER_HOVER)
+            Style::default().fg(theme::border_hover())
         } else {
-            DIM_STYLE
+            theme::dim_style()
         };
         spans.push(Span::styled(*key, style));
         spans.push(Span::styled(*label, style));
         if i < config.tabs.len() - 1 {
-            spans.push(Span::styled(" | ", DIM_STYLE));
+            spans.push(Span::styled(" | ", theme::dim_style()));
         }
         if let Some(v) = view {
             let click_rect = Rect::new(cursor, chunks[0].y, seg_w, 1);
@@ -123,10 +123,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, active: View, hit_registry: &m
     let mut right_spans: Vec<Span> = Vec::new();
     for (i, (key, label)) in config.right_hint.iter().enumerate() {
         if i > 0 {
-            right_spans.push(Span::styled("  |  ", DIM_STYLE));
+            right_spans.push(Span::styled("  |  ", theme::dim_style()));
         }
-        right_spans.push(Span::styled(*key, DIM_STYLE));
-        right_spans.push(Span::styled(format!(" {}", label), DIM_STYLE));
+        right_spans.push(Span::styled(*key, theme::dim_style()));
+        right_spans.push(Span::styled(format!(" {}", label), theme::dim_style()));
     }
 
     let hints_line = Line::from(right_spans).alignment(Alignment::Right);

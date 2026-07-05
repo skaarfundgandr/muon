@@ -7,12 +7,12 @@ use crate::application::pipeline::PipelineState;
 use crate::presentation::click::ClickTarget;
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
-use crate::presentation::theme::{BG_MAIN, BORDER, PURPLE, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme;
 use crate::presentation::views::View;
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
     let total_time_secs = pipeline.elapsed_secs();
-    f.render_widget(Block::default().style(Style::default().bg(BG_MAIN)), area);
+    f.render_widget(Block::default().style(Style::default().bg(theme::bg_main())), area);
 
     let vertical = Layout::default()
         .direction(Direction::Vertical)
@@ -49,50 +49,50 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_
 
     let action_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(BORDER));
+        .border_style(Style::default().fg(theme::border()));
 
     let action_line = Line::from(vec![
         Span::styled(
             "[F1]",
-            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" Export MD", Style::default().fg(TEXT_MAIN)),
-        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled(" Export MD", Style::default().fg(theme::text_main())),
+        Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled(
             "[F2]",
-            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             " Export PDF",
             Style::default()
-                .fg(TEXT_DIM)
+                .fg(theme::text_dim())
                 .add_modifier(Modifier::CROSSED_OUT),
         ),
-        Span::styled(" (v0.2)", Style::default().fg(TEXT_DIM)),
-        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled(" (v0.2)", Style::default().fg(theme::text_dim())),
+        Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled(
             "[F3]",
-            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" Sync Obsidian", Style::default().fg(TEXT_MAIN)),
-        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled(" Sync Obsidian", Style::default().fg(theme::text_main())),
+        Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled(
             "[F4]",
-            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" New Query", Style::default().fg(TEXT_MAIN)),
-        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled(" New Query", Style::default().fg(theme::text_main())),
+        Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled(
             "[F5]",
-            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" Refine Search", Style::default().fg(TEXT_MAIN)),
-        Span::styled("  |  ", Style::default().fg(TEXT_DIM)),
+        Span::styled(" Refine Search", Style::default().fg(theme::text_main())),
+        Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled(
             "[F6]",
-            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" Full Report view", Style::default().fg(TEXT_MAIN)),
+        Span::styled(" Full Report view", Style::default().fg(theme::text_main())),
     ]);
 
     let action_para = Paragraph::new(action_line).alignment(Alignment::Center);

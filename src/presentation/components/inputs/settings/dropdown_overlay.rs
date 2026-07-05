@@ -1,6 +1,6 @@
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::form::{FieldDef, FormState};
-use crate::presentation::theme::{ACCENT, BG_DARK, BG_HIGHLIGHT, BORDER_FOCUS, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -57,10 +57,11 @@ pub fn render_dropdown_overlay(
 
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::new().fg(BORDER_FOCUS))
+        .style(Style::default().bg(theme::bg_main()))
+        .border_style(Style::new().fg(theme::border_focus()))
         .title(Span::styled(
             format!(" {} ", field.label),
-            Style::new().fg(ACCENT).add_modifier(Modifier::BOLD),
+            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(popup_area);
     f.render_widget(block, popup_area);
@@ -73,14 +74,14 @@ pub fn render_dropdown_overlay(
         let selected = i == form.dropdown_cursor;
         let hovered = is_hovering(option_rects[i], mouse_col, mouse_row) && !selected;
         let (style, arrow) = if selected {
-            (Style::new().bg(BG_HIGHLIGHT).fg(TEXT_MAIN).add_modifier(Modifier::BOLD), "\u{25B6} ")
+            (Style::new().bg(theme::bg_highlight()).fg(theme::text_main()).add_modifier(Modifier::BOLD), "\u{25B6} ")
         } else if hovered {
-            (Style::new().bg(BG_DARK).fg(TEXT_MAIN), "  ")
+            (Style::new().bg(theme::bg_dark()).fg(theme::text_main()), "  ")
         } else {
-            (Style::new().fg(TEXT_DIM), "  ")
+            (Style::new().fg(theme::text_dim()), "  ")
         };
         items.push(ListItem::new(Line::from(vec![
-            Span::styled(arrow, Style::new().fg(ACCENT)),
+            Span::styled(arrow, Style::new().fg(theme::accent())),
             Span::styled(*opt, style),
         ])));
     }

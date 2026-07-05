@@ -1,5 +1,5 @@
 use crate::presentation::click::is_hovering;
-use crate::presentation::theme::{ACCENT, BORDER, BORDER_FOCUS, BORDER_HOVER, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -85,11 +85,11 @@ impl QueryInput {
 pub fn render(f: &mut ratatui::Frame, area: Rect, query: &QueryInput) {
     let hovered = is_hovering(area, query.mouse_col, query.mouse_row);
     let border_color = if query.active {
-        BORDER_FOCUS
+        theme::border_focus()
     } else if hovered {
-        BORDER_HOVER
+        theme::border_hover()
     } else {
-        BORDER
+        theme::border()
     };
     let block = Block::default()
         .borders(Borders::ALL)
@@ -103,25 +103,25 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, query: &QueryInput) {
         let pre = &query.buffer[..query.cursor];
         let post = &query.buffer[query.cursor..];
         Line::from(vec![
-            Span::styled("> ", Style::default().fg(ACCENT).add_modifier(Modifier::BOLD)),
-            Span::styled(pre.to_string(), Style::default().fg(TEXT_MAIN)),
+            Span::styled("> ", Style::default().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled(pre.to_string(), Style::default().fg(theme::text_main())),
             Span::styled(
                 "▎",
                 Style::default()
-                    .fg(ACCENT)
+                    .fg(theme::accent())
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::styled(post.to_string(), Style::default().fg(TEXT_MAIN)),
+            Span::styled(post.to_string(), Style::default().fg(theme::text_main())),
         ])
     } else {
         Line::from(vec![
             Span::styled(
                 "> ",
-                Style::default().fg(ACCENT).add_modifier(Modifier::BOLD),
+                Style::default().fg(theme::accent()).add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 "Type your research query or /new to start a fresh session...",
-                Style::default().fg(TEXT_DIM),
+                Style::default().fg(theme::text_dim()),
             ),
         ])
     };
@@ -129,19 +129,19 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, query: &QueryInput) {
     let hint_new = Span::styled(
         "/new",
         Style::default()
-            .fg(ACCENT)
+            .fg(theme::accent())
             .add_modifier(Modifier::BOLD),
     );
     let hint_enter = Span::styled(
         "Enter",
         Style::default()
-            .fg(ACCENT)
+            .fg(theme::accent())
             .add_modifier(Modifier::BOLD),
     );
-    let hint_text = Span::styled(" to start a new session | ", Style::default().fg(TEXT_DIM));
-    let hint_text2 = Span::styled(" to submit", Style::default().fg(TEXT_DIM));
+    let hint_text = Span::styled(" to start a new session | ", Style::default().fg(theme::text_dim()));
+    let hint_text2 = Span::styled(" to submit", Style::default().fg(theme::text_dim()));
     let hint_line = Line::from(vec![
-        Span::styled("Type ", Style::default().fg(TEXT_DIM)),
+        Span::styled("Type ", Style::default().fg(theme::text_dim())),
         hint_new,
         hint_text,
         hint_enter,

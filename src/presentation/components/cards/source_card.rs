@@ -3,9 +3,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::presentation::theme::{
-    ACCENT, BORDER, CYAN, ERROR, PURPLE, SUCCESS, TEXT_DIM, TEXT_MAIN, WARNING,
-};
+use crate::presentation::theme;
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
@@ -20,11 +18,11 @@ enum Verification {
 impl Verification {
     fn badge(&self) -> (&'static str, ratatui::style::Color) {
         match self {
-            Verification::Exact => ("✓ EXACT", SUCCESS),
-            Verification::Prefix => ("~ PREFIX", CYAN),
-            Verification::ChildPath => ("↗ CHILD-PATH", ACCENT),
-            Verification::QuerySubset => ("⊞ QUERY-SUBSET", PURPLE),
-            Verification::Removed => ("⚠ REMOVED", ERROR),
+            Verification::Exact => ("✓ EXACT", theme::success()),
+            Verification::Prefix => ("~ PREFIX", theme::cyan()),
+            Verification::ChildPath => ("↗ CHILD-PATH", theme::accent()),
+            Verification::QuerySubset => ("⊞ QUERY-SUBSET", theme::purple()),
+            Verification::Removed => ("⚠ REMOVED", theme::error()),
         }
     }
 }
@@ -56,9 +54,9 @@ impl SourceType {
 
     fn color(&self) -> ratatui::style::Color {
         match self {
-            SourceType::Web => ACCENT,
-            SourceType::Paper => PURPLE,
-            SourceType::Code => CYAN,
+            SourceType::Web => theme::accent(),
+            SourceType::Paper => theme::purple(),
+            SourceType::Code => theme::cyan(),
         }
     }
 }
@@ -66,10 +64,10 @@ impl SourceType {
 pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
     let outer_block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(BORDER))
+        .border_style(Style::default().fg(theme::border()))
         .title(Span::styled(
             " VERIFIED SOURCES (8/8) ",
-            Style::default().fg(PURPLE).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ));
 
     let outer_inner = outer_block.inner(area);
@@ -83,9 +81,9 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
     let total_status = Line::from(vec![
         Span::styled(
             "ALL CHECKS PASSED",
-            Style::default().fg(SUCCESS).add_modifier(Modifier::BOLD),
+            Style::default().fg(theme::success()).add_modifier(Modifier::BOLD),
         ),
-        Span::styled(" ✓", Style::default().fg(SUCCESS)),
+        Span::styled(" ✓", Style::default().fg(theme::success())),
     ]);
     f.render_widget(
         Paragraph::new(total_status),
@@ -148,21 +146,21 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(if is_removed {
-                Style::default().fg(WARNING)
+                Style::default().fg(theme::warning())
             } else {
-                Style::default().fg(BORDER)
+                Style::default().fg(theme::border())
             });
 
-        let index_style = Style::default().fg(PURPLE).add_modifier(Modifier::BOLD);
+        let index_style = Style::default().fg(theme::purple()).add_modifier(Modifier::BOLD);
         let index_span = Span::styled(format!("[{}] ", i + 1), index_style);
-        let title_span = Span::styled(entry.title, Style::default().fg(TEXT_MAIN));
+        let title_span = Span::styled(entry.title, Style::default().fg(theme::text_main()));
 
         let rel_color = if entry.relevance >= 85 {
-            SUCCESS
+            theme::success()
         } else if entry.relevance >= 60 {
-            WARNING
+            theme::warning()
         } else {
-            TEXT_DIM
+            theme::text_dim()
         };
 
         let (badge_text, badge_color) = entry.verification.badge();
@@ -189,27 +187,27 @@ pub fn render(f: &mut ratatui::Frame<'_>, area: Rect) {
             badge,
             Span::raw("  "),
             type_span,
-            Span::styled(" • ", Style::default().fg(TEXT_DIM)),
-            Span::styled(entry.domain, Style::default().fg(TEXT_DIM)),
+            Span::styled(" • ", Style::default().fg(theme::text_dim())),
+            Span::styled(entry.domain, Style::default().fg(theme::text_dim())),
             Span::raw("  "),
             Span::styled(
                 format!("Relevance: {}% ", entry.relevance),
                 Style::default().fg(rel_color),
             ),
             Span::styled(filled, Style::default().fg(rel_color)),
-            Span::styled(empty, Style::default().fg(TEXT_DIM)),
+            Span::styled(empty, Style::default().fg(theme::text_dim())),
         ]);
 
         let warning_text = if is_removed {
             Line::from(Span::styled(
                 "⚠ URL truncated — partial match on index server",
-                Style::default().fg(WARNING).add_modifier(Modifier::BOLD),
+                Style::default().fg(theme::warning()).add_modifier(Modifier::BOLD),
             ))
         } else {
             Line::from("")
         };
 
-        let snippet_line = Line::from(Span::styled(entry.snippet, Style::default().fg(TEXT_DIM)));
+        let snippet_line = Line::from(Span::styled(entry.snippet, Style::default().fg(theme::text_dim())));
 
         let inner = block.inner(chunks[i]);
         f.render_widget(block, chunks[i]);

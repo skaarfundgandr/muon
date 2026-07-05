@@ -7,11 +7,11 @@ use crate::application::pipeline::PipelineState;
 use crate::presentation::click::ClickTarget;
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
-use crate::presentation::theme::{ACCENT, BG_MAIN, TEXT_DIM, TEXT_MAIN};
+use crate::presentation::theme;
 use crate::presentation::views::View;
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
-    let bg = Block::default().style(Style::default().bg(BG_MAIN));
+    let bg = Block::default().style(Style::default().bg(theme::bg_main()));
     f.render_widget(bg, area);
 
     let chunks = Layout::default()
@@ -45,16 +45,16 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_
         Span::styled(
             format!("Stage: {} ", stage_name),
             Style::default()
-                .fg(ACCENT)
+                .fg(theme::accent())
                 .add_modifier(Modifier::BOLD),
         ),
         Span::styled(
             progress_bar,
-            Style::default().fg(TEXT_MAIN),
+            Style::default().fg(theme::text_main()),
         ),
         Span::styled(
             format!(" {}/{}", pipeline.current_step, pipeline.total_steps),
-            Style::default().fg(TEXT_DIM),
+            Style::default().fg(theme::text_dim()),
         ),
     ]);
     f.render_widget(
