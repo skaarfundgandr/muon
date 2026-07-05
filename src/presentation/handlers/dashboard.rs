@@ -17,8 +17,8 @@ pub fn handle(app: &mut AppState, key: KeyEvent) {
                 let query = app.query_input.submit();
                 if !query.is_empty() {
                     let _ = app.sessions.create(&query);
+                    app.spawn_pipeline(&query);
                 }
-                app.pipeline.start();
                 app.router.transition(View::Progress);
             }
             KeyCode::Esc => app.query_input.active = false,

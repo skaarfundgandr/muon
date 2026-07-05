@@ -1,7 +1,9 @@
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum PipelineStage {
+    #[default]
     Idle,
     IntentClassification,
     Clarification,
@@ -34,25 +36,23 @@ impl Default for PipelineState {
 
 impl PipelineState {
     pub fn start(&mut self) {
-        self.stage = PipelineStage::IntentClassification;
+        self.stage = PipelineStage::Idle;
         self.started_at = Some(Utc::now());
         self.completed_at = None;
-        self.current_step = 1;
+        self.current_step = 0;
     }
 
-    pub fn advance(&mut self) {
-        self.stage = match self.stage {
-            PipelineStage::Idle | PipelineStage::Cancelled => PipelineStage::IntentClassification,
-            PipelineStage::IntentClassification => PipelineStage::Clarification,
-            PipelineStage::Clarification => PipelineStage::ShallowResearch,
-            PipelineStage::ShallowResearch => PipelineStage::DeepResearch,
-            PipelineStage::DeepResearch => PipelineStage::Complete,
-            PipelineStage::Complete => PipelineStage::Complete,
-        };
-        self.current_step += 1;
-        if self.stage == PipelineStage::Complete {
+    pub fn set_stage(&mut self, s: PipelineStage) {
+        self.stage = s;
+        self.current_step = self.current_step.saturating_add(1);
+        if matches!(s, PipelineStage::Complete | PipelineStage::Cancelled) {
             self.completed_at = Some(Utc::now());
         }
+    }
+
+    pub fn finish(&mut self) {
+        self.stage = PipelineStage::Complete;
+        self.completed_at = Some(Utc::now());
     }
 
     pub fn cancel(&mut self) {
@@ -75,5 +75,9 @@ impl PipelineState {
             self.stage,
             PipelineStage::Idle | PipelineStage::Complete | PipelineStage::Cancelled
         )
+    }
+
+    pub fn clone_state_for_task(&self) -> Self {
+        self.clone()
     }
 }

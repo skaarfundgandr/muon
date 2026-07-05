@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use crossterm::event::{poll, read, EnableMouseCapture, Event as CrosstermEvent, MouseButton, MouseEvent, MouseEventKind};
@@ -9,7 +10,11 @@ use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use tokio::sync::mpsc;
 
+use crate::application::bridge::{AgentEvent, BridgeChannels, PlanDecision};
 use crate::application::pipeline::{PipelineStage, PipelineState};
+use crate::config::MuonConfig;
+use crate::domain::models::log_entry::{AgentTag, LogLevel};
+use crate::infrastructure::context::InfrastructureContext;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::form::FormState;
@@ -21,7 +26,7 @@ pub struct AppState {
     pub router: ViewRouter,
     pub running: bool,
     tick_count: u64,
-    pub config: crate::config::MuonConfig,
+    pub config: MuonConfig,
     pub forms: [FormState; 5],
     pub query_input: QueryInput,
     pub sessions: SessionService,
@@ -31,14 +36,57 @@ pub struct AppState {
     pub term_cols: u16,
     pub term_rows: u16,
     pub hit_registry: Vec<ClickTarget>,
+    pub clarifier_pending: Option<ClarifierPending>,
+    pub plan_pending: Option<PlanPending>,
+    pub agent_tx: Option<mpsc::UnboundedSender<AgentEvent>>,
+    pub infra: Arc<InfrastructureContext>,
+    pub config_reload_rx: Option<mpsc::Receiver<MuonConfig>>,
 }
 
-#[derive(Debug, Clone)]
+impl AppState {
+    pub fn spawn_pipeline(&mut self, query: &str) {
+        let Some(agent_tx) = self.agent_tx.clone() else {
+            return;
+        };
+        let bridge = BridgeChannels::new(agent_tx);
+        let cfg = self.config.clone();
+        let infra = self.infra.clone();
+        let session_id = uuid::Uuid::new_v4();
+        let mut pipeline = self.pipeline.clone_state_for_task();
+        let query = query.to_string();
+        tokio::spawn(async move {
+            let _ = crate::application::pipeline_runner::run_pipeline(
+                &query,
+                &mut pipeline,
+                session_id,
+                &cfg,
+                &infra,
+                &bridge,
+            )
+            .await;
+        });
+    }
+}
+
+#[derive(Debug)]
+pub struct ClarifierPending {
+    pub question: String,
+    pub responder: tokio::sync::oneshot::Sender<String>,
+}
+
+#[derive(Debug)]
+pub struct PlanPending {
+    pub plan: crate::domain::agents::clarifier::ClarifierResult,
+    pub responder: tokio::sync::oneshot::Sender<PlanDecision>,
+}
+
+#[derive(Debug)]
 pub enum Event {
     Key(crossterm::event::KeyEvent),
     Mouse(MouseEvent),
     Tick,
-    AgentEvent(String),
+    AgentEvent(AgentEvent),
+    ConfigReloaded(Box<MuonConfig>),
 }
 
 fn setup_terminal() -> crate::error::Result<Terminal<CrosstermBackend<std::io::Stdout>>> {
@@ -180,25 +228,106 @@ fn handle_event(app: &mut AppState, event: Event) {
         }
         Event::Tick => {
             app.tick_count += 1;
-            if app.pipeline.is_running() && app.tick_count.is_multiple_of(4) {
-                app.pipeline.advance();
-                if app.pipeline.stage == PipelineStage::Complete {
-                    app.router.transition(View::Results);
+            #[allow(clippy::collapsible_if)]
+            if let Some(ref mut rx) = app.config_reload_rx {
+                if let Ok(new_config) = rx.try_recv() {
+                    tracing::info!(target: "muon::config", "config reloaded from disk");
+                    app.config = new_config;
                 }
             }
         }
-        Event::AgentEvent(_) => {}
+        Event::AgentEvent(AgentEvent::StageChanged(stage)) => {
+            app.pipeline.set_stage(stage);
+            if matches!(
+                stage,
+                PipelineStage::Complete | PipelineStage::Cancelled
+            ) {
+                app.router.transition(View::Results);
+            }
+        }
+        Event::AgentEvent(AgentEvent::Log(entry)) => {
+            if let Some(active) = app.sessions.active() {
+                let _ = active;
+            }
+            let tag = entry.agent_tag;
+            if matches!(tag, AgentTag::Sys) {
+                tracing::debug!(target: "muon::sys", "{}", entry.message);
+            }
+        }
+        Event::AgentEvent(AgentEvent::ClarifierQuestion {
+            question,
+            responder,
+        }) => {
+            app.clarifier_pending = Some(ClarifierPending { question, responder });
+        }
+        Event::AgentEvent(AgentEvent::PlanProposed { plan, responder }) => {
+            app.plan_pending = Some(PlanPending { plan, responder });
+        }
+        Event::AgentEvent(AgentEvent::Final(text)) => {
+            tracing::info!(target: "muon::final", "{}", text);
+            app.router.transition(View::Results);
+        }
+        Event::AgentEvent(AgentEvent::Error(msg)) => {
+            tracing::error!(target: "muon::agent", "{}", msg);
+        }
+        Event::ConfigReloaded(new_config) => {
+            tracing::info!(target: "muon::config", "config reloaded via event");
+            app.config = *new_config;
+        }
+    }
+}
+
+async fn build_infrastructure(
+    cfg: &MuonConfig,
+    bridge: &BridgeChannels,
+) -> InfrastructureContext {
+    if std::env::var("MUON_LIVE")
+        .map(|v| v == "1")
+        .unwrap_or(false)
+    {
+        match InfrastructureContext::new_live(cfg, bridge).await {
+            Ok(infra) => infra,
+            Err(e) => {
+                bridge.log(
+                    AgentTag::Sys,
+                    LogLevel::Warn,
+                    format!(
+                        "live backend failed, falling back to mock: {e}"
+                    ),
+                );
+                InfrastructureContext::mock()
+            }
+        }
+    } else {
+        InfrastructureContext::mock()
     }
 }
 
 async fn run_loop(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
 ) -> crate::error::Result<()> {
+    let config = MuonConfig::load();
+
+    let mut config_reload_rx = {
+        use futures::StreamExt;
+        let mut stream = MuonConfig::watch();
+        let (tx, rx) = mpsc::channel(4);
+        tokio::spawn(async move {
+            while let Some(cfg) = stream.next().await {
+                if tx.send(cfg).await.is_err() {
+                    break;
+                }
+            }
+        });
+        rx
+    };
+    let _ = config_reload_rx.try_recv();
+
     let mut app = AppState {
         router: ViewRouter::new(),
         running: true,
         tick_count: 0,
-        config: crate::config::MuonConfig::load(),
+        config: config.clone(),
         forms: std::array::from_fn(|_| FormState::default()),
         query_input: QueryInput::default(),
         sessions: SessionService::new(),
@@ -208,21 +337,28 @@ async fn run_loop(
         term_cols: 0,
         term_rows: 0,
         hit_registry: Vec::new(),
+        clarifier_pending: None,
+        plan_pending: None,
+        agent_tx: None,
+        infra: Arc::new(InfrastructureContext::mock()),
+        config_reload_rx: Some(config_reload_rx),
     };
 
-    let (tx, mut rx) = mpsc::unbounded_channel::<Event>();
+    let (event_tx, mut event_rx) = mpsc::unbounded_channel::<Event>();
+    let (agent_tx, mut agent_rx) = mpsc::unbounded_channel::<AgentEvent>();
+    let key_tx = event_tx.clone();
 
     tokio::spawn(async move {
         loop {
             match poll(Duration::from_millis(250)) {
                 Ok(true) => match read() {
                     Ok(CrosstermEvent::Key(key)) => {
-                        if tx.send(Event::Key(key)).is_err() {
+                        if key_tx.send(Event::Key(key)).is_err() {
                             break;
                         }
                     }
                     Ok(CrosstermEvent::Mouse(mouse)) => {
-                        if tx.send(Event::Mouse(mouse)).is_err() {
+                        if key_tx.send(Event::Mouse(mouse)).is_err() {
                             break;
                         }
                     }
@@ -230,16 +366,30 @@ async fn run_loop(
                     Err(_) => break,
                 },
                 Ok(false) => {
-                    let _ = tx.send(Event::Tick);
+                    let _ = key_tx.send(Event::Tick);
                 }
                 Err(_) => break,
             }
         }
     });
 
+    // Forward agent events into the main event loop.
+    tokio::spawn(async move {
+        while let Some(ev) = agent_rx.recv().await {
+            if event_tx.send(Event::AgentEvent(ev)).is_err() {
+                break;
+            }
+        }
+    });
+
+    let bridge_for_init = BridgeChannels::new(agent_tx.clone());
+    let infra = build_infrastructure(&config, &bridge_for_init).await;
+    app.infra = Arc::new(infra);
+    app.agent_tx = Some(agent_tx);
+
     while app.running {
         terminal.draw(|f| render(f, &mut app))?;
-        if let Some(event) = rx.recv().await {
+        if let Some(event) = event_rx.recv().await {
             handle_event(&mut app, event);
         }
     }
