@@ -1,26 +1,11 @@
 use async_trait::async_trait;
 use serde::Deserialize;
+use serde_json::json;
 
+use crate::config::{FirecrawlOptions, SerperOptions, TavilyOptions};
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::search_provider::SearchProvider;
 use crate::error::MuonError;
-
-fn percent_encode(input: &str) -> String {
-    let mut encoded = String::with_capacity(input.len() * 3);
-    for byte in input.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                encoded.push(byte as char);
-            }
-            b' ' => encoded.push('+'),
-            _ => {
-                encoded.push('%');
-                encoded.push_str(&format!("{:02X}", byte));
-            }
-        }
-    }
-    encoded
-}
 
 pub struct BraveProvider {
     api_key: String,
@@ -61,7 +46,7 @@ impl SearchProvider for BraveProvider {
         let url = format!(
             "{}/api/v1/web/search?q={}&count={}",
             self.base_url,
-            percent_encode(query),
+            super::percent_encode(query),
             max
         );
         let resp = self
@@ -102,66 +87,94 @@ impl SearchProvider for BraveProvider {
     }
 }
 
-pub struct SearXngProvider {
-    base_url: String,
-    api_key: Option<String>,
+pub struct TavilyProvider {
+    api_key: String,
+    max_results: Option<usize>,
+    options: TavilyOptions,
     http: reqwest::Client,
 }
 
-impl SearXngProvider {
-    pub fn new(base_url: String, api_key: Option<String>) -> Self {
+impl TavilyProvider {
+    pub fn new(api_key: String, max_results: Option<usize>, options: TavilyOptions) -> Self {
         Self {
-            base_url,
             api_key,
+            max_results,
+            options,
             http: reqwest::Client::new(),
         }
     }
 }
 
 #[derive(Deserialize)]
-struct SearXngResponse {
-    results: Option<Vec<SearXngResult>>,
+struct TavilyResponse {
+    results: Vec<TavilyResult>,
 }
 
 #[derive(Deserialize)]
-struct SearXngResult {
+struct TavilyResult {
     title: String,
     url: String,
-    content: Option<String>,
+    content: String,
+    score: f64,
 }
 
 #[async_trait]
-impl SearchProvider for SearXngProvider {
+impl SearchProvider for TavilyProvider {
     async fn search(&self, query: &str, max: usize) -> Result<Vec<Source>, MuonError> {
-        let mut url = format!(
-            "{}/search?format=json&q={}&n={}",
-            self.base_url,
-            percent_encode(query),
-            max
-        );
-        if let Some(ref key) = self.api_key {
-            url = format!("{}&api_key={}", url, key);
+        let effective_max = self.max_results.unwrap_or(max);
+        let search_depth = serde_json::to_value(&self.options.search_depth)
+            .ok()
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or_else(|| "basic".into());
+        let topic = self
+            .options
+            .topic
+            .as_ref()
+            .and_then(|t| serde_json::to_value(t).ok())
+            .and_then(|v| v.as_str().map(String::from));
+
+        let mut body = json!({
+            "query": query,
+            "search_depth": search_depth,
+            "max_results": effective_max,
+            "include_answer": self.options.include_answer,
+            "include_raw_content": self.options.include_raw_content,
+            "include_domains": self.options.include_domains,
+            "exclude_domains": self.options.exclude_domains,
+        });
+
+        if let Some(ref t) = topic {
+            body["topic"] = json!(t);
+        }
+        if let Some(ref tr) = self.options.time_range {
+            body["time_range"] = json!(tr);
         }
 
-        let resp = self.http.get(&url).send().await.map_err(|e| MuonError::Search {
-            provider: "searxng".into(),
+        let resp = self
+            .http
+            .post("https://api.tavily.com/search")
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| MuonError::Search {
+                provider: "tavily".into(),
+                message: e.to_string(),
+            })?;
+
+        let body: TavilyResponse = resp.json().await.map_err(|e| MuonError::Search {
+            provider: "tavily".into(),
             message: e.to_string(),
         })?;
 
-        let body: SearXngResponse = resp.json().await.map_err(|e| MuonError::Search {
-            provider: "searxng".into(),
-            message: e.to_string(),
-        })?;
-
-        let results = body.results.unwrap_or_default();
-
-        Ok(results
+        Ok(body
+            .results
             .into_iter()
             .map(|r| Source {
                 url: r.url,
                 title: r.title,
-                snippet: r.content.unwrap_or_default(),
-                relevance: 0.0,
+                snippet: r.content,
+                relevance: r.score,
                 source_type: SourceType::Web,
                 verified: false,
                 verification_status: VerificationStatus::Unverified,
@@ -171,6 +184,204 @@ impl SearchProvider for SearXngProvider {
     }
 
     fn provider_name(&self) -> &'static str {
-        "searxng"
+        "tavily"
+    }
+}
+
+pub struct FirecrawlProvider {
+    api_key: String,
+    max_results: Option<usize>,
+    options: FirecrawlOptions,
+    http: reqwest::Client,
+}
+
+impl FirecrawlProvider {
+    pub fn new(api_key: String, max_results: Option<usize>, options: FirecrawlOptions) -> Self {
+        Self {
+            api_key,
+            max_results,
+            options,
+            http: reqwest::Client::new(),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct FirecrawlResponse {
+    data: Vec<FirecrawlResult>,
+}
+
+#[derive(Deserialize)]
+struct FirecrawlResult {
+    title: Option<String>,
+    url: Option<String>,
+    description: Option<String>,
+    markdown: Option<String>,
+}
+
+#[async_trait]
+impl SearchProvider for FirecrawlProvider {
+    async fn search(&self, query: &str, max: usize) -> Result<Vec<Source>, MuonError> {
+        let effective_max = self.max_results.unwrap_or(max);
+        let formats = if self.options.scrape_formats.is_empty() {
+            vec!["markdown".to_string()]
+        } else {
+            self.options.scrape_formats.clone()
+        };
+
+        let body = json!({
+            "query": query,
+            "limit": effective_max,
+            "sources": ["web"],
+            "scrapeOptions": {
+                "formats": formats,
+                "onlyMainContent": true,
+            },
+        });
+
+        let resp = self
+            .http
+            .post("https://api.firecrawl.dev/v2/search")
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| MuonError::Search {
+                provider: "firecrawl".into(),
+                message: e.to_string(),
+            })?;
+
+        let body: FirecrawlResponse = resp.json().await.map_err(|e| MuonError::Search {
+            provider: "firecrawl".into(),
+            message: e.to_string(),
+        })?;
+
+        Ok(body
+            .data
+            .into_iter()
+            .filter_map(|r| {
+                let url = r.url?;
+                let title = r.title.unwrap_or_default();
+                let snippet = match (&r.description, &r.markdown) {
+                    (Some(desc), Some(md)) if !desc.is_empty() => {
+                        format!("{desc}\n\n{md}")
+                    }
+                    (Some(desc), _) if !desc.is_empty() => desc.clone(),
+                    (_, Some(md)) => md.clone(),
+                    _ => String::new(),
+                };
+                Some(Source {
+                    url,
+                    title,
+                    snippet,
+                    relevance: 0.0,
+                    source_type: SourceType::Web,
+                    verified: false,
+                    verification_status: VerificationStatus::Unverified,
+                    embedding_id: None,
+                })
+            })
+            .collect())
+    }
+
+    fn provider_name(&self) -> &'static str {
+        "firecrawl"
+    }
+}
+
+pub struct SerperProvider {
+    api_key: String,
+    max_results: Option<usize>,
+    options: SerperOptions,
+    http: reqwest::Client,
+}
+
+impl SerperProvider {
+    pub fn new(api_key: String, max_results: Option<usize>, options: SerperOptions) -> Self {
+        Self {
+            api_key,
+            max_results,
+            options,
+            http: reqwest::Client::new(),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct SerperResponse {
+    organic: Vec<SerperResult>,
+}
+
+#[derive(Deserialize)]
+struct SerperResult {
+    title: String,
+    link: String,
+    snippet: String,
+    position: Option<usize>,
+}
+
+#[async_trait]
+impl SearchProvider for SerperProvider {
+    async fn search(&self, query: &str, max: usize) -> Result<Vec<Source>, MuonError> {
+        let effective_max = self.max_results.unwrap_or(max);
+        let mut body = json!({
+            "q": query,
+            "num": effective_max,
+            "autocorrect": self.options.autocorrect,
+        });
+
+        if let Some(ref gl) = self.options.gl {
+            body["gl"] = json!(gl);
+        }
+        if let Some(ref hl) = self.options.hl {
+            body["hl"] = json!(hl);
+        }
+        if let Some(ref tbs) = self.options.tbs {
+            body["tbs"] = json!(tbs);
+        }
+
+        let resp = self
+            .http
+            .post("https://google.serper.dev/search")
+            .header("X-API-KEY", &self.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| MuonError::Search {
+                provider: "serper".into(),
+                message: e.to_string(),
+            })?;
+
+        let body: SerperResponse = resp.json().await.map_err(|e| MuonError::Search {
+            provider: "serper".into(),
+            message: e.to_string(),
+        })?;
+
+        Ok(body
+            .organic
+            .into_iter()
+            .map(|r| {
+                let pos = r.position.unwrap_or(0);
+                let relevance = if pos == 0 {
+                    0.0
+                } else {
+                    1.0 / (pos as f64)
+                };
+                Source {
+                    url: r.link,
+                    title: r.title,
+                    snippet: r.snippet,
+                    relevance,
+                    source_type: SourceType::Web,
+                    verified: false,
+                    verification_status: VerificationStatus::Unverified,
+                    embedding_id: None,
+                }
+            })
+            .collect())
+    }
+
+    fn provider_name(&self) -> &'static str {
+        "serper"
     }
 }
