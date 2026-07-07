@@ -3,19 +3,22 @@ use crate::presentation::views::View;
 use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Clear};
 
+pub const PROVIDER_TYPES: &[&str] = &["openai", "gemini", "anthropic", "openai_compatible"];
+
 pub fn fields(config: &MuonConfig) -> Vec<FieldDef> {
     let mut f = Vec::new();
     for _ in &config.providers {
+        f.push(FieldDef::dropdown("Type", PROVIDER_TYPES));
         f.push(FieldDef::text("Name"));
         f.push(FieldDef::text("Base URL"));
         f.push(FieldDef::text("API Key"));
-        f.push(FieldDef::button("Edit Models"));
-        f.push(FieldDef::button("Remove"));
+        f.push(FieldDef::button("Models"));
     }
     f.push(FieldDef::button("+ Add Provider"));
     f
@@ -28,9 +31,15 @@ pub fn get_field(config: &MuonConfig, index: usize) -> String {
         let sub_idx = index % 5;
         let provider = &config.providers[provider_idx];
         match sub_idx {
-            0 => provider.name.clone(),
-            1 => provider.base_url.clone(),
-            2 => provider.api_key.clone(),
+            0 => match provider.provider_type {
+                crate::config::ProviderType::OpenAI => "openai".to_string(),
+                crate::config::ProviderType::Gemini => "gemini".to_string(),
+                crate::config::ProviderType::Anthropic => "anthropic".to_string(),
+                crate::config::ProviderType::OpenAICompatible => "openai_compatible".to_string(),
+            },
+            1 => provider.name.clone(),
+            2 => provider.base_url.clone(),
+            3 => provider.api_key.clone(),
             _ => String::new(),
         }
     } else {
@@ -45,9 +54,17 @@ pub fn set_field(config: &mut MuonConfig, index: usize, value: &str) {
         let sub_idx = index % 5;
         let provider = &mut config.providers[provider_idx];
         match sub_idx {
-            0 => provider.name = value.to_string(),
-            1 => provider.base_url = value.to_string(),
-            2 => provider.api_key = value.to_string(),
+            0 => {
+                provider.provider_type = match value {
+                    "openai" => crate::config::ProviderType::OpenAI,
+                    "gemini" => crate::config::ProviderType::Gemini,
+                    "anthropic" => crate::config::ProviderType::Anthropic,
+                    _ => crate::config::ProviderType::OpenAICompatible,
+                };
+            }
+            1 => provider.name = value.to_string(),
+            2 => provider.base_url = value.to_string(),
+            3 => provider.api_key = value.to_string(),
             _ => {}
         }
     }
@@ -134,6 +151,40 @@ const ADD_BUTTON_HEIGHT: u16 = 3;
 const COUNT_SUMMARY_HEIGHT: u16 = 1;
 const SCROLL_INDICATOR_HEIGHT: u16 = 1;
 
+fn dropdown_line<'a>(
+    label: &'a str,
+    value: &'a str,
+    focused: bool,
+    hovered: bool,
+) -> Line<'a> {
+    let prefix = if focused { "> " } else { "  " };
+    let label_style = if focused {
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(theme::text_dim())
+    };
+    let border_style = if focused {
+        Style::new().fg(theme::border_focus())
+    } else {
+        Style::new().fg(theme::text_dim())
+    };
+    let val_style = if focused {
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+    } else if hovered {
+        Style::new().fg(theme::text_main())
+    } else {
+        Style::new().fg(theme::accent())
+    };
+    Line::from(vec![
+        Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+        Span::styled(format!("{:<10}", label), label_style),
+        Span::styled("[", border_style),
+        Span::styled(value, val_style),
+        Span::styled("\u{25BC}", val_style),
+        Span::styled("]", border_style),
+    ])
+}
+
 #[allow(clippy::too_many_arguments)]
 fn render_provider_row(
     f: &mut ratatui::Frame,
@@ -146,6 +197,7 @@ fn render_provider_row(
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let title = format!(
         "#{}  {}",
@@ -175,10 +227,24 @@ fn render_provider_row(
         });
     }
 
-    // Name (0)
-    let name_focused = focused_sub_idx == Some(0);
+    // Type (0)
+    let type_focused = focused_sub_idx == Some(0);
+    let type_hover = is_hovering(rows[0], mouse_col, mouse_row);
+    let type_str = match provider.provider_type {
+        crate::config::ProviderType::OpenAI => "openai",
+        crate::config::ProviderType::Gemini => "gemini",
+        crate::config::ProviderType::Anthropic => "anthropic",
+        crate::config::ProviderType::OpenAICompatible => "openai_compatible",
+    };
+    f.render_widget(
+        Paragraph::new(dropdown_line("Type", type_str, type_focused, type_hover)),
+        rows[0],
+    );
+
+    // Name (1)
+    let name_focused = focused_sub_idx == Some(1);
     let name_editing = name_focused && form.is_editing();
-    let name_hover = is_hovering(rows[0], mouse_col, mouse_row);
+    let name_hover = is_hovering(rows[1], mouse_col, mouse_row);
     f.render_widget(
         Paragraph::new(field_line(
             "Name",
@@ -190,13 +256,13 @@ fn render_provider_row(
             name_hover,
             theme::success(),
         )),
-        rows[0],
+        rows[1],
     );
 
-    // Base URL (1)
-    let url_focused = focused_sub_idx == Some(1);
+    // Base URL (2)
+    let url_focused = focused_sub_idx == Some(2);
     let url_editing = url_focused && form.is_editing();
-    let url_hover = is_hovering(rows[1], mouse_col, mouse_row);
+    let url_hover = is_hovering(rows[2], mouse_col, mouse_row);
     f.render_widget(
         Paragraph::new(field_line(
             "Base URL",
@@ -208,13 +274,13 @@ fn render_provider_row(
             url_hover,
             theme::cyan(),
         )),
-        rows[1],
+        rows[2],
     );
 
-    // API Key (2)
-    let key_focused = focused_sub_idx == Some(2);
+    // API Key (3)
+    let key_focused = focused_sub_idx == Some(3);
     let key_editing = key_focused && form.is_editing();
-    let key_hover = is_hovering(rows[2], mouse_col, mouse_row);
+    let key_hover = is_hovering(rows[3], mouse_col, mouse_row);
     let key_val = if key_editing {
         form.edit_buffer.clone().unwrap_or_default()
     } else if provider.api_key.is_empty() {
@@ -233,12 +299,11 @@ fn render_provider_row(
             key_hover,
             theme::success(),
         )),
-        rows[2],
+        rows[3],
     );
 
-    // Models (3)
-    let models_focused = focused_sub_idx == Some(3);
-    let models_hover = is_hovering(rows[3], mouse_col, mouse_row);
+    // Models (4)
+    let models_focused = focused_sub_idx == Some(4);
     let model_count = provider.models.len();
     let model_summary = if model_count == 0 {
         "(no models)".to_string()
@@ -247,49 +312,60 @@ fn render_provider_row(
     } else {
         format!("{model_count} models")
     };
-    let btn_style = if models_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-    } else if models_hover {
+
+    let edit_btn_x = rows[4].x + 28;
+    let edit_btn_rect = Rect::new(edit_btn_x, rows[4].y, 13, 1);
+    let edit_hover = is_hovering(edit_btn_rect, mouse_col, mouse_row);
+
+    let fetch_btn_x = edit_btn_x + 13 + 2;
+    let fetch_btn_rect = Rect::new(fetch_btn_x, rows[4].y, 14, 1);
+    let fetch_hover = is_hovering(fetch_btn_rect, mouse_col, mouse_row);
+
+    let edit_style = if edit_hover {
         Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+    } else if models_focused {
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::accent())
     };
+
+    let fetch_style = if fetch_hover {
+        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+    } else if models_focused {
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(theme::accent())
+    };
+
     let btn_prefix = if models_focused { "> " } else { "  " };
     let models_line = Line::from(vec![
         Span::styled(btn_prefix, Style::new().fg(theme::border_focus())),
-        Span::styled(format!("{:<10}  {}  ", "Models", model_summary), Style::new().fg(theme::text_dim())),
-        Span::styled("[Edit Models]", btn_style),
+        Span::styled(format!("{:<10}  {:<12}  ", "Models", model_summary), Style::new().fg(theme::text_dim())),
+        Span::styled("[Edit Models]", edit_style),
+        Span::styled("  ", Style::new().fg(theme::text_dim())),
+        Span::styled("[Fetch Models]", fetch_style),
     ]);
-    f.render_widget(Paragraph::new(models_line), rows[3]);
+    f.render_widget(Paragraph::new(models_line), rows[4]);
 
-    let edit_models_rect = Rect::new(rows[3].x + 14 + model_summary.len() as u16 + 2, rows[3].y, 13, 1);
     hit_registry.push(ClickTarget {
-        rect: edit_models_rect,
+        rect: edit_btn_rect,
         action: ClickAction::EditProviderModels(idx),
     });
 
-    // Remove (4)
-    let remove_focused = focused_sub_idx == Some(4);
-    let remove_hover = is_hovering(rows[4], mouse_col, mouse_row);
-    let rem_style = if remove_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-    } else if remove_hover {
-        Style::new().fg(theme::error()).add_modifier(Modifier::BOLD)
-    } else {
-        Style::new().fg(theme::error())
-    };
-    let rem_prefix = if remove_focused { "> " } else { "  " };
-    let remove_line = Line::from(vec![
-        Span::styled(rem_prefix, Style::new().fg(theme::border_focus())),
-        Span::styled("[Remove Provider]", rem_style),
-    ]);
-    f.render_widget(Paragraph::new(remove_line), rows[4]);
-
-    let remove_button_rect = Rect::new(rows[4].x + 2, rows[4].y, 17, 1);
     hit_registry.push(ClickTarget {
-        rect: remove_button_rect,
-        action: ClickAction::RemoveProvider(idx),
+        rect: fetch_btn_rect,
+        action: ClickAction::FetchProviderModels(idx),
     });
+
+    // Set Pending dropdown overlay if open
+    if form.dropdown_open && focused_sub_idx == Some(0) {
+        let options: Vec<String> = PROVIDER_TYPES.iter().map(|s| s.to_string()).collect();
+        *pending_dropdown = Some(PendingDropdown {
+            below: rows[0],
+            field_label: "Type".to_string(),
+            options,
+        });
+    }
 }
 
 fn render_add_button(
@@ -348,6 +424,7 @@ pub fn render(
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let n = config.providers.len();
     let list_area_height = area.height.saturating_sub(ADD_BUTTON_HEIGHT);
@@ -434,6 +511,7 @@ pub fn render(
                 hit_registry,
                 mouse_col,
                 mouse_row,
+                pending_dropdown,
             );
             idx += 1;
         }

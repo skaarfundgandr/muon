@@ -8,6 +8,7 @@ use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
 use crate::presentation::components::settings::{advanced, agents, data_sources, display, providers, tools};
+use crate::presentation::components::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::FormState;
 use crate::presentation::theme;
 use crate::presentation::views::{SettingsTab, View};
@@ -39,28 +40,43 @@ pub fn render(
     header::render(f, chunks[0], HeaderConfig::for_settings(0, _form.dirty));
     render_tab_bar(f, chunks[1], tab, hit_registry, mouse_col, mouse_row);
 
+    let mut pending_dropdown: Option<PendingDropdown> = None;
+
     match tab {
         SettingsTab::Providers => {
-            providers::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
+            providers::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
         }
         SettingsTab::Agents => {
-            agents::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
+            agents::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
         }
         SettingsTab::Tools => {
-            tools::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
+            tools::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
         }
         SettingsTab::DataSources => {
-            data_sources::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
+            data_sources::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
         }
         SettingsTab::Display => {
-            display::render(f, chunks[2], &config.display, _form, hit_registry, mouse_col, mouse_row);
+            display::render(f, chunks[2], &config.display, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
         }
         SettingsTab::Advanced => {
-            advanced::render(f, chunks[2], &config.advanced, _form, hit_registry, mouse_col, mouse_row);
+            advanced::render(f, chunks[2], &config.advanced, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
         }
     }
 
     footer::render(f, chunks[3], View::Settings, hit_registry, mouse_col, mouse_row);
+
+    if let Some(pending) = pending_dropdown {
+        crate::presentation::components::settings::dropdown_overlay::render_dropdown_overlay(
+            f,
+            pending.below,
+            &pending.field_label,
+            &pending.options,
+            _form,
+            hit_registry,
+            mouse_col,
+            mouse_row,
+        );
+    }
 }
 
 fn render_tab_bar(f: &mut ratatui::Frame, area: Rect, active: SettingsTab, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {

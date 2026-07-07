@@ -3,6 +3,7 @@ use crate::presentation::views::View;
 use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -417,6 +418,7 @@ pub fn render(
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let n = config.search.providers.len();
     let chrome_height = ARXIV_ROW_HEIGHT + ADD_BUTTON_HEIGHT;
@@ -539,9 +541,11 @@ pub fn render(
                 "brave".to_string(),
                 "serper".to_string(),
             ];
-            crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-                f, rect, field_label, &options, form, hit_registry, mouse_col, mouse_row,
-            );
+            *pending_dropdown = Some(PendingDropdown {
+                below: rect,
+                field_label: field_label.to_string(),
+                options,
+            });
         }
 
         if show_bottom {

@@ -2,46 +2,37 @@ use crate::config::{AgentsConfig, DeepResearcherConfig, MuonConfig};
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-const MODELS: &[&str] = &[
-    "glm-5.2",
-    "glm-5.2-short",
-    "glm-5.2-flex",
-    "gpt-4o",
-    "claude-3.5-sonnet",
-    "gemini-2.0-flash",
-];
-const PROVIDERS: &[&str] = &["opencode-go", "NeuralWatt", "ClinePass"];
-
 pub fn fields() -> &'static [FieldDef] {
     Box::leak(Box::new([
         // Intent Classifier (0-3)
-        FieldDef::dropdown("IC Model", MODELS),
-        FieldDef::dropdown("IC Provider", PROVIDERS),
+        FieldDef::dropdown("IC Model", &[]),
+        FieldDef::dropdown("IC Provider", &[]),
         FieldDef::number("IC Timeout"),
         FieldDef::checkbox("IC Verbose"),
         // Clarifier (4-8)
-        FieldDef::dropdown("Cl Model", MODELS),
-        FieldDef::dropdown("Cl Provider", PROVIDERS),
+        FieldDef::dropdown("Cl Model", &[]),
+        FieldDef::dropdown("Cl Provider", &[]),
         FieldDef::number("Cl Max turns"),
         FieldDef::checkbox("Cl Plan approval"),
         FieldDef::number("Cl Max iterations"),
         // Shallow (9-12)
-        FieldDef::dropdown("Sh Model", MODELS),
-        FieldDef::dropdown("Sh Provider", PROVIDERS),
+        FieldDef::dropdown("Sh Model", &[]),
+        FieldDef::dropdown("Sh Provider", &[]),
         FieldDef::number("Sh Max LLM turns"),
         FieldDef::number("Sh Max tool iters"),
         // Deep (13-20)
-        FieldDef::dropdown("D Orch Model", MODELS),
-        FieldDef::dropdown("D Orch Provider", PROVIDERS),
-        FieldDef::dropdown("D Plan Model", MODELS),
-        FieldDef::dropdown("D Plan Provider", PROVIDERS),
-        FieldDef::dropdown("D Res Model", MODELS),
-        FieldDef::dropdown("D Res Provider", PROVIDERS),
+        FieldDef::dropdown("D Orch Model", &[]),
+        FieldDef::dropdown("D Orch Provider", &[]),
+        FieldDef::dropdown("D Plan Model", &[]),
+        FieldDef::dropdown("D Plan Provider", &[]),
+        FieldDef::dropdown("D Res Model", &[]),
+        FieldDef::dropdown("D Res Provider", &[]),
         FieldDef::number("D Iterations"),
         FieldDef::checkbox("D Citation Verify"),
     ])) as &'static [FieldDef]
@@ -119,13 +110,17 @@ fn provider_options(config: &MuonConfig) -> Vec<String> {
 }
 
 fn model_options(config: &MuonConfig, provider_name: &str) -> Vec<String> {
-    config
-        .providers
-        .iter()
-        .find(|p| p.name == provider_name)
-        .filter(|p| !p.models.is_empty())
-        .map(|p| p.models.iter().map(|m| m.name.clone()).collect())
-        .unwrap_or_default()
+    let provider = config.providers.iter().find(|p| p.name == provider_name);
+    match provider {
+        Some(p) => {
+            if p.models.is_empty() {
+                vec!["<no models; edit/fetch in Providers>".to_string()]
+            } else {
+                p.models.iter().map(|m| m.name.clone()).collect()
+            }
+        }
+        None => Vec::new(),
+    }
 }
 
 /// Returns the effective options for a field index, dynamic for provider/model dropdowns.
@@ -159,7 +154,7 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
 }
 
 #[allow(clippy::vec_init_then_push)]
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16, pending_dropdown: &mut Option<PendingDropdown>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0)])
@@ -197,10 +192,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig, form: &Fo
         action: ClickAction::FocusField(13),
     });
 
-    render_intent_classifier(f, left_chunks[0], &config.agents.intent_classifier, form, hit_registry, config);
-    render_clarifier(f, left_chunks[1], &config.agents.clarifier, form, hit_registry, config);
-    render_shallow_researcher(f, right_chunks[0], &config.agents.shallow_researcher, form, hit_registry, config);
-    render_deep_researcher(f, right_chunks[1], &config.agents.deep_researcher, form, hit_registry, config);
+    render_intent_classifier(f, left_chunks[0], &config.agents.intent_classifier, form, hit_registry, config, pending_dropdown);
+    render_clarifier(f, left_chunks[1], &config.agents.clarifier, form, hit_registry, config, pending_dropdown);
+    render_shallow_researcher(f, right_chunks[0], &config.agents.shallow_researcher, form, hit_registry, config, pending_dropdown);
+    render_deep_researcher(f, right_chunks[1], &config.agents.deep_researcher, form, hit_registry, config, pending_dropdown);
 }
 
 fn agent_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
@@ -318,6 +313,7 @@ fn render_intent_classifier(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     config: &MuonConfig,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let focused = section_has_focus(form, 0, 3);
     let timeout_str = cfg.timeout_sec.to_string();
@@ -354,9 +350,11 @@ fn render_intent_classifier(
     if form.dropdown_open && (form.focus == 0 || form.focus == 1) {
         let row_below = rows[form.focus];
         let field_label = fields()[form.focus].label;
-        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, row_below, field_label, &options_for(form.focus, config), form, hit_registry, form.mouse_col, form.mouse_row,
-        );
+        *pending_dropdown = Some(PendingDropdown {
+            below: row_below,
+            field_label: field_label.to_string(),
+            options: options_for(form.focus, config),
+        });
     }
 }
 
@@ -367,6 +365,7 @@ fn render_clarifier(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     config: &MuonConfig,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let focused = section_has_focus(form, 4, 8);
     let max_turns_str = cfg.max_turns.to_string();
@@ -406,9 +405,11 @@ fn render_clarifier(
     if form.dropdown_open && (form.focus == 4 || form.focus == 5) {
         let row_below = rows[form.focus - 4];
         let field_label = fields()[form.focus].label;
-        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, row_below, field_label, &options_for(form.focus, config), form, hit_registry, form.mouse_col, form.mouse_row,
-        );
+        *pending_dropdown = Some(PendingDropdown {
+            below: row_below,
+            field_label: field_label.to_string(),
+            options: options_for(form.focus, config),
+        });
     }
 }
 
@@ -419,6 +420,7 @@ fn render_shallow_researcher(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     config: &MuonConfig,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let focused = section_has_focus(form, 9, 12);
     let llm_turns_str = cfg.max_llm_turns.to_string();
@@ -456,9 +458,11 @@ fn render_shallow_researcher(
     if form.dropdown_open && (form.focus == 9 || form.focus == 10) {
         let row_below = rows[form.focus - 9];
         let field_label = fields()[form.focus].label;
-        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, row_below, field_label, &options_for(form.focus, config), form, hit_registry, form.mouse_col, form.mouse_row,
-        );
+        *pending_dropdown = Some(PendingDropdown {
+            below: row_below,
+            field_label: field_label.to_string(),
+            options: options_for(form.focus, config),
+        });
     }
 }
 
@@ -469,6 +473,7 @@ fn render_deep_researcher(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     config: &MuonConfig,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let focused = section_has_focus(form, 13, 20);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
@@ -580,8 +585,10 @@ fn render_deep_researcher(
             _ => 0,
         };
         let field_label = fields()[form.focus].label;
-        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, grid[grid_idx], field_label, &options_for(form.focus, config), form, hit_registry, form.mouse_col, form.mouse_row,
-        );
+        *pending_dropdown = Some(PendingDropdown {
+            below: grid[grid_idx],
+            field_label: field_label.to_string(),
+            options: options_for(form.focus, config),
+        });
     }
 }

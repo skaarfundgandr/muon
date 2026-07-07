@@ -2,6 +2,7 @@ use crate::config::{MuonConfig, DataSourcesConfig};
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -66,6 +67,7 @@ pub fn render(
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
@@ -73,7 +75,7 @@ pub fn render(
         .split(area);
 
     render_source_providers(f, grid[0], &config.data_sources, form, hit_registry, mouse_col, mouse_row);
-    render_rag_indexes(f, grid[1], config, form, hit_registry, mouse_col, mouse_row);
+    render_rag_indexes(f, grid[1], config, form, hit_registry, mouse_col, mouse_row, pending_dropdown);
 }
 
 fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
@@ -210,6 +212,7 @@ fn render_rag_indexes(
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let any_focused = is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6);
     let block = section_block(
@@ -244,9 +247,11 @@ fn render_rag_indexes(
             .split(sections[0]);
         let field_label = "Source Type";
         let options: Vec<String> = vec!["Directory".to_string(), "File".to_string(), "Glob".to_string()];
-        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, form_cols[1], field_label, &options, form, hit_registry, mouse_col, mouse_row,
-        );
+        *pending_dropdown = Some(PendingDropdown {
+            below: form_cols[1],
+            field_label: field_label.to_string(),
+            options,
+        });
     }
 }
 

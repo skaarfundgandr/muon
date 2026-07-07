@@ -2,6 +2,7 @@ use crate::config::DisplayConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -36,13 +37,13 @@ fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16, pending_dropdown: &mut Option<PendingDropdown>) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    render_left(f, grid[0], config, form, hit_registry);
+    render_left(f, grid[0], config, form, hit_registry, pending_dropdown);
     render_right(f, grid[1], config);
 }
 
@@ -100,6 +101,7 @@ fn render_left(
     config: &DisplayConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let block = section_block("TERMINAL DISPLAY SETTINGS");
     let inner = block.inner(area);
@@ -165,9 +167,11 @@ fn render_left(
             .iter()
             .map(|s| s.to_string())
             .collect();
-        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, chunks[form.focus], field_label, &options, form, hit_registry, form.mouse_col, form.mouse_row,
-        );
+        *pending_dropdown = Some(PendingDropdown {
+            below: chunks[form.focus],
+            field_label: field_label.to_string(),
+            options,
+        });
     }
 }
 

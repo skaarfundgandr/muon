@@ -2,6 +2,7 @@ use crate::config::AdvancedConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -98,7 +99,7 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
     (start..=end).any(|i| is_focused(form, i))
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16, pending_dropdown: &mut Option<PendingDropdown>) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -117,7 +118,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AdvancedConfig, form:
     render_pipeline_knobs(f, top_cols[0], config, form, hit_registry);
     render_compaction(f, top_cols[1], config, form, hit_registry);
     render_storage(f, bot_cols[0], config, form, hit_registry);
-    render_embedding(f, bot_cols[1], config, form, hit_registry);
+    render_embedding(f, bot_cols[1], config, form, hit_registry, pending_dropdown);
 }
 
 fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
@@ -524,6 +525,7 @@ fn render_embedding(
     config: &AdvancedConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
+    pending_dropdown: &mut Option<PendingDropdown>,
 ) {
     let focused = section_has_focus(form, 12, 15);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
@@ -631,8 +633,10 @@ fn render_embedding(
             .iter()
             .map(|s| s.to_string())
             .collect();
-        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, chunks[0], field_label, &options, form, hit_registry, form.mouse_col, form.mouse_row,
-        );
+        *pending_dropdown = Some(PendingDropdown {
+            below: chunks[0],
+            field_label: field_label.to_string(),
+            options,
+        });
     }
 }

@@ -6,6 +6,13 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem};
 
+#[derive(Debug, Clone)]
+pub struct PendingDropdown {
+    pub below: Rect,
+    pub field_label: String,
+    pub options: Vec<String>,
+}
+
 /// Render a dropdown options popup overlay below the given row rect.
 ///
 /// `options` is the dynamic list of option strings to display. The overlay
