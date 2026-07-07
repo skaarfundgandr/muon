@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+#[cfg(any(test, feature = "mock"))]
 use crate::application::pipeline_runner::services::session_service::InMemorySessionStore;
 use crate::domain::models::log_entry::AgentTag;
 use crate::domain::traits::agent::MuonAgent;
@@ -9,7 +10,8 @@ use crate::error::MuonError;
 use crate::infrastructure::context::InfrastructureContext;
 
 /// Trivial in-process mock agent. Returns a configured answer for every
-/// prompt. Used by the Phase 3 mock verification path; replaced in Phase 4.
+/// prompt. Available only for tests and for downstream builds that opt in
+/// via the `mock` Cargo feature.
 pub struct MockAgent {
     tag: AgentTag,
     answer: String,
@@ -43,8 +45,11 @@ impl MuonAgent for MockAgent {
 }
 
 impl InfrastructureContext {
-    /// Build a context with deterministic mock agents. Used in tests and
-    /// during Phase 3 verification.
+    /// Build a context with deterministic mock agents. Test-only and
+    /// downstream opt-in (Cargo feature `mock`); never used by production
+    /// code paths. The persistent store is backed by `InMemorySessionStore`,
+    /// not the real `DieselSessionStore`.
+    #[cfg(any(test, feature = "mock"))]
     pub fn mock() -> Self {
         Self::new(
             Box::new(MockAgent::new(

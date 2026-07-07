@@ -6,6 +6,8 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
+use crate::error::MuonError;
+
 fn config_dir() -> Option<PathBuf> {
     let home = std::env::var("HOME").ok()?;
     let mut p = PathBuf::from(home);
@@ -22,6 +24,10 @@ fn config_path() -> Option<PathBuf> {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct MuonConfig {
+    #[serde(default)]
+    pub providers: Vec<ProviderConfig>,
+    #[serde(default)]
+    pub search: SearchConfig,
     pub agents: AgentsConfig,
     pub tools: ToolsConfig,
     pub data_sources: DataSourcesConfig,
@@ -43,7 +49,12 @@ impl MuonConfig {
             Ok(c) => c,
             Err(_) => return Self::default(),
         };
-        toml::from_str(&content).unwrap_or_default()
+        let mut cfg: Self = match toml::from_str(&content) {
+            Ok(c) => c,
+            Err(_) => return Self::default(),
+        };
+        cfg.backfill_legacy_providers();
+        cfg
     }
 
     pub fn watch() -> impl Stream<Item = MuonConfig> {
@@ -121,6 +132,213 @@ impl MuonConfig {
         };
         let _ = std::fs::write(&path, content);
     }
+
+    pub fn backfill_legacy_providers(&mut self) {
+        if !self.providers.is_empty() {
+            return;
+        }
+        let mk = |name: &str, base_url: String, key: String| ProviderConfig {
+            name: name.to_string(),
+            base_url,
+            api_key: key,
+            models: Vec::new(),
+        };
+        if !self.tools.opencode_go_api_key.is_empty() {
+            self.providers.push(mk(
+                "opencode-go",
+                std::env::var("OPENCODE_GO_BASE_URL")
+                    .unwrap_or_else(|_| "https://api.opencode.dev/v1".into()),
+                self.tools.opencode_go_api_key.clone(),
+            ));
+        }
+        if !self.tools.neuralwatt_api_key.is_empty() {
+            self.providers.push(mk(
+                "NeuralWatt",
+                std::env::var("NEURALWATT_BASE_URL")
+                    .unwrap_or_else(|_| "https://api.neuralwatt.com/v1".into()),
+                self.tools.neuralwatt_api_key.clone(),
+            ));
+        }
+        if !self.tools.clinepass_api_key.is_empty() {
+            self.providers.push(mk(
+                "cline",
+                std::env::var("CLINEPASS_BASE_URL")
+                    .unwrap_or_else(|_| "https://api.cline.bot/v1".into()),
+                self.tools.clinepass_api_key.clone(),
+            ));
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderConfig {
+    pub name: String,
+    pub base_url: String,
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default)]
+    pub models: Vec<ProviderModel>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderModel {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+}
+
+impl ProviderConfig {
+    pub fn resolved_api_key(&self) -> Result<String, MuonError> {
+        expand_env(&self.api_key)
+    }
+}
+
+pub fn expand_env(value: &str) -> Result<String, MuonError> {
+    let trimmed = value.trim();
+    if let Some(inner) = trimmed.strip_prefix("${").and_then(|s| s.strip_suffix('}')) {
+        let var = inner.trim();
+        std::env::var(var).map_err(|_| {
+            MuonError::Config(format!(
+                "environment variable '{var}' not set (referenced by '${{{var}}}')"
+            ))
+        })
+    } else {
+        Ok(value.to_string())
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SearchConfig {
+    #[serde(default)]
+    pub providers: Vec<SearchProviderConfig>,
+    #[serde(default)]
+    pub papers: PapersConfig,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PapersConfig {
+    #[serde(default = "default_arxiv_enabled")]
+    pub arxiv_enabled: bool,
+}
+
+fn default_arxiv_enabled() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SearchProviderConfig {
+    pub name: String,
+    pub provider_type: SearchProviderType,
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default)]
+    pub max_results: Option<usize>,
+    #[serde(default)]
+    pub tavily: TavilyOptions,
+    #[serde(default)]
+    pub firecrawl: FirecrawlOptions,
+    #[serde(default)]
+    pub brave: BraveOptions,
+    #[serde(default)]
+    pub serper: SerperOptions,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SearchProviderType {
+    #[default]
+    Tavily,
+    Firecrawl,
+    Brave,
+    Serper,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TavilyOptions {
+    #[serde(default)]
+    pub search_depth: TavilySearchDepth,
+    #[serde(default)]
+    pub include_answer: bool,
+    #[serde(default)]
+    pub include_raw_content: bool,
+    #[serde(default)]
+    pub topic: Option<TavilyTopic>,
+    #[serde(default)]
+    pub time_range: Option<String>,
+    #[serde(default)]
+    pub include_domains: Vec<String>,
+    #[serde(default)]
+    pub exclude_domains: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TavilySearchDepth {
+    #[default]
+    Basic,
+    Fast,
+    UltraFast,
+    Advanced,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TavilyTopic {
+    General,
+    News,
+    Finance,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FirecrawlOptions {
+    #[serde(default = "default_firecrawl_formats")]
+    pub scrape_formats: Vec<String>,
+    #[serde(default)]
+    pub country: Option<String>,
+    #[serde(default)]
+    pub location: Option<String>,
+    #[serde(default)]
+    pub include_domains: Vec<String>,
+    #[serde(default)]
+    pub exclude_domains: Vec<String>,
+    #[serde(default)]
+    pub categories: Vec<FirecrawlCategory>,
+}
+
+fn default_firecrawl_formats() -> Vec<String> {
+    vec!["markdown".to_string()]
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FirecrawlCategory {
+    Github,
+    Research,
+    Pdf,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct BraveOptions {
+    #[serde(default)]
+    pub country: Option<String>,
+    #[serde(default)]
+    pub search_lang: Option<String>,
+    #[serde(default)]
+    pub extra_snippets: bool,
+    #[serde(default)]
+    pub goggles_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct SerperOptions {
+    #[serde(default)]
+    pub gl: Option<String>,
+    #[serde(default)]
+    pub hl: Option<String>,
+    #[serde(default)]
+    pub tbs: Option<String>,
+    #[serde(default)]
+    pub autocorrect: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
