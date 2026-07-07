@@ -19,12 +19,10 @@ async fn pipeline_completes_for_shallow_intent() -> Result<(), Box<dyn std::erro
     let mut state = PipelineState::default();
     let cfg = MuonConfig::default();
     let infra = InfrastructureContext::mock();
-    let session_id = uuid::Uuid::new_v4();
 
     let report = run_pipeline(
         "what is rust?",
         &mut state,
-        session_id,
         &cfg,
         &infra,
         &bridge,
@@ -66,12 +64,10 @@ async fn pipeline_meta_intent_returns_direct() -> Result<(), Box<dyn std::error:
         AgentTag::Intent,
         r#"{"intent":"meta","response":"hi there"}"#,
     ));
-    let session_id = uuid::Uuid::new_v4();
 
     let report = run_pipeline(
         "hello",
         &mut state,
-        session_id,
         &cfg,
         &infra,
         &bridge,

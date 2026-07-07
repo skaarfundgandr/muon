@@ -1,27 +1,69 @@
 # μon configuration example
 # Copy to ~/.config/muon/config.toml
+#
+# Dynamic Provider Model: configure LLM providers in [[providers]] and search
+# providers in [[search.providers]]. Agent `provider` strings look up the
+# `name` field in the [[providers]] list. API key values support ${ENV_VAR}
+# expansion at runtime (e.g. "${OPENCODE_GO_API_KEY}").
+
+[[providers]]
+name = "opencode-go"
+base_url = "https://api.opencode.dev/v1"
+api_key = "${OPENCODE_GO_API_KEY}"
+
+[[providers.models]]
+name = "glm-5.2"
+description = "Full GLM 5.2, 1M context"
+
+[[providers.models]]
+name = "glm-5.2-short"
+description = "GLM 5.2 Short, 200K context"
+
+[[providers]]
+name = "NeuralWatt"
+base_url = "https://api.neuralwatt.com/v1"
+api_key = "${NEURALWATT_API_KEY}"
+
+[[providers]]
+name = "cline"
+base_url = "https://api.cline.bot/v1"
+api_key = "${CLINEPASS_API_KEY}"
+
+[[search.providers]]
+name = "tavily"
+type = "tavily"
+api_key = "${TAVILY_API_KEY}"
+max_results = 10
+
+[[search.providers]]
+name = "brave"
+type = "brave"
+api_key = "${BRAVE_API_KEY}"
+
+[search.papers]
+arxiv_enabled = true
 
 [agents]
 
 # Intent classifier — first stage, classifies query type and depth.
 [agents.intent_classifier]
-model = "gpt-4o-mini"
-provider = "openai"
-timeout_sec = 10
+model = "glm-5.2-short"
+provider = "opencode-go"
+timeout_sec = 90
 verbose = false
 
 # Clarifier — interactive HITL disambiguation before research.
 [agents.clarifier]
-model = "gpt-4o-mini"
-provider = "openai"
+model = "glm-5.2"
+provider = "opencode-go"
 max_turns = 3
 plan_approval = true
 max_iterations = 10
 
 # Shallow researcher — single-pass synthesis of search results.
 [agents.shallow_researcher]
-model = "gpt-4o"
-provider = "openai"
+model = "glm-5.2"
+provider = "NeuralWatt"
 max_llm_turns = 10
 max_tool_iters = 5
 
@@ -31,19 +73,19 @@ iterations = 2
 citation_verify = true
 
 [agents.deep_researcher.orchestrator]
-model = "gpt-4o"
-provider = "openai"
+model = "glm-5.2"
+provider = "opencode-go"
 
 [agents.deep_researcher.planner]
-model = "gpt-4o"
-provider = "openai"
+model = "glm-5.2-short"
+provider = "NeuralWatt"
 
 [agents.deep_researcher.researcher]
-model = "gpt-4o"
-provider = "openai"
+model = "glm-5.2-flex"
+provider = "NeuralWatt"
 
-# API keys — placeholder strings shown for clarity.
-# μon does NOT interpolate env vars; paste the literal key or leave empty.
+# Legacy [tools] keys are auto-migrated into [[providers]] on load.
+# New keys should be added in the Providers tab of the TUI.
 [tools]
 opencode_go_api_key = ""
 neuralwatt_api_key = ""

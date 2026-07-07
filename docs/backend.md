@@ -34,7 +34,7 @@ Concrete adapters:
 - **agent_rs** (`infrastructure/agent_rs/`): Type-erased ReAct wrappers converting `agent_rs::BuiltReAct` into `Box<dyn MuonAgent>`.
 - **Storage** (`infrastructure/storage/`): Diesel schema, migrations, connection pool, and typed repos for sessions, sources, citations, reports, and log entries.
 - **RAG** (`infrastructure/rag/`): TurboVec vector index + FastEmbed embeddings for retrieval-augmented generation.
-- **Search** (`infrastructure/search/`): Web search (Brave, SearXNG) and paper search (Semantic Scholar, arXiv) providers.
+- **Search** (`infrastructure/search/`): Web search (Brave, Tavily, Firecrawl, Serper) and paper search (arXiv) providers. The `CompositeSearchProvider` fan-out dispatches queries to all configured `[[search.providers]]` concurrently, merges results, and dedupes by URL.
 - **Context** (`infrastructure/context.rs`): `InfrastructureContext` wiring all adapters together.
 
 ## 3. Pipeline State Machine
@@ -180,3 +180,74 @@ muon export <session-id> obsidian --vault ~/my-vault
 `--mock` uses `InfrastructureContext::mock()` for deterministic output without API keys. Without `--mock`, `MUON_LIVE=1` must be set and `OPENAI_API_KEY` must be present.
 
 Reports are Markdown formatted with frontmatter, section headings, and renumbered citation references.
+
+## 10. Dynamic Provider Model
+
+The runtime configuration model is dynamic — providers are declared as a list rather than hardcoded. Each agent references a provider by `name`; each search provider declares its `type` and per-provider options inline.
+
+### 10.1 LLM providers (`[[providers]]`)
+
+```toml
+[[providers]]
+name = "opencode-go"
+base_url = "https://api.opencode.dev/v1"
+api_key = "${OPENCODE_GO_API_KEY}"
+
+[[providers.models]]
+name = "glm-5.2"
+description = "Full GLM 5.2, 1M context"
+```
+
+Agent configuration references a provider by `name`:
+
+```toml
+[agents.intent_classifier]
+model = "glm-5.2-short"
+provider = "opencode-go"
+```
+
+Resolution: `ResolvedClient::for_named_provider(name, &cfg.providers)` looks up the `name` in `cfg.providers` and builds an `openai::Client` from `api_key` + `base_url`. If `name` is empty, `for_default_provider` returns the first entry.
+
+### 10.2 `${ENV_VAR}` expansion
+
+Provider `api_key` and search provider `api_key` fields support `${ENV_VAR}` placeholders. At resolution time, the literal `${VAR}` is replaced by `std::env::var("VAR")`. If the variable is unset or empty, a `MuonError::Config` is raised before any HTTP call.
+
+The `expand_env(value: &str) -> Result<String, MuonError>` helper in `src/config/mod.rs` does the substitution and is reused by both LLM and search providers.
+
+### 10.3 Search providers (`[[search.providers]]` + fan-out)
+
+```toml
+[[search.providers]]
+name = "tavily"
+type = "tavily"
+api_key = "${TAVILY_API_KEY}"
+max_results = 10
+
+[[search.providers]]
+name = "brave"
+type = "brave"
+api_key = "${BRAVE_API_KEY}"
+```
+
+At context bootstrap (`InfrastructureContext::new_live`), `resolve_web_provider` builds an `Arc<dyn SearchProvider>` for each enabled entry, then wraps them in a `CompositeSearchProvider`. The composite dispatches every query to all providers concurrently, merges the result lists, dedupes by URL, and returns the union. A provider that fails logs a warning and contributes zero sources (failures are non-fatal).
+
+Supported `type` values: `tavily`, `firecrawl`, `brave`, `serper`. Per-provider options (e.g. Tavily `search_depth`, Serper `gl`/`hl`) live inline on each `[[search.providers]]` entry as a sub-table.
+
+### 10.4 Paper search (`[search.papers]`)
+
+Currently arXiv only (`arxiv_enabled: bool`). Semantic Scholar was removed per the v0.1 spec; SearXNG was also removed.
+
+### 10.5 Legacy `[tools]` backfill
+
+For backward compatibility, `MuonConfig::load_from_path` calls `backfill_legacy_providers()` after parsing. If `cfg.providers` is empty but legacy `[tools]` keys (`opencode_go_api_key`, `neuralwatt_api_key`, `clinepass_api_key`) are set, the loader synthesizes `[[providers]]` entries from them. Search providers are not backfilled — the user must add `[[search.providers]]` explicitly.
+
+### 10.6 TUI
+
+The Settings view has 6 tabs (in order): `Providers`, `Agents`, `Tools`, `Data Sources`, `Display`, `Advanced`. The `Providers` tab is a dynamic row editor over `cfg.providers`; the `Tools` tab renders `cfg.search.providers` rows + the arXiv toggle. The `Agents` tab's provider/model dropdowns are derived live from `cfg.providers` (no static provider list) — changing a provider row in the Providers tab immediately updates the Agents dropdown options on the next open.
+
+### 10.7 Removed (per SPEC)
+
+- `SearXNGProvider` — removed; use Brave/Tavily/Firecrawl/Serper instead.
+- `SemanticScholarProvider` — removed; arXiv is the only paper source.
+- The old hardcoded `match provider { "openai" | "opencode-go" | ... }` dispatch in `providers.rs` was replaced by `for_named_provider` / `for_default_provider`.
+- `FetchPageTool` is reqwest-only; the SPEC-mandated Firecrawl/Tavily fallback chain is a follow-up.
