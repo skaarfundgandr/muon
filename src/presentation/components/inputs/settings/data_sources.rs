@@ -1,5 +1,5 @@
-use crate::config::DataSourcesConfig;
-use crate::presentation::click::{ClickAction, ClickTarget};
+use crate::config::{MuonConfig, DataSourcesConfig};
+use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -7,8 +7,9 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-pub fn fields() -> &'static [FieldDef] {
-    Box::leak(Box::new([
+pub fn fields(config: &MuonConfig) -> Vec<FieldDef> {
+    let _ = config;
+    vec![
         FieldDef::checkbox("Web Search"),
         FieldDef::checkbox("Paper Search"),
         FieldDef::checkbox("Enterprise Systems"),
@@ -16,35 +17,39 @@ pub fn fields() -> &'static [FieldDef] {
         FieldDef::text("Source Path"),
         FieldDef::dropdown("Source Type", &["Directory", "File", "Glob"]),
         FieldDef::button("[ + Add ]"),
-    ])) as &'static [FieldDef]
+    ]
 }
 
-pub fn get_field(config: &DataSourcesConfig, index: usize) -> String {
+pub fn get_field(config: &MuonConfig, index: usize) -> String {
     match index {
-        0 => config.web_search.to_string(),
-        1 => config.paper_search.to_string(),
-        2 => config.enterprise_systems.to_string(),
-        3 => config.knowledge_layer_rag.to_string(),
+        0 => config.data_sources.web_search.to_string(),
+        1 => config.data_sources.paper_search.to_string(),
+        2 => config.data_sources.enterprise_systems.to_string(),
+        3 => config.data_sources.knowledge_layer_rag.to_string(),
+        4 => config.data_sources.source_path.clone(),
+        5 => config.data_sources.source_type.clone(),
         _ => String::new(),
     }
 }
 
-pub fn set_field(config: &mut DataSourcesConfig, index: usize, value: &str) {
+pub fn set_field(config: &mut MuonConfig, index: usize, value: &str) {
     match index {
-        0 => config.web_search = value == "true",
-        1 => config.paper_search = value == "true",
-        2 => config.enterprise_systems = value == "true",
-        3 => config.knowledge_layer_rag = value == "true",
+        0 => config.data_sources.web_search = value == "true",
+        1 => config.data_sources.paper_search = value == "true",
+        2 => config.data_sources.enterprise_systems = value == "true",
+        3 => config.data_sources.knowledge_layer_rag = value == "true",
+        4 => config.data_sources.source_path = value.to_string(),
+        5 => config.data_sources.source_type = value.to_string(),
         _ => {}
     }
 }
 
-pub fn toggle_field(config: &mut DataSourcesConfig, index: usize) {
+pub fn toggle_field(config: &mut MuonConfig, index: usize) {
     match index {
-        0 => config.web_search = !config.web_search,
-        1 => config.paper_search = !config.paper_search,
-        2 => config.enterprise_systems = !config.enterprise_systems,
-        3 => config.knowledge_layer_rag = !config.knowledge_layer_rag,
+        0 => config.data_sources.web_search = !config.data_sources.web_search,
+        1 => config.data_sources.paper_search = !config.data_sources.paper_search,
+        2 => config.data_sources.enterprise_systems = !config.data_sources.enterprise_systems,
+        3 => config.data_sources.knowledge_layer_rag = !config.data_sources.knowledge_layer_rag,
         _ => {}
     }
 }
@@ -53,30 +58,29 @@ fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
 
-#[allow(clippy::vec_init_then_push)]
 pub fn render(
     f: &mut ratatui::Frame,
     area: Rect,
-    config: &DataSourcesConfig,
+    config: &MuonConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
-    _mouse_col: u16,
-    _mouse_row: u16,
+    mouse_col: u16,
+    mouse_row: u16,
 ) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    render_source_providers(f, grid[0], config, form, hit_registry);
-    render_rag_indexes(f, grid[1], form, hit_registry);
+    render_source_providers(f, grid[0], &config.data_sources, form, hit_registry, mouse_col, mouse_row);
+    render_rag_indexes(f, grid[1], config, form, hit_registry, mouse_col, mouse_row);
 }
 
 fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
     let border_color = if focused {
         theme::border_focus()
     } else if hovered {
-        crate::presentation::theme::border_hover()
+        theme::border_hover()
     } else {
         theme::border()
     };
@@ -91,19 +95,20 @@ fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> 
         ))
 }
 
-#[allow(clippy::vec_init_then_push)]
 fn render_source_providers(
     f: &mut ratatui::Frame,
     area: Rect,
     config: &DataSourcesConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
 ) {
     let any_focused = is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2) || is_focused(form, 3);
     let block = section_block(
         "SOURCE PROVIDERS",
         any_focused,
-        crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row) && !any_focused,
+        is_hovering(area, mouse_col, mouse_row) && !any_focused,
     );
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -155,6 +160,7 @@ fn render_source_providers(
 
     for (i, (title, desc, enabled)) in cards.iter().enumerate() {
         let focused = is_focused(form, i);
+        let hovered = is_hovering(rows[i], mouse_col, mouse_row);
         let status_text = if *enabled {
             "\u{2713} ENABLED"
         } else {
@@ -167,6 +173,8 @@ fn render_source_providers(
         let prefix = if focused { "> " } else { "  " };
         let title_style = if focused {
             Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        } else if hovered {
+            Style::new().fg(theme::border_hover()).add_modifier(Modifier::BOLD)
         } else {
             Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD)
         };
@@ -194,13 +202,20 @@ fn render_source_providers(
     }
 }
 
-#[allow(clippy::vec_init_then_push)]
-fn render_rag_indexes(f: &mut ratatui::Frame, area: Rect, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
+fn render_rag_indexes(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    config: &MuonConfig,
+    form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
+) {
     let any_focused = is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6);
     let block = section_block(
         "KNOWLEDGE LAYER / RAG INDEXES",
         any_focused,
-        crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row) && !any_focused,
+        is_hovering(area, mouse_col, mouse_row) && !any_focused,
     );
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -215,12 +230,35 @@ fn render_rag_indexes(f: &mut ratatui::Frame, area: Rect, form: &FormState, hit_
         .constraints([Constraint::Length(3), Constraint::Min(0)])
         .split(inner);
 
-    render_add_source_form(f, sections[0], form, hit_registry);
-    render_source_table(f, sections[1]);
+    render_add_source_form(f, sections[0], config, form, hit_registry, mouse_col, mouse_row);
+    render_source_table(f, sections[1], config, hit_registry, mouse_col, mouse_row);
+
+    if form.dropdown_open && form.focus == 5 {
+        let form_cols = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(55),
+                Constraint::Percentage(30),
+                Constraint::Percentage(15),
+            ])
+            .split(sections[0]);
+        let field_label = "Source Type";
+        let options: Vec<String> = vec!["Directory".to_string(), "File".to_string(), "Glob".to_string()];
+        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
+            f, form_cols[1], field_label, &options, form, hit_registry, mouse_col, mouse_row,
+        );
+    }
 }
 
-#[allow(clippy::vec_init_then_push)]
-fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState, hit_registry: &mut Vec<ClickTarget>) {
+fn render_add_source_form(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    config: &MuonConfig,
+    form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
+) {
     let form_cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -252,10 +290,12 @@ fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState, 
             String::new()
         }
     } else {
-        "~/documents/research/".to_string()
+        config.data_sources.source_path.clone()
     };
     let path_value_style = if is_focused(form, 4) {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+    } else if is_hovering(form_cols[0], mouse_col, mouse_row) {
+        Style::new().fg(theme::border_hover())
     } else {
         Style::new().fg(theme::text_main())
     };
@@ -268,13 +308,20 @@ fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState, 
     let type_prefix = if is_focused(form, 5) { "> " } else { "  " };
     let type_label_style = if is_focused(form, 5) {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+    } else if is_hovering(form_cols[1], mouse_col, mouse_row) {
+        Style::new().fg(theme::border_hover())
     } else {
         Style::new().fg(theme::text_dim())
+    };
+    let type_val_style = if is_focused(form, 5) {
+        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(theme::accent())
     };
     let type_line = Line::from(vec![
         Span::styled(type_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
         Span::styled("[", type_label_style),
-        Span::styled("Directory\u{25BC}", if is_focused(form, 5) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }),
+        Span::styled(format!("{}\u{25BC}", config.data_sources.source_type), type_val_style),
         Span::styled("]", type_label_style),
     ]);
     f.render_widget(Paragraph::new(type_line), form_cols[1]);
@@ -282,30 +329,26 @@ fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState, 
     let btn_prefix = if is_focused(form, 6) { "> " } else { "  " };
     let btn_style = if is_focused(form, 6) {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-    } else {
+    } else if is_hovering(form_cols[2], mouse_col, mouse_row) {
         Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(theme::accent())
     };
     let btn_line = Line::from(vec![
         Span::styled(btn_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
         Span::styled("[ + Add ]", btn_style),
     ]);
     f.render_widget(Paragraph::new(btn_line), form_cols[2]);
-
-    if form.dropdown_open && form.focus == 5 {
-        let field_label = crate::presentation::components::inputs::settings::data_sources::fields()[form.focus].label;
-        let options: Vec<String> = crate::presentation::components::inputs::settings::data_sources::fields()[form.focus]
-            .options
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, form_cols[1], field_label, &options, form, hit_registry, form.mouse_col, form.mouse_row,
-        );
-    }
 }
 
-#[allow(clippy::vec_init_then_push)]
-fn render_source_table(f: &mut ratatui::Frame, area: Rect) {
+fn render_source_table(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    config: &MuonConfig,
+    hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
+) {
     let usable_w = area.width as usize;
 
     let col_path = ((usable_w as f64 * 0.40) as usize).max(20);
@@ -352,45 +395,70 @@ fn render_source_table(f: &mut ratatui::Frame, area: Rect) {
         Style::new().fg(theme::border()),
     ));
 
-    let rows_data: &[(&str, &str, &str, &str)] = &[
-        ("~/Documents/research/", "DIR", "\u{2713} indexed", "2,841"),
-        ("~/.muon/notes/", "DIR", "\u{2713} indexed", "412"),
-        ("papers/*.pdf", "GLOB", "\u{25C9} indexing", "1,209"),
-        ("README.md", "FILE", "\u{25CB} pending", "0"),
-        ("~/.muon/sources.csv", "FILE", "\u{2713} indexed", "89"),
-    ];
-
     let mut lines: Vec<Line> = vec![header, separator];
 
-    for (path, kind, status, chunks) in rows_data {
-        let status_color = match *status {
-            "\u{2713} indexed" => theme::success(),
-            "\u{25C9} indexing" => theme::accent(),
-            "\u{25CB} pending" => theme::warning(),
-            _ => theme::text_dim(),
+    let row_count = config.data_sources.rag_indexes.len();
+    for i in 0..row_count {
+        let index_item = &config.data_sources.rag_indexes[i];
+        let status_color = if index_item.status.contains("indexed") {
+            theme::success()
+        } else if index_item.status.contains("indexing") {
+            theme::accent()
+        } else {
+            theme::warning()
+        };
+
+        // Determine refresh & remove hit test areas
+        let row_y = area.y + 2 + i as u16;
+        if row_y < area.y + area.height {
+            let refresh_x = area.x + (col_path + col_type + col_status + col_chunks) as u16 + 1;
+            let refresh_rect = Rect::new(refresh_x, row_y, 1, 1);
+            hit_registry.push(ClickTarget {
+                rect: refresh_rect,
+                action: ClickAction::ReindexRagIndex(i),
+            });
+
+            let remove_x = refresh_x + 4;
+            let remove_rect = Rect::new(remove_x, row_y, 1, 1);
+            hit_registry.push(ClickTarget {
+                rect: remove_rect,
+                action: ClickAction::RemoveRagIndex(i),
+            });
+        }
+
+        let ref_style = if row_y < area.y + area.height && is_hovering(Rect::new(area.x + (col_path + col_type + col_status + col_chunks) as u16 + 1, row_y, 1, 1), mouse_col, mouse_row) {
+            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        } else {
+            Style::new().fg(theme::accent())
+        };
+
+        let rem_style = if row_y < area.y + area.height && is_hovering(Rect::new(area.x + (col_path + col_type + col_status + col_chunks) as u16 + 5, row_y, 1, 1), mouse_col, mouse_row) {
+            Style::new().fg(theme::error()).add_modifier(Modifier::BOLD)
+        } else {
+            Style::new().fg(theme::error())
         };
 
         lines.push(Line::from(vec![
             Span::styled(
-                format!("{:<width$}", path, width = col_path),
+                format!("{:<width$}", index_item.path, width = col_path),
                 Style::new().fg(theme::text_main()),
             ),
             Span::styled(
-                format!("{:<width$}", kind, width = col_type),
+                format!("{:<width$}", index_item.kind, width = col_type),
                 Style::new().fg(theme::cyan()),
             ),
             Span::styled(
-                format!("{:<width$}", status, width = col_status),
+                format!("{:<width$}", index_item.status, width = col_status),
                 Style::new().fg(status_color),
             ),
             Span::styled(
-                format!("{:<width$}", chunks, width = col_chunks),
+                format!("{:<width$}", index_item.chunks, width = col_chunks),
                 Style::new().fg(theme::text_main()),
             ),
             Span::styled("[", Style::new().fg(theme::text_dim())),
-            Span::styled("\u{21BB}", Style::new().fg(theme::accent())),
+            Span::styled("\u{21BB}", ref_style),
             Span::styled("] [", Style::new().fg(theme::text_dim())),
-            Span::styled("\u{00D7}", Style::new().fg(theme::error())),
+            Span::styled("\u{00D7}", rem_style),
             Span::styled("]", Style::new().fg(theme::text_dim())),
         ]));
     }
