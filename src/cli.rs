@@ -8,7 +8,7 @@ use crate::application::pipeline_runner::run_pipeline;
 use crate::application::services::{ExportFormat, ObsidianExporter};
 use crate::config::MuonConfig;
 use crate::domain::models::report::ResearchReport;
-use crate::domain::models::session::{Session, SessionId, SessionStatus};
+use crate::domain::models::{Session, SessionId, SessionStatus};
 use crate::domain::traits::session_store::{SessionStore, SessionSummary};
 use crate::error::{MuonError, Result};
 use crate::infrastructure::context::InfrastructureContext;
@@ -57,20 +57,23 @@ pub async fn run_headless(query: &str, mock: bool, output: Option<&Path>) -> Res
     let (tx, _rx) = mpsc::unbounded_channel();
     let bridge = BridgeChannels::new(tx);
 
-    let use_live = !mock
-        && std::env::var("MUON_LIVE")
-            .map(|v| v == "1")
-            .unwrap_or(false);
-    let infra = if use_live {
-        InfrastructureContext::new_live(&config, &bridge).await?
+    let infra = if mock {
+        #[cfg(any(test, feature = "mock"))]
+        {
+            InfrastructureContext::mock()
+        }
+        #[cfg(not(any(test, feature = "mock")))]
+        {
+            return Err(MuonError::Config(
+                "mock mode requires building with the 'mock' feature".to_string(),
+            ));
+        }
     } else {
-        InfrastructureContext::mock()
+        InfrastructureContext::new_live(&config, &bridge).await?
     };
 
     let mut state = PipelineState::default();
-    let session_id = SessionId::new_v4();
-
-    let report = run_pipeline(query, &mut state, session_id, &config, &infra, &bridge).await?;
+    let report = run_pipeline(query, &mut state, &config, &infra, &bridge).await?;
 
     let content = render_markdown(&report, query);
 

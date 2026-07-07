@@ -7,9 +7,10 @@ use crate::domain::models::source::Source;
 use crate::domain::traits::session_store::{SessionStore, SessionSummary};
 use crate::error::MuonError;
 
-/// In-memory session store used as a placeholder until the Diesel-backed
-/// store is wired in Phase 4. Implements the full `SessionStore` port
-/// surface so the pipeline runner can be exercised end-to-end.
+/// In-memory `SessionStore` retained exclusively for tests. The real
+/// production implementation is `DieselSessionStore` in
+/// `infrastructure::storage`, which persists sessions, sources, logs, and
+/// reports to SQLite.
 pub struct InMemorySessionStore {
     summaries: std::sync::Mutex<Vec<SessionSummary>>,
     stages: std::sync::Mutex<std::collections::HashMap<SessionId, String>>,

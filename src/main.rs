@@ -19,7 +19,8 @@ enum Commands {
         /// Run without TUI; print report to stdout
         #[arg(long)]
         headless: bool,
-        /// Use mock infrastructure (no API calls). Default unless MUON_LIVE=1
+        /// Use mock infrastructure (no API calls). Requires a build with the
+        /// `mock` feature enabled; production builds reject this flag.
         #[arg(long)]
         mock: bool,
         /// Write report to file instead of stdout (headless only)

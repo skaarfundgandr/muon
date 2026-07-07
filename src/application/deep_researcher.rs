@@ -39,6 +39,11 @@ impl<'a> DeepResearcher<'a> {
         let max_loops = self.cfg.agents.deep_researcher.iterations.max(1);
         let mut draft = String::new();
         let mut registry = SourceRegistry::new();
+        if let Ok(sink) = self.infra.source_sink.lock() {
+            for src in sink.sources() {
+                registry.record(&src.url, src.source_type);
+            }
+        }
         let start = std::time::Instant::now();
 
         self.bridge
@@ -71,6 +76,26 @@ impl<'a> DeepResearcher<'a> {
         }
 
         let unverified_report = self.to_report(&draft, &registry);
+
+        // Embed sources into the vector store (non-fatal on error).
+        if let Some(ref vs) = self.infra.vector_store {
+            for source in registry.sources_mut() {
+                if source.embedding_id.is_none() && !source.snippet.is_empty() {
+                    match vs.add(source, &source.snippet).await {
+                        Ok(Some(id)) => source.embedding_id = Some(id),
+                        Ok(None) => {}
+                        Err(e) => {
+                            self.bridge.log(
+                                AgentTag::Sys,
+                                LogLevel::Warn,
+                                format!("embed failed for {}: {e}", source.url),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         let registry_urls = registry.urls();
         let verified = if self.cfg.agents.deep_researcher.citation_verify {
             citation_verifier::verify(&unverified_report, &registry_urls, &[])?
@@ -206,10 +231,25 @@ impl<'a> DeepResearcher<'a> {
         plan: &ClarifierResult,
         registry: &mut SourceRegistry,
     ) -> Result<String, MuonError> {
+        let prior_context = if let Some(ref vs) = self.infra.vector_store {
+            match vs.query(query, self.cfg.advanced.rag_top_k as usize).await {
+                Ok(prior) if !prior.is_empty() => {
+                    let items: Vec<String> = prior
+                        .iter()
+                        .map(|s| format!("- [{}] {}", s.title, s.snippet))
+                        .collect();
+                    format!("\nPrior knowledge:\n{}\n\n", items.join("\n"))
+                }
+                _ => String::new(),
+            }
+        } else {
+            String::new()
+        };
+
         let prompt = format!(
             "You are the Researcher. Find concrete sources for the Orchestrator's draft.\n\
              Query: {query}\nDraft: {draft}\n\
-             Focus: {}\n\n\
+             Focus: {}{prior_context}\n\
              Return a list of URLs and a one-line summary for each.",
             plan.plan_sections.join(", ")
         );
