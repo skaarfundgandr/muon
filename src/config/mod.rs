@@ -184,6 +184,8 @@ pub struct ProviderConfig {
 pub struct ProviderModel {
     pub name: String,
     #[serde(default)]
+    pub model_id: String,
+    #[serde(default)]
     pub description: String,
 }
 
@@ -471,12 +473,69 @@ impl Default for ToolsConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RagIndexConfig {
+    pub path: String,
+    pub kind: String,
+    pub status: String,
+    pub chunks: String,
+}
+
+fn default_rag_indexes() -> Vec<RagIndexConfig> {
+    vec![
+        RagIndexConfig {
+            path: "~/Documents/research/".to_string(),
+            kind: "DIR".to_string(),
+            status: "✓ indexed".to_string(),
+            chunks: "2,841".to_string(),
+        },
+        RagIndexConfig {
+            path: "~/.muon/notes/".to_string(),
+            kind: "DIR".to_string(),
+            status: "✓ indexed".to_string(),
+            chunks: "412".to_string(),
+        },
+        RagIndexConfig {
+            path: "papers/*.pdf".to_string(),
+            kind: "GLOB".to_string(),
+            status: "◉ indexing".to_string(),
+            chunks: "1,209".to_string(),
+        },
+        RagIndexConfig {
+            path: "README.md".to_string(),
+            kind: "FILE".to_string(),
+            status: "○ pending".to_string(),
+            chunks: "0".to_string(),
+        },
+        RagIndexConfig {
+            path: "~/.muon/sources.csv".to_string(),
+            kind: "FILE".to_string(),
+            status: "✓ indexed".to_string(),
+            chunks: "89".to_string(),
+        },
+    ]
+}
+
+fn default_source_path() -> String {
+    "~/documents/research/".to_string()
+}
+
+fn default_source_type() -> String {
+    "Directory".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DataSourcesConfig {
     pub web_search: bool,
     pub paper_search: bool,
     pub enterprise_systems: bool,
     pub knowledge_layer_rag: bool,
+    #[serde(default = "default_rag_indexes")]
+    pub rag_indexes: Vec<RagIndexConfig>,
+    #[serde(skip, default = "default_source_path")]
+    pub source_path: String,
+    #[serde(skip, default = "default_source_type")]
+    pub source_type: String,
 }
 
 impl Default for DataSourcesConfig {
@@ -486,6 +545,9 @@ impl Default for DataSourcesConfig {
             paper_search: true,
             enterprise_systems: false,
             knowledge_layer_rag: true,
+            rag_indexes: default_rag_indexes(),
+            source_path: default_source_path(),
+            source_type: default_source_type(),
         }
     }
 }
