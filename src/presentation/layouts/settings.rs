@@ -7,7 +7,7 @@ use crate::config::MuonConfig;
 use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
-use crate::presentation::components::settings::{advanced, agents, data_sources, display, tools};
+use crate::presentation::components::settings::{advanced, agents, data_sources, display, providers, tools};
 use crate::presentation::form::FormState;
 use crate::presentation::theme;
 use crate::presentation::views::{SettingsTab, View};
@@ -40,11 +40,14 @@ pub fn render(
     render_tab_bar(f, chunks[1], tab, hit_registry, mouse_col, mouse_row);
 
     match tab {
+        SettingsTab::Providers => {
+            providers::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
+        }
         SettingsTab::Agents => {
-            agents::render(f, chunks[2], &config.agents, _form, hit_registry, mouse_col, mouse_row);
+            agents::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
         }
         SettingsTab::Tools => {
-            tools::render(f, chunks[2], &config.tools, _form, hit_registry, mouse_col, mouse_row);
+            tools::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
         }
         SettingsTab::DataSources => {
             data_sources::render(f, chunks[2], &config.data_sources, _form, hit_registry, mouse_col, mouse_row);

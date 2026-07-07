@@ -5,6 +5,7 @@ use super::View;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(usize)]
 pub enum SettingsTab {
+    Providers,
     Agents,
     Tools,
     DataSources,
@@ -13,7 +14,8 @@ pub enum SettingsTab {
 }
 
 impl SettingsTab {
-    pub const ALL: [SettingsTab; 5] = [
+    pub const ALL: [SettingsTab; 6] = [
+        SettingsTab::Providers,
         SettingsTab::Agents,
         SettingsTab::Tools,
         SettingsTab::DataSources,
@@ -33,6 +35,7 @@ impl SettingsTab {
 
     pub fn label(&self) -> &'static str {
         match self {
+            SettingsTab::Providers => "Providers",
             SettingsTab::Agents => "Agents",
             SettingsTab::Tools => "Tools",
             SettingsTab::DataSources => "Data Sources",
@@ -58,7 +61,7 @@ impl ViewRouter {
     pub fn new() -> Self {
         Self {
             active_view: View::Welcome,
-            settings_tab: SettingsTab::Agents,
+            settings_tab: SettingsTab::Providers,
         }
     }
 

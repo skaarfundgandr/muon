@@ -27,7 +27,7 @@ pub struct AppState {
     pub running: bool,
     tick_count: u64,
     pub config: MuonConfig,
-    pub forms: [FormState; 5],
+    pub forms: [FormState; 6],
     pub query_input: QueryInput,
     pub sessions: SessionService,
     pub pipeline: PipelineState,
@@ -40,7 +40,7 @@ pub struct AppState {
     pub clarifier_response: String,
     pub plan_pending: Option<PlanPending>,
     pub agent_tx: Option<mpsc::UnboundedSender<AgentEvent>>,
-    pub infra: Arc<InfrastructureContext>,
+    pub infra: Option<Arc<InfrastructureContext>>,
     pub config_reload_rx: Option<mpsc::Receiver<MuonConfig>>,
 }
 
@@ -49,17 +49,17 @@ impl AppState {
         let Some(agent_tx) = self.agent_tx.clone() else {
             return;
         };
+        let Some(infra) = self.infra.as_ref().map(Arc::clone) else {
+            return;
+        };
         let bridge = BridgeChannels::new(agent_tx);
         let cfg = self.config.clone();
-        let infra = self.infra.clone();
-        let session_id = uuid::Uuid::new_v4();
         let mut pipeline = self.pipeline.clone_state_for_task();
         let query = query.to_string();
         tokio::spawn(async move {
             let _ = crate::application::pipeline_runner::run_pipeline(
                 &query,
                 &mut pipeline,
-                session_id,
                 &cfg,
                 &infra,
                 &bridge,
@@ -138,6 +138,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 app.forms[tab_idx].focus = *idx;
                 app.forms[tab_idx].reset_edit();
                 let current = match tab {
+                    SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::get_field(&app.config, *idx),
                     SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::get_field(&app.config.agents, *idx),
                     SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::get_field(&app.config.tools, *idx),
                     SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::get_field(&app.config.data_sources, *idx),
@@ -145,6 +146,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::get_field(&app.config.advanced, *idx),
                 };
                 let kind = match tab {
+                    SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::fields()[*idx].kind,
                     SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::fields()[*idx].kind,
                     SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::fields()[*idx].kind,
                     SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::fields()[*idx].kind,
@@ -164,6 +166,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     }
                     crate::presentation::form::FieldKind::Checkbox => {
                         match tab {
+                            SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::toggle_field(&mut app.config, *idx),
                             SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::toggle_field(&mut app.config.agents, *idx),
                             SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::toggle_field(&mut app.config.tools, *idx),
                             SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::toggle_field(&mut app.config.data_sources, *idx),
@@ -181,6 +184,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 app.forms[tab_idx].focus = *idx;
                 app.forms[tab_idx].reset_edit();
                 match tab {
+                    SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::toggle_field(&mut app.config, *idx),
                     SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::toggle_field(&mut app.config.agents, *idx),
                     SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::toggle_field(&mut app.config.tools, *idx),
                     SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::toggle_field(&mut app.config.data_sources, *idx),
@@ -218,17 +222,44 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
             ClickAction::SelectDropdownOption(idx) => {
                 let tab = app.router.settings_tab();
                 let tab_idx = tab as usize;
-                let fields = match tab {
-                    SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::fields(),
-                    SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::fields(),
-                    SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::fields(),
-                    SettingsTab::Display => crate::presentation::components::inputs::settings::display::fields(),
-                    SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::fields(),
+                let options: Vec<String> = match tab {
+                    SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::fields()[app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::options_for(
+                        app.forms[tab_idx].focus,
+                        &app.config,
+                    ),
+                    SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::fields()[app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::fields()[app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    SettingsTab::Display => crate::presentation::components::inputs::settings::display::fields()[app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+                    SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::fields()[app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
                 };
-                if *idx < fields[app.forms[tab_idx].focus].options.len() {
-                    let val = fields[app.forms[tab_idx].focus].options[*idx].to_string();
+                if *idx < options.len() {
+                    let val = options[*idx].clone();
                     app.forms[tab_idx].dropdown_open = false;
                     match tab {
+                        SettingsTab::Providers => {
+                            crate::presentation::components::inputs::settings::providers::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
+                        }
                         SettingsTab::Agents => {
                             crate::presentation::components::inputs::settings::agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
                         }
@@ -256,8 +287,77 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
             ClickAction::ActivateClarifier => {
                 app.query_input.active = false;
             }
+            ClickAction::AddProvider => {
+                use crate::config::ProviderConfig;
+                app.config.providers.push(ProviderConfig {
+                    name: String::new(),
+                    base_url: String::new(),
+                    api_key: String::new(),
+                    models: Vec::new(),
+                });
+                app.forms[SettingsTab::Providers as usize].dirty = true;
+            }
+            ClickAction::RemoveProvider(idx) => {
+                if *idx < app.config.providers.len() {
+                    app.config.providers.swap_remove(*idx);
+                    app.forms[SettingsTab::Providers as usize].dirty = true;
+                }
+            }
+            ClickAction::AddSearchProvider => {
+                use crate::config::{SearchProviderConfig, SearchProviderType};
+                app.config.search.providers.push(SearchProviderConfig {
+                    name: String::new(),
+                    provider_type: SearchProviderType::Tavily,
+                    api_key: String::new(),
+                    max_results: None,
+                    tavily: Default::default(),
+                    firecrawl: Default::default(),
+                    brave: Default::default(),
+                    serper: Default::default(),
+                });
+                app.forms[SettingsTab::Tools as usize].dirty = true;
+            }
+            ClickAction::RemoveSearchProvider(idx) => {
+                if *idx < app.config.search.providers.len() {
+                    app.config.search.providers.swap_remove(*idx);
+                    app.forms[SettingsTab::Tools as usize].dirty = true;
+                }
+            }
+            ClickAction::ToggleSearchProvider(_idx) => {
+                // No per-provider enabled flag yet — UI hint only.
+            }
+            ClickAction::ToggleArxiv => {
+                app.config.search.papers.arxiv_enabled = !app.config.search.papers.arxiv_enabled;
+                app.forms[SettingsTab::Tools as usize].dirty = true;
+            }
+            ClickAction::EditProviderModels(_)
+            | ClickAction::AddModel
+            | ClickAction::RemoveModel(_)
+            | ClickAction::ConfigureSearchOptions(_) => {
+                // Models sub-form and options panel: stub for v0.1.
+            }
         }
         return;
+    }
+}
+
+fn handle_scroll(app: &mut AppState, delta: i32) {
+    use crate::presentation::handlers::settings::{scroll_list_len, scroll_visible_rows};
+    let tab = app.router.settings_tab();
+    let tab_idx = tab as usize;
+    let Some(visible) = scroll_visible_rows(app, tab) else {
+        return;
+    };
+    let list_len = scroll_list_len(app, tab);
+    if list_len == 0 {
+        return;
+    }
+    let max_offset = list_len.saturating_sub(visible);
+    let form = &mut app.forms[tab_idx];
+    if delta > 0 {
+        form.scroll_offset = (form.scroll_offset + 1).min(max_offset);
+    } else {
+        form.scroll_offset = form.scroll_offset.saturating_sub(1);
     }
 }
 
@@ -277,6 +377,13 @@ fn handle_event(app: &mut AppState, event: Event) {
             app.query_input.mouse_row = mouse.row;
             if mouse.kind == MouseEventKind::Down(MouseButton::Left) {
                 handle_mouse_click(app, mouse.column, mouse.row);
+            }
+            // Mouse wheel scroll for Providers and Tools tabs
+            if let MouseEventKind::ScrollDown = mouse.kind {
+                handle_scroll(app, 1);
+            }
+            if let MouseEventKind::ScrollUp = mouse.kind {
+                handle_scroll(app, -1);
             }
         }
         Event::Tick => {
@@ -328,26 +435,27 @@ async fn build_infrastructure(
     cfg: &MuonConfig,
     bridge: &BridgeChannels,
 ) -> InfrastructureContext {
-    if std::env::var("MUON_LIVE")
-        .map(|v| v == "1")
-        .unwrap_or(false)
-    {
-        match InfrastructureContext::new_live(cfg, bridge).await {
-            Ok(infra) => infra,
-            Err(e) => {
-                bridge.log(
-                    AgentTag::Sys,
-                    LogLevel::Warn,
-                    format!(
-                        "live backend failed, falling back to mock: {e}"
-                    ),
-                );
-                InfrastructureContext::mock()
-            }
+    match InfrastructureContext::new_live(cfg, bridge).await {
+        Ok(infra) => infra,
+        Err(e) => {
+            bridge.log(
+                AgentTag::Sys,
+                LogLevel::Warn,
+                format!("live backend failed, falling back to mock: {e}"),
+            );
+            fallback_mock()
         }
-    } else {
-        InfrastructureContext::mock()
     }
+}
+
+#[cfg(any(test, feature = "mock"))]
+fn fallback_mock() -> InfrastructureContext {
+    InfrastructureContext::mock()
+}
+
+#[cfg(not(any(test, feature = "mock")))]
+fn fallback_mock() -> InfrastructureContext {
+    panic!("live backend failed and mock feature is not enabled");
 }
 
 async fn run_loop(
@@ -388,7 +496,7 @@ async fn run_loop(
         clarifier_response: String::new(),
         plan_pending: None,
         agent_tx: None,
-        infra: Arc::new(InfrastructureContext::mock()),
+        infra: None,
         config_reload_rx: Some(config_reload_rx),
     };
 
@@ -436,7 +544,7 @@ async fn run_loop(
 
     let bridge_for_init = BridgeChannels::new(agent_tx.clone());
     let infra = build_infrastructure(&config, &bridge_for_init).await;
-    app.infra = Arc::new(infra);
+    app.infra = Some(Arc::new(infra));
     app.agent_tx = Some(agent_tx);
 
     while app.running {

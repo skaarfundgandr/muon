@@ -625,8 +625,14 @@ fn render_embedding(
     );
 
     if form.dropdown_open && form.focus == 12 {
+        let field_label = crate::presentation::components::inputs::settings::advanced::fields()[form.focus].label;
+        let options: Vec<String> = crate::presentation::components::inputs::settings::advanced::fields()[form.focus]
+            .options
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, chunks[0], crate::presentation::components::inputs::settings::advanced::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+            f, chunks[0], field_label, &options, form, hit_registry, form.mouse_col, form.mouse_row,
         );
     }
 }

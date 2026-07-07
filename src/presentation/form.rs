@@ -54,6 +54,9 @@ pub struct FormState {
     pub mouse_col: u16,
     /// Last known mouse row for this form's region (for hover styling).
     pub mouse_row: u16,
+    /// Scroll offset for list-style tabs (Providers, Tools). Index of the first
+    /// visible row. Reset to 0 when the tab is reset via `reset_edit`.
+    pub scroll_offset: usize,
 }
 
 impl FormState {
@@ -63,6 +66,7 @@ impl FormState {
         self.edit_cursor = 0;
         self.dropdown_open = false;
         self.dropdown_cursor = 0;
+        self.scroll_offset = 0;
     }
 
     /// Advance focus to the next field in the list.

@@ -159,8 +159,14 @@ fn render_left(
     f.render_widget(Paragraph::new(preview_lines), preview_inner);
 
     if form.dropdown_open && (form.focus == 0 || form.focus == 1) {
+        let field_label = crate::presentation::components::inputs::settings::display::fields()[form.focus].label;
+        let options: Vec<String> = crate::presentation::components::inputs::settings::display::fields()[form.focus]
+            .options
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, chunks[form.focus], crate::presentation::components::inputs::settings::display::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+            f, chunks[form.focus], field_label, &options, form, hit_registry, form.mouse_col, form.mouse_row,
         );
     }
 }

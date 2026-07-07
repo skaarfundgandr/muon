@@ -19,6 +19,16 @@ pub enum ClickAction {
     SelectSession(usize),
     SelectDropdownOption(usize),
     ActivateClarifier,
+    AddProvider,
+    RemoveProvider(usize),
+    EditProviderModels(usize),
+    AddModel,
+    RemoveModel(usize),
+    AddSearchProvider,
+    RemoveSearchProvider(usize),
+    ConfigureSearchOptions(usize),
+    ToggleSearchProvider(usize),
+    ToggleArxiv,
 }
 
 pub fn is_hovering(rect: Rect, col: u16, row: u16) -> bool {

@@ -25,7 +25,7 @@ pub struct RenderParams<'a> {
     pub sessions: &'a [SessionSummary],
     pub pipeline: &'a PipelineState,
     pub config: &'a MuonConfig,
-    pub forms: &'a [FormState; 5],
+    pub forms: &'a [FormState; 6],
     pub settings_tab: SettingsTab,
     pub hit_registry: &'a mut Vec<ClickTarget>,
     pub mouse_col: u16,

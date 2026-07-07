@@ -292,8 +292,14 @@ fn render_add_source_form(f: &mut ratatui::Frame, area: Rect, form: &FormState, 
     f.render_widget(Paragraph::new(btn_line), form_cols[2]);
 
     if form.dropdown_open && form.focus == 5 {
+        let field_label = crate::presentation::components::inputs::settings::data_sources::fields()[form.focus].label;
+        let options: Vec<String> = crate::presentation::components::inputs::settings::data_sources::fields()[form.focus]
+            .options
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, form_cols[1], crate::presentation::components::inputs::settings::data_sources::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+            f, form_cols[1], field_label, &options, form, hit_registry, form.mouse_col, form.mouse_row,
         );
     }
 }

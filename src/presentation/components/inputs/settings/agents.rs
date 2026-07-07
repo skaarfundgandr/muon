@@ -1,4 +1,4 @@
-use crate::config::{AgentsConfig, DeepResearcherConfig};
+use crate::config::{AgentsConfig, DeepResearcherConfig, MuonConfig};
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
@@ -110,6 +110,46 @@ pub fn toggle_field(config: &mut AgentsConfig, index: usize) {
     }
 }
 
+fn provider_options(config: &MuonConfig) -> Vec<String> {
+    if config.providers.is_empty() {
+        vec!["<no providers>".to_string()]
+    } else {
+        config.providers.iter().map(|p| p.name.clone()).collect()
+    }
+}
+
+fn model_options(config: &MuonConfig, provider_name: &str) -> Vec<String> {
+    config
+        .providers
+        .iter()
+        .find(|p| p.name == provider_name)
+        .filter(|p| !p.models.is_empty())
+        .map(|p| p.models.iter().map(|m| m.name.clone()).collect())
+        .unwrap_or_default()
+}
+
+/// Returns the effective options for a field index, dynamic for provider/model dropdowns.
+pub fn options_for(field_index: usize, config: &MuonConfig) -> Vec<String> {
+    const PROVIDER_FIELDS: &[usize] = &[1, 5, 10, 14, 16, 18];
+    const MODEL_FIELDS: &[usize] = &[0, 4, 9, 13, 15, 17];
+    if PROVIDER_FIELDS.contains(&field_index) {
+        provider_options(config)
+    } else if MODEL_FIELDS.contains(&field_index) {
+        let provider_idx = match field_index {
+            0 | 1 => config.agents.intent_classifier.provider.clone(),
+            4 | 5 => config.agents.clarifier.provider.clone(),
+            9 | 10 => config.agents.shallow_researcher.provider.clone(),
+            13 | 14 => config.agents.deep_researcher.orchestrator.provider.clone(),
+            15 | 16 => config.agents.deep_researcher.planner.provider.clone(),
+            17 | 18 => config.agents.deep_researcher.researcher.provider.clone(),
+            _ => return Vec::new(),
+        };
+        model_options(config, &provider_idx)
+    } else {
+        Vec::new()
+    }
+}
+
 fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
@@ -119,7 +159,7 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
 }
 
 #[allow(clippy::vec_init_then_push)]
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AgentsConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0)])
@@ -157,10 +197,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &AgentsConfig, form: &
         action: ClickAction::FocusField(13),
     });
 
-    render_intent_classifier(f, left_chunks[0], &config.intent_classifier, form, hit_registry);
-    render_clarifier(f, left_chunks[1], &config.clarifier, form, hit_registry);
-    render_shallow_researcher(f, right_chunks[0], &config.shallow_researcher, form, hit_registry);
-    render_deep_researcher(f, right_chunks[1], &config.deep_researcher, form, hit_registry);
+    render_intent_classifier(f, left_chunks[0], &config.agents.intent_classifier, form, hit_registry, config);
+    render_clarifier(f, left_chunks[1], &config.agents.clarifier, form, hit_registry, config);
+    render_shallow_researcher(f, right_chunks[0], &config.agents.shallow_researcher, form, hit_registry, config);
+    render_deep_researcher(f, right_chunks[1], &config.agents.deep_researcher, form, hit_registry, config);
 }
 
 fn agent_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
@@ -277,6 +317,7 @@ fn render_intent_classifier(
     cfg: &crate::config::AgentEntryConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
+    config: &MuonConfig,
 ) {
     let focused = section_has_focus(form, 0, 3);
     let timeout_str = cfg.timeout_sec.to_string();
@@ -312,8 +353,9 @@ fn render_intent_classifier(
 
     if form.dropdown_open && (form.focus == 0 || form.focus == 1) {
         let row_below = rows[form.focus];
+        let field_label = fields()[form.focus].label;
         crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, row_below, crate::presentation::components::inputs::settings::agents::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+            f, row_below, field_label, &options_for(form.focus, config), form, hit_registry, form.mouse_col, form.mouse_row,
         );
     }
 }
@@ -324,6 +366,7 @@ fn render_clarifier(
     cfg: &crate::config::ClarifierConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
+    config: &MuonConfig,
 ) {
     let focused = section_has_focus(form, 4, 8);
     let max_turns_str = cfg.max_turns.to_string();
@@ -362,8 +405,9 @@ fn render_clarifier(
 
     if form.dropdown_open && (form.focus == 4 || form.focus == 5) {
         let row_below = rows[form.focus - 4];
+        let field_label = fields()[form.focus].label;
         crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, row_below, crate::presentation::components::inputs::settings::agents::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+            f, row_below, field_label, &options_for(form.focus, config), form, hit_registry, form.mouse_col, form.mouse_row,
         );
     }
 }
@@ -374,6 +418,7 @@ fn render_shallow_researcher(
     cfg: &crate::config::ShallowResearcherConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
+    config: &MuonConfig,
 ) {
     let focused = section_has_focus(form, 9, 12);
     let llm_turns_str = cfg.max_llm_turns.to_string();
@@ -410,8 +455,9 @@ fn render_shallow_researcher(
 
     if form.dropdown_open && (form.focus == 9 || form.focus == 10) {
         let row_below = rows[form.focus - 9];
+        let field_label = fields()[form.focus].label;
         crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, row_below, crate::presentation::components::inputs::settings::agents::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+            f, row_below, field_label, &options_for(form.focus, config), form, hit_registry, form.mouse_col, form.mouse_row,
         );
     }
 }
@@ -422,6 +468,7 @@ fn render_deep_researcher(
     cfg: &DeepResearcherConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
+    config: &MuonConfig,
 ) {
     let focused = section_has_focus(form, 13, 20);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
@@ -532,8 +579,9 @@ fn render_deep_researcher(
             17 | 18 => 3,
             _ => 0,
         };
+        let field_label = fields()[form.focus].label;
         crate::presentation::components::inputs::settings::dropdown_overlay::render_dropdown_overlay(
-            f, grid[grid_idx], crate::presentation::components::inputs::settings::agents::fields(), form, hit_registry, form.mouse_col, form.mouse_row,
+            f, grid[grid_idx], field_label, &options_for(form.focus, config), form, hit_registry, form.mouse_col, form.mouse_row,
         );
     }
 }

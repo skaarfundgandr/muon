@@ -1,5 +1,5 @@
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
-use crate::presentation::form::{FieldDef, FormState};
+use crate::presentation::form::FormState;
 use crate::presentation::theme;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
@@ -8,26 +8,19 @@ use ratatui::widgets::{Block, Borders, Clear, List, ListItem};
 
 /// Render a dropdown options popup overlay below the given row rect.
 ///
-/// When `form.dropdown_open` is true and the focused field is a Dropdown,
-/// settings components render all their rows, then call this with the rect of
-/// the focused row to draw the options list as an overlay below the field.
+/// `options` is the dynamic list of option strings to display. The overlay
+/// is shown when `form.dropdown_open` is true.
+#[allow(clippy::too_many_arguments)]
 pub fn render_dropdown_overlay(
     f: &mut ratatui::Frame,
     below: Rect,
-    fields: &[FieldDef],
+    field_label: &str,
+    options: &[String],
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
 ) {
-    let Some(field) = fields.get(form.focus) else {
-        return;
-    };
-    if field.kind != crate::presentation::form::FieldKind::Dropdown {
-        return;
-    }
-
-    let options = field.options;
     if options.is_empty() {
         return;
     }
@@ -60,7 +53,7 @@ pub fn render_dropdown_overlay(
         .style(Style::default().bg(theme::bg_main()))
         .border_style(Style::new().fg(theme::border_focus()))
         .title(Span::styled(
-            format!(" {} ", field.label),
+            format!(" {} ", field_label),
             Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(popup_area);
@@ -82,7 +75,7 @@ pub fn render_dropdown_overlay(
         };
         items.push(ListItem::new(Line::from(vec![
             Span::styled(arrow, Style::new().fg(theme::accent())),
-            Span::styled(*opt, style),
+            Span::styled(opt.as_str(), style),
         ])));
     }
     let list = List::new(items);
