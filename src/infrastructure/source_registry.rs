@@ -39,6 +39,14 @@ impl SourceRegistry {
     pub fn sources(&self) -> &[Source] {
         &self.entries
     }
+
+    pub fn sources_mut(&mut self) -> &mut [Source] {
+        &mut self.entries
+    }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+    }
 }
 
 type UrlExtractor = Box<dyn Fn(&str) -> Vec<String> + Send + Sync>;

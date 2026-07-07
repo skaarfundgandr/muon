@@ -3,8 +3,12 @@ use rig_core::wasm_compat::{WasmCompatSend, WasmCompatSync};
 
 use crate::application::bridge::BridgeChannels;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
+use crate::domain::models::source::SourceType;
 use crate::domain::traits::agent::MuonAgent;
 use crate::error::{MuonError, Result};
+use crate::infrastructure::source_registry::SourceRegistry;
+
+type SourceSink = std::sync::Arc<std::sync::Mutex<SourceRegistry>>;
 
 #[async_trait]
 pub trait ReActRunner: Send + Sync {
@@ -138,6 +142,7 @@ impl<'a> ReActFactory<'a> {
         tag: AgentTag,
         max_cycles: usize,
         tool_timeout_secs: u64,
+        source_sink: SourceSink,
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
@@ -168,6 +173,7 @@ impl<'a> ReActFactory<'a> {
             })
             .on_observation({
                 let b = BridgeChannels::new(self.bridge.events.clone());
+                let sink = source_sink.clone();
                 move |o: &agent_rs::domain::agent::Observation| {
                     b.log(
                         tag,
@@ -178,6 +184,17 @@ impl<'a> ReActFactory<'a> {
                         },
                         format!("obs: {} => {}", o.tool_name, o.result),
                     );
+                    if !o.is_error
+                        && let Ok(urls) =
+                            crate::application::pipeline_runner::citation_verifier::extract_urls(
+                                &o.result,
+                            )
+                        && let Ok(mut g) = sink.lock()
+                    {
+                        for url in &urls {
+                            g.record(url.as_str(), SourceType::Web);
+                        }
+                    }
                 }
             })
             .on_final({
@@ -203,13 +220,14 @@ impl<'a> ReActFactory<'a> {
         tag: AgentTag,
         max_cycles: usize,
         tool_timeout_secs: u64,
+        source_sink: SourceSink,
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
         P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
         rig_core::agent::Agent<M, P>: Clone,
     {
-        self.build_runner(agent, tag, max_cycles, tool_timeout_secs)
+        self.build_runner(agent, tag, max_cycles, tool_timeout_secs, source_sink)
     }
 
     pub fn build_researcher_runner<M, P>(
@@ -218,13 +236,14 @@ impl<'a> ReActFactory<'a> {
         tag: AgentTag,
         max_cycles: usize,
         tool_timeout_secs: u64,
+        source_sink: SourceSink,
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
         P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
         rig_core::agent::Agent<M, P>: Clone,
     {
-        self.build_runner(agent, tag, max_cycles, tool_timeout_secs)
+        self.build_runner(agent, tag, max_cycles, tool_timeout_secs, source_sink)
     }
 
     /// Build a clarifier runner with automatic context compaction for multi-turn history.
@@ -235,6 +254,7 @@ impl<'a> ReActFactory<'a> {
         max_cycles: usize,
         tool_timeout_secs: u64,
         threshold: usize,
+        source_sink: SourceSink,
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
@@ -267,6 +287,7 @@ impl<'a> ReActFactory<'a> {
             })
             .on_observation({
                 let b = BridgeChannels::new(self.bridge.events.clone());
+                let sink = source_sink.clone();
                 move |o: &agent_rs::domain::agent::Observation| {
                     b.log(
                         tag,
@@ -277,6 +298,17 @@ impl<'a> ReActFactory<'a> {
                         },
                         format!("obs: {} => {}", o.tool_name, o.result),
                     );
+                    if !o.is_error
+                        && let Ok(urls) =
+                            crate::application::pipeline_runner::citation_verifier::extract_urls(
+                                &o.result,
+                            )
+                        && let Ok(mut g) = sink.lock()
+                    {
+                        for url in &urls {
+                            g.record(url.as_str(), SourceType::Web);
+                        }
+                    }
                 }
             })
             .on_final({

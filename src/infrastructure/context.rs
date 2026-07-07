@@ -2,6 +2,8 @@ use crate::domain::models::log_entry::AgentTag;
 use crate::domain::traits::agent::MuonAgent;
 use crate::domain::traits::session_store::SessionStore;
 use crate::error::MuonError;
+use crate::infrastructure::source_registry::SourceRegistry;
+use std::sync::{Arc, Mutex};
 
 pub struct InfrastructureContext {
     pub intent_classifier: Box<dyn MuonAgent>,
@@ -11,6 +13,8 @@ pub struct InfrastructureContext {
     pub planner: Box<dyn MuonAgent>,
     pub researcher: Box<dyn MuonAgent>,
     pub session_store: Box<dyn SessionStore>,
+    pub source_sink: Arc<Mutex<SourceRegistry>>,
+    pub vector_store: Option<Box<dyn crate::domain::traits::vector_store::VectorStore>>,
 }
 
 impl std::fmt::Debug for InfrastructureContext {
@@ -29,6 +33,31 @@ impl InfrastructureContext {
         researcher: Box<dyn MuonAgent>,
         session_store: Box<dyn SessionStore>,
     ) -> Self {
+        Self::with_sink(
+            intent_classifier,
+            shallow,
+            clarifier,
+            deep_orchestrator,
+            planner,
+            researcher,
+            session_store,
+            Arc::new(Mutex::new(SourceRegistry::new())),
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_sink(
+        intent_classifier: Box<dyn MuonAgent>,
+        shallow: Box<dyn MuonAgent>,
+        clarifier: Box<dyn MuonAgent>,
+        deep_orchestrator: Box<dyn MuonAgent>,
+        planner: Box<dyn MuonAgent>,
+        researcher: Box<dyn MuonAgent>,
+        session_store: Box<dyn SessionStore>,
+        source_sink: Arc<Mutex<SourceRegistry>>,
+        vector_store: Option<Box<dyn crate::domain::traits::vector_store::VectorStore>>,
+    ) -> Self {
         Self {
             intent_classifier,
             shallow,
@@ -37,6 +66,8 @@ impl InfrastructureContext {
             planner,
             researcher,
             session_store,
+            source_sink,
+            vector_store,
         }
     }
 
@@ -45,21 +76,7 @@ impl InfrastructureContext {
         bridge: &crate::application::bridge::BridgeChannels,
     ) -> Result<Self, MuonError> {
         use rig_core::client::CompletionClient;
-        use rig_core::providers::openai;
-
-        let provider = &cfg.agents.intent_classifier.provider;
-        if provider != "openai" {
-            return Err(MuonError::Config(format!(
-                "unsupported provider '{}'",
-                provider
-            )));
-        }
-
-        let api_key = std::env::var("OPENAI_API_KEY").map_err(|_| {
-            MuonError::Config("OPENAI_API_KEY not set".to_string())
-        })?;
-        let client = openai::Client::new(api_key)
-            .map_err(|e| MuonError::Config(e.to_string()))?;
+        use std::sync::Arc;
 
         let factory =
             crate::infrastructure::agent_rs::ReActFactory::new(
@@ -67,8 +84,32 @@ impl InfrastructureContext {
                 bridge.clone(),
             );
         let preamble = &cfg.advanced.agent_preamble;
+        let source_sink = Arc::new(Mutex::new(SourceRegistry::new()));
 
-        let intent_agent = client
+        let providers = &cfg.providers;
+        let resolve_client = |name: &str| {
+            if name.is_empty() {
+                crate::infrastructure::providers::ResolvedClient::for_default_provider(providers)
+            } else {
+                crate::infrastructure::providers::ResolvedClient::for_named_provider(name, providers)
+            }
+        };
+        let intent_client = resolve_client(&cfg.agents.intent_classifier.provider)?;
+        let shallow_client = resolve_client(&cfg.agents.shallow_researcher.provider)?;
+        let clarifier_client = resolve_client(&cfg.agents.clarifier.provider)?;
+        let deep_client = resolve_client(&cfg.agents.deep_researcher.orchestrator.provider)?;
+        let planner_client = resolve_client(&cfg.agents.deep_researcher.planner.provider)?;
+        let researcher_client = resolve_client(&cfg.agents.deep_researcher.researcher.provider)?;
+
+        let web_provider: Option<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
+            crate::infrastructure::search::provider::resolve_web_provider(cfg);
+        let paper_providers: Vec<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
+            crate::infrastructure::search::provider::resolve_paper_providers(cfg);
+        let fetch_http = reqwest::Client::new();
+
+        // Intent Classifier — no tools.
+        let intent_agent = intent_client
+            .client
             .agent(&cfg.agents.intent_classifier.model)
             .preamble(preamble)
             .build();
@@ -80,15 +121,29 @@ impl InfrastructureContext {
                     AgentTag::Intent,
                     5,
                     cfg.agents.intent_classifier.timeout_sec,
+                    source_sink.clone(),
                 ),
                 bridge.clone(),
             ),
         );
 
-        let shallow_agent = client
-            .agent(&cfg.agents.shallow_researcher.model)
-            .preamble(preamble)
-            .build();
+        // Shallow Researcher — fetch_page (always), web_search (if configured).
+        let shallow_agent = {
+            let b = shallow_client
+                .client
+                .agent(&cfg.agents.shallow_researcher.model)
+                .preamble(preamble)
+                .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
+                    fetch_http.clone(),
+                    8000,
+                ));
+            let b = if let Some(ref wp) = web_provider {
+                b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+            } else {
+                b
+            };
+            b.build()
+        };
         let shallow: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Search,
@@ -98,15 +153,27 @@ impl InfrastructureContext {
                     cfg.agents.shallow_researcher.max_tool_iters
                         as usize,
                     30,
+                    source_sink.clone(),
                 ),
                 bridge.clone(),
             ),
         );
 
-        let clarifier_agent = client
-            .agent(&cfg.agents.clarifier.model)
-            .preamble(preamble)
-            .build();
+        // Clarifier — web_search (if configured).
+        let clarifier_agent = if let Some(ref wp) = web_provider {
+            clarifier_client
+                .client
+                .agent(&cfg.agents.clarifier.model)
+                .preamble(preamble)
+                .tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+                .build()
+        } else {
+            clarifier_client
+                .client
+                .agent(&cfg.agents.clarifier.model)
+                .preamble(preamble)
+                .build()
+        };
         let compaction_threshold =
             (cfg.advanced.compaction_threshold * 100.0) as usize;
         let clarifier: Box<dyn MuonAgent> = Box::new(
@@ -118,15 +185,33 @@ impl InfrastructureContext {
                     cfg.agents.clarifier.max_iterations as usize,
                     30,
                     compaction_threshold,
+                    source_sink.clone(),
                 ),
                 bridge.clone(),
             ),
         );
 
-        let deep_agent = client
-            .agent(&cfg.agents.deep_researcher.orchestrator.model)
-            .preamble(preamble)
-            .build();
+        // Deep Orchestrator — think (always), web_search + paper_search (if configured).
+        let deep_agent = {
+            let b = deep_client
+                .client
+                .agent(&cfg.agents.deep_researcher.orchestrator.model)
+                .preamble(preamble)
+                .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
+            let b = if let Some(ref wp) = web_provider {
+                b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+            } else {
+                b
+            };
+            let b = if !paper_providers.is_empty() {
+                b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
+                    paper_providers.clone(),
+                ))
+            } else {
+                b
+            };
+            b.build()
+        };
         let deep_orchestrator: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Orchestrate,
@@ -135,15 +220,33 @@ impl InfrastructureContext {
                     AgentTag::Orchestrate,
                     cfg.agents.deep_researcher.iterations as usize,
                     30,
+                    source_sink.clone(),
                 ),
                 bridge.clone(),
             ),
         );
 
-        let planner_agent = client
-            .agent(&cfg.agents.deep_researcher.planner.model)
-            .preamble(preamble)
-            .build();
+        // Planner — think (always), web_search + paper_search (if configured).
+        let planner_agent = {
+            let b = planner_client
+                .client
+                .agent(&cfg.agents.deep_researcher.planner.model)
+                .preamble(preamble)
+                .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
+            let b = if let Some(ref wp) = web_provider {
+                b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+            } else {
+                b
+            };
+            let b = if !paper_providers.is_empty() {
+                b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
+                    paper_providers.clone(),
+                ))
+            } else {
+                b
+            };
+            b.build()
+        };
         let planner: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Plan,
@@ -152,15 +255,37 @@ impl InfrastructureContext {
                     AgentTag::Plan,
                     cfg.agents.deep_researcher.iterations as usize,
                     30,
+                    source_sink.clone(),
                 ),
                 bridge.clone(),
             ),
         );
 
-        let researcher_agent = client
-            .agent(&cfg.agents.deep_researcher.researcher.model)
-            .preamble(preamble)
-            .build();
+        // Researcher — think + fetch_page (always), web_search + paper_search (if configured).
+        let researcher_agent = {
+            let b = researcher_client
+                .client
+                .agent(&cfg.agents.deep_researcher.researcher.model)
+                .preamble(preamble)
+                .tool(crate::infrastructure::agent_rs::tools::ThinkTool)
+                .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
+                    fetch_http.clone(),
+                    8000,
+                ));
+            let b = if let Some(ref wp) = web_provider {
+                b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+            } else {
+                b
+            };
+            let b = if !paper_providers.is_empty() {
+                b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
+                    paper_providers.clone(),
+                ))
+            } else {
+                b
+            };
+            b.build()
+        };
         let researcher: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Search,
@@ -169,6 +294,7 @@ impl InfrastructureContext {
                     AgentTag::Search,
                     cfg.agents.deep_researcher.iterations as usize,
                     30,
+                    source_sink.clone(),
                 ),
                 bridge.clone(),
             ),
@@ -185,7 +311,22 @@ impl InfrastructureContext {
                 ),
             );
 
-        Ok(Self::new(
+        // RAG — optional, fails open (no RAG) if the model/index can't init.
+        let vector_store: Option<Box<dyn crate::domain::traits::vector_store::VectorStore>> =
+            match crate::infrastructure::rag::RagContext::open(cfg).await {
+                Ok(rag) => {
+                    use crate::domain::models::log_entry::{AgentTag, LogLevel};
+                    bridge.log(AgentTag::Sys, LogLevel::Info, "RAG context initialized");
+                    Some(Box::new(rag))
+                }
+                Err(e) => {
+                    use crate::domain::models::log_entry::{AgentTag, LogLevel};
+                    bridge.log(AgentTag::Sys, LogLevel::Warn, format!("RAG init failed, continuing without: {e}"));
+                    None
+                }
+            };
+
+        Ok(Self::with_sink(
             intent_classifier,
             shallow,
             clarifier,
@@ -193,6 +334,8 @@ impl InfrastructureContext {
             planner,
             researcher,
             session_store,
+            source_sink,
+            vector_store,
         ))
     }
 }
