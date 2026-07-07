@@ -50,7 +50,7 @@ pub fn render(
             tools::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
         }
         SettingsTab::DataSources => {
-            data_sources::render(f, chunks[2], &config.data_sources, _form, hit_registry, mouse_col, mouse_row);
+            data_sources::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row);
         }
         SettingsTab::Display => {
             display::render(f, chunks[2], &config.display, _form, hit_registry, mouse_col, mouse_row);

@@ -29,6 +29,9 @@ pub enum ClickAction {
     ConfigureSearchOptions(usize),
     ToggleSearchProvider(usize),
     ToggleArxiv,
+    AddRagIndex,
+    RemoveRagIndex(usize),
+    ReindexRagIndex(usize),
 }
 
 pub fn is_hovering(rect: Rect, col: u16, row: u16) -> bool {

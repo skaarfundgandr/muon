@@ -1,22 +1,29 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::app::AppState;
+use crate::app::{AppState, ActivePopup};
 use crate::presentation::components::settings::{advanced, agents, data_sources, display, providers, tools};
 use crate::presentation::form::{FieldKind, FormState};
 use crate::presentation::views::SettingsTab;
 
 pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
+    if app.active_popup.is_some() {
+        return handle_popup_key(app, key);
+    }
+
     let tab = app.router.settings_tab();
     let tab_idx = tab as usize;
     let fields = match tab {
-        SettingsTab::Providers => providers::fields(),
-        SettingsTab::Agents => agents::fields(),
-        SettingsTab::Tools => tools::fields(),
-        SettingsTab::DataSources => data_sources::fields(),
-        SettingsTab::Display => display::fields(),
-        SettingsTab::Advanced => advanced::fields(),
+        SettingsTab::Providers => providers::fields(&app.config),
+        SettingsTab::Agents => agents::fields().to_vec(),
+        SettingsTab::Tools => tools::fields(&app.config),
+        SettingsTab::DataSources => data_sources::fields(&app.config),
+        SettingsTab::Display => display::fields().to_vec(),
+        SettingsTab::Advanced => advanced::fields().to_vec(),
     };
     let field_count = fields.len();
+    if app.forms[tab_idx].focus >= field_count && field_count > 0 {
+        app.forms[tab_idx].focus = field_count - 1;
+    }
 
     if key.code == KeyCode::Esc {
         if app.forms[tab_idx].dropdown_open {
@@ -41,14 +48,10 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                             agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
                         }
                         SettingsTab::Tools => {
-                            tools::set_field(&mut app.config.tools, app.forms[tab_idx].focus, &val);
+                            tools::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
                         }
                         SettingsTab::DataSources => {
-                            data_sources::set_field(
-                                &mut app.config.data_sources,
-                                app.forms[tab_idx].focus,
-                                &val,
-                            );
+                            data_sources::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
                         }
                         SettingsTab::Display => {
                             display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
@@ -65,12 +68,12 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
         let options: Vec<String> = match tab {
             SettingsTab::Providers => Vec::new(),
             SettingsTab::Agents => agents::options_for(app.forms[tab_idx].focus, &app.config),
-            SettingsTab::Tools => tools::fields()[app.forms[tab_idx].focus]
+            SettingsTab::Tools => tools::fields(&app.config)[app.forms[tab_idx].focus]
                 .options
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-            SettingsTab::DataSources => data_sources::fields()[app.forms[tab_idx].focus]
+            SettingsTab::DataSources => data_sources::fields(&app.config)[app.forms[tab_idx].focus]
                 .options
                 .iter()
                 .map(|s| s.to_string())
@@ -113,14 +116,10 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                         agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
                     }
                     SettingsTab::Tools => {
-                        tools::set_field(&mut app.config.tools, app.forms[tab_idx].focus, &val);
+                        tools::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
                     }
                     SettingsTab::DataSources => {
-                        data_sources::set_field(
-                            &mut app.config.data_sources,
-                            app.forms[tab_idx].focus,
-                            &val,
-                        );
+                        data_sources::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
                     }
                     SettingsTab::Display => {
                         display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
@@ -278,9 +277,9 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                             SettingsTab::Agents => {
                                 agents::get_field(&app.config.agents, focused)
                             }
-                            SettingsTab::Tools => tools::get_field(&app.config.tools, focused),
+                            SettingsTab::Tools => tools::get_field(&app.config, focused),
                             SettingsTab::DataSources => {
-                                data_sources::get_field(&app.config.data_sources, focused)
+                                data_sources::get_field(&app.config, focused)
                             }
                             SettingsTab::Display => {
                                 display::get_field(&app.config.display, focused)
@@ -307,13 +306,10 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                                 agents::toggle_field(&mut app.config.agents, focused);
                             }
                             SettingsTab::Tools => {
-                                tools::toggle_field(&mut app.config.tools, focused);
+                                tools::toggle_field(&mut app.config, focused);
                             }
                             SettingsTab::DataSources => {
-                                data_sources::toggle_field(
-                                    &mut app.config.data_sources,
-                                    focused,
-                                );
+                                data_sources::toggle_field(&mut app.config, focused);
                             }
                             SettingsTab::Display => {
                                 display::toggle_field(&mut app.config.display, focused);
@@ -324,7 +320,82 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                         }
                         app.forms[tab_idx].dirty = true;
                     }
-                    FieldKind::Button => {}
+                    FieldKind::Button => {
+                        match tab {
+                            SettingsTab::Providers => {
+                                let n = app.config.providers.len();
+                                if focused == 5 * n {
+                                    app.config.providers.push(crate::config::ProviderConfig {
+                                        name: String::new(),
+                                        base_url: String::new(),
+                                        api_key: String::new(),
+                                        models: Vec::new(),
+                                    });
+                                    app.forms[tab_idx].focus = 5 * app.config.providers.len() - 5;
+                                    app.forms[tab_idx].dirty = true;
+                                } else {
+                                    let provider_idx = focused / 5;
+                                    let sub_idx = focused % 5;
+                                    if sub_idx == 3 {
+                                        app.active_popup = Some(ActivePopup::EditModels {
+                                            provider_idx,
+                                            focus_idx: 0,
+                                            edit_buffer: None,
+                                            edit_cursor: 0,
+                                        });
+                                    } else if sub_idx == 4 && provider_idx < app.config.providers.len() {
+                                        app.config.providers.remove(provider_idx);
+                                        app.forms[tab_idx].focus = if provider_idx > 0 { 5 * (provider_idx - 1) } else { 0 };
+                                        app.forms[tab_idx].dirty = true;
+                                    }
+                                }
+                            }
+                            SettingsTab::Tools => {
+                                let n = app.config.search.providers.len();
+                                if focused == 5 * n {
+                                    app.config.search.providers.push(crate::config::SearchProviderConfig {
+                                        name: String::new(),
+                                        provider_type: crate::config::SearchProviderType::Tavily,
+                                        api_key: String::new(),
+                                        max_results: None,
+                                        tavily: Default::default(),
+                                        firecrawl: Default::default(),
+                                        brave: Default::default(),
+                                        serper: Default::default(),
+                                    });
+                                    app.forms[tab_idx].focus = 5 * app.config.search.providers.len() - 5;
+                                    app.forms[tab_idx].dirty = true;
+                                } else if focused < 5 * n {
+                                    let provider_idx = focused / 5;
+                                    let sub_idx = focused % 5;
+                                    if sub_idx == 3 {
+                                        app.active_popup = Some(ActivePopup::ConfigureSearch {
+                                            provider_idx,
+                                            focus_idx: 0,
+                                            edit_buffer: None,
+                                            edit_cursor: 0,
+                                        });
+                                    } else if sub_idx == 4 && provider_idx < app.config.search.providers.len() {
+                                        app.config.search.providers.remove(provider_idx);
+                                        app.forms[tab_idx].focus = if provider_idx > 0 { 5 * (provider_idx - 1) } else { 0 };
+                                        app.forms[tab_idx].dirty = true;
+                                    }
+                                }
+                            }
+                            SettingsTab::DataSources if focused == 6 => {
+                                let path = app.config.data_sources.source_path.clone();
+                                let kind = app.config.data_sources.source_type.to_uppercase();
+                                app.config.data_sources.rag_indexes.push(crate::config::RagIndexConfig {
+                                    path,
+                                    kind,
+                                    status: "○ pending".to_string(),
+                                    chunks: "0".to_string(),
+                                });
+                                app.forms[tab_idx].dirty = true;
+                            }
+                            _ => {}
+                        }
+                    }
                 }
             }
         }
@@ -346,7 +417,7 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
 pub(crate) fn scroll_visible_rows(app: &AppState, tab: SettingsTab) -> Option<usize> {
     let (row_height, chrome_rows) = match tab {
         SettingsTab::Providers => (5u16, 3u16 + 3u16 + 1u16 + 2u16),
-        SettingsTab::Tools => (4u16, 3u16 + 3u16 + 2u16 + 2u16),
+        SettingsTab::Tools => (6u16, 10u16),
         _ => return None,
     };
     let settings_area = app.term_rows.saturating_sub(4);
@@ -376,4 +447,245 @@ pub(crate) fn clamp_focus_to_visible(form: &mut FormState, list_len: usize, visi
     } else if form.focus >= window_end {
         form.focus = window_end.saturating_sub(1);
     }
+}
+
+fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
+    let mut popup = match app.active_popup.take() {
+        Some(p) => p,
+        None => return false,
+    };
+    
+    // 1. Esc: close popup or cancel edit
+    if key.code == KeyCode::Esc {
+        match &mut popup {
+            ActivePopup::EditModels { edit_buffer, .. } | ActivePopup::ConfigureSearch { edit_buffer, .. } => {
+                if edit_buffer.is_some() {
+                    *edit_buffer = None;
+                    app.active_popup = Some(popup);
+                } else {
+                    app.active_popup = None;
+                }
+            }
+        }
+        return true;
+    }
+
+    // 2. If in edit mode
+    let is_editing = match &popup {
+        ActivePopup::EditModels { edit_buffer, .. } => edit_buffer.is_some(),
+        ActivePopup::ConfigureSearch { edit_buffer, .. } => edit_buffer.is_some(),
+    };
+
+    if is_editing {
+        match &mut popup {
+            ActivePopup::EditModels { edit_buffer, edit_cursor, focus_idx, provider_idx } => {
+                if let Some(buf) = edit_buffer {
+                    match key.code {
+                        KeyCode::Char(c) => {
+                            buf.insert(*edit_cursor, c);
+                            *edit_cursor += 1;
+                        }
+                        KeyCode::Backspace => {
+                            if *edit_cursor > 0 {
+                                *edit_cursor -= 1;
+                                buf.remove(*edit_cursor);
+                            }
+                        }
+                        KeyCode::Delete => {
+                            if *edit_cursor < buf.len() {
+                                buf.remove(*edit_cursor);
+                            }
+                        }
+                        KeyCode::Left => {
+                            if *edit_cursor > 0 {
+                                *edit_cursor -= 1;
+                            }
+                        }
+                        KeyCode::Right => {
+                            if *edit_cursor < buf.len() {
+                                *edit_cursor += 1;
+                            }
+                        }
+                        KeyCode::Enter => {
+                            // Confirm edit! Save back to config
+                            let val = edit_buffer.take().unwrap_or_default();
+                            *edit_cursor = 0;
+                            let model_idx = *focus_idx / 3;
+                            let sub_idx = *focus_idx % 3;
+                            if model_idx < app.config.providers[*provider_idx].models.len() {
+                                let m = &mut app.config.providers[*provider_idx].models[model_idx];
+                                match sub_idx {
+                                    0 => m.name = val,
+                                    1 => m.model_id = val,
+                                    _ => {}
+                                }
+                            }
+                            app.forms[SettingsTab::Providers as usize].dirty = true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            ActivePopup::ConfigureSearch { edit_buffer, edit_cursor, focus_idx, provider_idx } => {
+                if let Some(buf) = edit_buffer {
+                    match key.code {
+                        KeyCode::Char(c) => {
+                            buf.insert(*edit_cursor, c);
+                            *edit_cursor += 1;
+                        }
+                        KeyCode::Backspace => {
+                            if *edit_cursor > 0 {
+                                *edit_cursor -= 1;
+                                buf.remove(*edit_cursor);
+                            }
+                        }
+                        KeyCode::Delete => {
+                            if *edit_cursor < buf.len() {
+                                buf.remove(*edit_cursor);
+                            }
+                        }
+                        KeyCode::Left => {
+                            if *edit_cursor > 0 {
+                                *edit_cursor -= 1;
+                            }
+                        }
+                        KeyCode::Right => {
+                            if *edit_cursor < buf.len() {
+                                *edit_cursor += 1;
+                            }
+                        }
+                        KeyCode::Enter => {
+                            // Confirm edit! Save back to config
+                            let val = edit_buffer.take().unwrap_or_default();
+                            *edit_cursor = 0;
+                            let p = &mut app.config.search.providers[*provider_idx];
+                            if *focus_idx == 0 {
+                                p.name = val;
+                            } else if *focus_idx == 1 {
+                                p.api_key = val;
+                            } else if *focus_idx == 2 {
+                                p.max_results = val.parse().ok();
+                            }
+                            app.forms[SettingsTab::Tools as usize].dirty = true;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+        app.active_popup = Some(popup);
+        return true;
+    }
+
+    // 3. Normal navigation mode in popup
+    let max_focus = match &popup {
+        ActivePopup::EditModels { provider_idx, .. } => {
+            let m = app.config.providers[*provider_idx].models.len();
+            3 * m + 2
+        }
+        ActivePopup::ConfigureSearch { .. } => {
+            5
+        }
+    };
+
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => {
+            match &mut popup {
+                ActivePopup::EditModels { focus_idx, .. } | ActivePopup::ConfigureSearch { focus_idx, .. } => {
+                    *focus_idx = (*focus_idx + max_focus - 1) % max_focus;
+                }
+            }
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            match &mut popup {
+                ActivePopup::EditModels { focus_idx, .. } | ActivePopup::ConfigureSearch { focus_idx, .. } => {
+                    *focus_idx = (*focus_idx + 1) % max_focus;
+                }
+            }
+        }
+        KeyCode::Tab => {
+            match &mut popup {
+                ActivePopup::EditModels { focus_idx, .. } | ActivePopup::ConfigureSearch { focus_idx, .. } => {
+                    *focus_idx = (*focus_idx + 1) % max_focus;
+                }
+            }
+        }
+        KeyCode::BackTab => {
+            match &mut popup {
+                ActivePopup::EditModels { focus_idx, .. } | ActivePopup::ConfigureSearch { focus_idx, .. } => {
+                    *focus_idx = (*focus_idx + max_focus - 1) % max_focus;
+                }
+            }
+        }
+        KeyCode::Enter | KeyCode::Char(' ') => {
+            match &mut popup {
+                ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor } => {
+                    let m = app.config.providers[*provider_idx].models.len();
+                    if *focus_idx < 3 * m {
+                        let model_idx = *focus_idx / 3;
+                        let sub_idx = *focus_idx % 3;
+                        match sub_idx {
+                            0 => {
+                                let current = app.config.providers[*provider_idx].models[model_idx].name.clone();
+                                *edit_buffer = Some(current.clone());
+                                *edit_cursor = current.len();
+                            }
+                            1 => {
+                                let current = app.config.providers[*provider_idx].models[model_idx].model_id.clone();
+                                *edit_buffer = Some(current.clone());
+                                *edit_cursor = current.len();
+                            }
+                            2 if model_idx < app.config.providers[*provider_idx].models.len() => {
+                                // Remove model
+                                app.config.providers[*provider_idx].models.remove(model_idx);
+                                *focus_idx = 0;
+                                app.forms[SettingsTab::Providers as usize].dirty = true;
+                            }
+                            _ => {}
+                        }
+                    } else if *focus_idx == 3 * m {
+                        // [+ Add Model]
+                        app.config.providers[*provider_idx].models.push(crate::config::ProviderModel {
+                            name: String::new(),
+                            model_id: String::new(),
+                            description: String::new(),
+                        });
+                        *focus_idx = 3 * m; // focus name of new model
+                        app.forms[SettingsTab::Providers as usize].dirty = true;
+                    } else if *focus_idx == 3 * m + 1 {
+                        // [Close]
+                        app.active_popup = None;
+                        return true;
+                    }
+                }
+                ActivePopup::ConfigureSearch { provider_idx, focus_idx, edit_buffer, edit_cursor } => {
+                    if *focus_idx == 0 {
+                        let current = app.config.search.providers[*provider_idx].name.clone();
+                        *edit_buffer = Some(current.clone());
+                        *edit_cursor = current.len();
+                    } else if *focus_idx == 1 {
+                        let current = app.config.search.providers[*provider_idx].api_key.clone();
+                        *edit_buffer = Some(current.clone());
+                        *edit_cursor = current.len();
+                    } else if *focus_idx == 2 {
+                        let current = app.config.search.providers[*provider_idx].max_results.map(|x| x.to_string()).unwrap_or_default();
+                        *edit_buffer = Some(current.clone());
+                        *edit_cursor = current.len();
+                    } else if *focus_idx == 3 {
+                        // [Save & Close]
+                        app.active_popup = None;
+                        return true;
+                    } else if *focus_idx == 4 {
+                        // [Cancel]
+                        app.active_popup = None;
+                        return true;
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    app.active_popup = Some(popup);
+    true
 }
