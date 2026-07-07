@@ -326,6 +326,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                         base_url: String::new(),
                                         api_key: String::new(),
                                         models: Vec::new(),
+                                        provider_type: crate::config::ProviderType::OpenAICompatible,
                                     });
                                     app.forms[tab_idx].focus = 5 * app.config.providers.len() - 5;
                                     app.forms[tab_idx].dirty = true;
@@ -430,6 +431,10 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 };
                 if *idx < options.len() {
                     let val = options[*idx].clone();
+                    if val.starts_with("<no models") {
+                        app.forms[tab_idx].dropdown_open = false;
+                        return;
+                    }
                     app.forms[tab_idx].dropdown_open = false;
                     match tab {
                         SettingsTab::Providers => {
@@ -463,12 +468,13 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 app.query_input.active = false;
             }
             ClickAction::AddProvider => {
-                use crate::config::ProviderConfig;
+                use crate::config::{ProviderConfig, ProviderType};
                 app.config.providers.push(ProviderConfig {
                     name: String::new(),
                     base_url: String::new(),
                     api_key: String::new(),
                     models: Vec::new(),
+                    provider_type: ProviderType::OpenAICompatible,
                 });
                 app.forms[SettingsTab::Providers as usize].dirty = true;
             }
@@ -512,6 +518,83 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     edit_buffer: None,
                     edit_cursor: 0,
                 });
+            }
+            ClickAction::FetchProviderModels(idx) => {
+                let idx = *idx;
+                if idx < app.config.providers.len() {
+                    let provider = &mut app.config.providers[idx];
+                    let api_key = match provider.resolved_api_key() {
+                        Ok(k) => k,
+                        Err(e) => {
+                            tracing::error!("Failed to resolve API key: {:?}", e);
+                            provider.models = vec![crate::config::ProviderModel {
+                                name: format!("Error: resolved_api_key: {e}"),
+                                model_id: "error".to_string(),
+                                description: String::new(),
+                            }];
+                            app.forms[SettingsTab::Providers as usize].dirty = true;
+                            return;
+                        }
+                    };
+
+                    let mut base_url = provider.base_url.trim().to_string();
+                    if base_url.ends_with('/') {
+                        base_url.pop();
+                    }
+                    let url = format!("{base_url}/models");
+
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    std::thread::spawn(move || {
+                        let client = reqwest::blocking::Client::new();
+                        let mut req = client.get(&url);
+                        if !api_key.is_empty() {
+                            req = req.header("Authorization", format!("Bearer {api_key}"));
+                        }
+                        let res = req.send().map_err(|e| e.to_string()).and_then(|resp| {
+                            #[derive(serde::Deserialize)]
+                            struct ModelData {
+                                id: String,
+                            }
+                            #[derive(serde::Deserialize)]
+                            struct ModelsResponse {
+                                data: Vec<ModelData>,
+                            }
+                            resp.json::<ModelsResponse>()
+                                .map_err(|e| e.to_string())
+                                .map(|parsed| parsed.data.into_iter().map(|m| m.id).collect::<Vec<String>>())
+                        });
+                        let _ = tx.send(res);
+                    });
+
+                    match rx.recv() {
+                        Ok(Ok(model_ids)) => {
+                            provider.models = model_ids
+                                .into_iter()
+                                .map(|id| crate::config::ProviderModel {
+                                    name: id.clone(),
+                                    model_id: id,
+                                    description: String::new(),
+                                })
+                                .collect();
+                        }
+                        Ok(Err(e)) => {
+                            tracing::error!("Failed to fetch/parse models: {}", e);
+                            provider.models = vec![crate::config::ProviderModel {
+                                name: format!("Error: {e}"),
+                                model_id: "error".to_string(),
+                                description: String::new(),
+                            }];
+                        }
+                        Err(_) => {
+                            provider.models = vec![crate::config::ProviderModel {
+                                name: "Error: thread channel disconnected".to_string(),
+                                model_id: "error".to_string(),
+                                description: String::new(),
+                            }];
+                        }
+                    }
+                    app.forms[SettingsTab::Providers as usize].dirty = true;
+                }
             }
             ClickAction::ConfigureSearchOptions(idx) => {
                 app.active_popup = Some(ActivePopup::ConfigureSearch {

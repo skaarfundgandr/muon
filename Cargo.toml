@@ -44,7 +44,7 @@ turbovec = "0.9"
 regex = "1"
 rig-core = "0.39"
 rig-fastembed = "0.39"
-reqwest = { version = "0.13", features = ["json", "rustls"] }
+reqwest = { version = "0.13", features = ["json", "rustls", "blocking"] }
 dirs = "6"
 clap = { version = "4", features = ["derive"] }
 notify = "6"

@@ -66,7 +66,11 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
 
     if app.forms[tab_idx].dropdown_open {
         let options: Vec<String> = match tab {
-            SettingsTab::Providers => Vec::new(),
+            SettingsTab::Providers => providers::fields(&app.config)[app.forms[tab_idx].focus]
+                .options
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
             SettingsTab::Agents => agents::options_for(app.forms[tab_idx].focus, &app.config),
             SettingsTab::Tools => tools::fields(&app.config)[app.forms[tab_idx].focus]
                 .options
@@ -107,6 +111,10 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                     return true;
                 }
                 let val = options[idx].clone();
+                if val.starts_with("<no models") {
+                    app.forms[tab_idx].dropdown_open = false;
+                    return true;
+                }
                 app.forms[tab_idx].dropdown_open = false;
                 match tab {
                     SettingsTab::Providers => {
@@ -144,18 +152,28 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
 
     // Normal navigation mode
     if key.code == KeyCode::Delete && tab == SettingsTab::Providers {
-        let idx = app.forms[0].focus;
-        if idx < app.config.providers.len() {
-            app.config.providers.swap_remove(idx);
+        let focus = app.forms[0].focus;
+        let n = app.config.providers.len();
+        if focus < 5 * n {
+            let provider_idx = focus / 5;
+            app.config.providers.swap_remove(provider_idx);
             app.forms[0].dirty = true;
+            if app.forms[0].focus >= 5 * app.config.providers.len() && !app.config.providers.is_empty() {
+                app.forms[0].focus = 5 * app.config.providers.len() - 5;
+            }
         }
         return true;
     }
     if key.code == KeyCode::Delete && tab == SettingsTab::Tools {
-        let idx = app.forms[2].focus;
-        if idx < app.config.search.providers.len() {
-            app.config.search.providers.swap_remove(idx);
+        let focus = app.forms[2].focus;
+        let n = app.config.search.providers.len();
+        if focus < 5 * n {
+            let provider_idx = focus / 5;
+            app.config.search.providers.swap_remove(provider_idx);
             app.forms[2].dirty = true;
+            if app.forms[2].focus >= 5 * app.config.search.providers.len() && !app.config.search.providers.is_empty() {
+                app.forms[2].focus = 5 * app.config.search.providers.len() - 5;
+            }
         }
         return true;
     }
@@ -330,23 +348,20 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                                         base_url: String::new(),
                                         api_key: String::new(),
                                         models: Vec::new(),
+                                        provider_type: crate::config::ProviderType::OpenAICompatible,
                                     });
                                     app.forms[tab_idx].focus = 5 * app.config.providers.len() - 5;
                                     app.forms[tab_idx].dirty = true;
                                 } else {
                                     let provider_idx = focused / 5;
                                     let sub_idx = focused % 5;
-                                    if sub_idx == 3 {
+                                    if sub_idx == 4 {
                                         app.active_popup = Some(ActivePopup::EditModels {
                                             provider_idx,
                                             focus_idx: 0,
                                             edit_buffer: None,
                                             edit_cursor: 0,
                                         });
-                                    } else if sub_idx == 4 && provider_idx < app.config.providers.len() {
-                                        app.config.providers.remove(provider_idx);
-                                        app.forms[tab_idx].focus = if provider_idx > 0 { 5 * (provider_idx - 1) } else { 0 };
-                                        app.forms[tab_idx].dirty = true;
                                     }
                                 }
                             }

@@ -142,6 +142,7 @@ impl MuonConfig {
             base_url,
             api_key: key,
             models: Vec::new(),
+            provider_type: ProviderType::OpenAICompatible,
         };
         if !self.tools.opencode_go_api_key.is_empty() {
             self.providers.push(mk(
@@ -170,6 +171,19 @@ impl MuonConfig {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub enum ProviderType {
+    #[default]
+    #[serde(rename = "openai_compatible")]
+    OpenAICompatible,
+    #[serde(rename = "openai")]
+    OpenAI,
+    #[serde(rename = "gemini")]
+    Gemini,
+    #[serde(rename = "anthropic")]
+    Anthropic,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfig {
     pub name: String,
@@ -178,6 +192,8 @@ pub struct ProviderConfig {
     pub api_key: String,
     #[serde(default)]
     pub models: Vec<ProviderModel>,
+    #[serde(default)]
+    pub provider_type: ProviderType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

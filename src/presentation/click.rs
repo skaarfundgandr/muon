@@ -22,6 +22,7 @@ pub enum ClickAction {
     AddProvider,
     RemoveProvider(usize),
     EditProviderModels(usize),
+    FetchProviderModels(usize),
     AddModel,
     RemoveModel(usize),
     AddSearchProvider,
