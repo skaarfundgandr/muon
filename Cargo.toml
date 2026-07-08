@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [features]
-default = ["mock"]
+default = []
 mock = []
 
 [lints.clippy]
@@ -52,3 +52,12 @@ notify-debouncer-mini = "0.5"
 
 [dev-dependencies]
 tempfile = "3"
+
+[[test]]
+name = "pipeline_mock"
+required-features = ["mock"]
+
+[[test]]
+name = "deep_researcher_mock"
+required-features = ["mock"]
+

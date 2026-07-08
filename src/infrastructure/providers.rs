@@ -4,8 +4,8 @@ use crate::config::{ProviderConfig, ProviderType};
 use crate::error::MuonError;
 
 pub enum ProviderClient {
-    OpenAI(openai::Client),
-    OpenAICompatible(openai::Client),
+    OpenAI(openai::CompletionsClient<reqwest::Client>),
+    OpenAICompatible(openai::CompletionsClient<reqwest::Client>),
     Gemini(gemini::Client),
     Anthropic(anthropic::Client),
 }
@@ -35,7 +35,8 @@ impl ResolvedClient {
                     .api_key(&api_key)
                     .base_url(&provider.base_url)
                     .build()
-                    .map_err(|e| MuonError::Config(format!("failed to build client for '{}': {e}", provider.name)))?;
+                    .map_err(|e| MuonError::Config(format!("failed to build client for '{}': {e}", provider.name)))?
+                    .completions_api();
                 if provider.provider_type == ProviderType::OpenAI {
                     ProviderClient::OpenAI(c)
                 } else {
