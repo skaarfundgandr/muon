@@ -81,6 +81,14 @@ impl<'a> DeepResearcher<'a> {
             }
         }
 
+        // Fold URLs discovered by tool calls during the loop (planner/researcher/orchestrator)
+        // into the local registry so they appear in citations, embedding, and verification.
+        if let Ok(sink) = self.infra.source_sink.lock() {
+            for src in sink.sources() {
+                registry.record(&src.url, src.source_type);
+            }
+        }
+
         let unverified_report = self.to_report(&draft, &registry);
 
         // Embed sources into the vector store (non-fatal on error).
