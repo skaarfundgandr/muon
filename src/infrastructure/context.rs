@@ -88,6 +88,14 @@ impl InfrastructureContext {
         let source_sink = Arc::new(Mutex::new(SourceRegistry::new()));
 
         let providers = &cfg.providers;
+        fn resolve_model_id(providers: &[crate::config::ProviderConfig], provider_name: &str, model_name: &str) -> String {
+            providers
+                .iter()
+                .find(|p| p.name == provider_name)
+                .and_then(|p| p.models.iter().find(|m| m.name == model_name))
+                .and_then(|m| if m.model_id.is_empty() { None } else { Some(m.model_id.clone()) })
+                .unwrap_or_else(|| model_name.to_string())
+        }
         let resolve_client = |name: &str| {
             if name.is_empty() {
                 crate::infrastructure::providers::ResolvedClient::for_default_provider(providers)
@@ -124,11 +132,16 @@ impl InfrastructureContext {
                 AgentTag::Intent,
                 build_agent!(
                     &intent_client.client,
-                    &cfg.agents.intent_classifier.model,
+                    &resolve_model_id(providers, &cfg.agents.intent_classifier.provider, &cfg.agents.intent_classifier.model),
                     |c| {
+                        let ic_preamble = "You are an intent classifier. Classify the user's query and respond \
+                            with STRICT JSON only — no other text, no markdown, no explanation:\n\
+                            {\"intent\": \"research\"|\"meta\", \"depth\": \"shallow\"|\"deep\"}\n\
+                            If intent is \"meta\", also include a \"response\" field with a direct answer.";
+
                         let agent = c
-                            .agent(&cfg.agents.intent_classifier.model)
-                            .preamble(preamble)
+                            .agent(&resolve_model_id(providers, &cfg.agents.intent_classifier.provider, &cfg.agents.intent_classifier.model))
+                            .preamble(ic_preamble)
                             .build();
                         factory.build_runner(
                             agent,
@@ -149,10 +162,10 @@ impl InfrastructureContext {
                 AgentTag::Search,
                 build_agent!(
                     &shallow_client.client,
-                    &cfg.agents.shallow_researcher.model,
+                    &resolve_model_id(providers, &cfg.agents.shallow_researcher.provider, &cfg.agents.shallow_researcher.model),
                     |c| {
                         let b = c
-                            .agent(&cfg.agents.shallow_researcher.model)
+                            .agent(&resolve_model_id(providers, &cfg.agents.shallow_researcher.provider, &cfg.agents.shallow_researcher.model))
                             .preamble(preamble)
                             .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
                                 fetch_http.clone(),
@@ -163,7 +176,8 @@ impl InfrastructureContext {
                         } else {
                             b
                         };
-                        let agent = b.build();
+                        let agent = b
+                            .build();
                         factory.build_runner(
                             agent,
                             AgentTag::Search,
@@ -186,16 +200,17 @@ impl InfrastructureContext {
                 AgentTag::Clarify,
                 build_agent!(
                     &clarifier_client.client,
-                    &cfg.agents.clarifier.model,
+                    &resolve_model_id(providers, &cfg.agents.clarifier.provider, &cfg.agents.clarifier.model),
                     |c| {
+                        let clarifier_preamble = "You are a clarifying and planning agent. Ask clarifying questions to resolve ambiguities in the user's query, and construct a detailed research plan. You must respond with strict JSON only.";
                         let agent = if let Some(ref wp) = web_provider {
-                            c.agent(&cfg.agents.clarifier.model)
-                                .preamble(preamble)
+                            c.agent(&resolve_model_id(providers, &cfg.agents.clarifier.provider, &cfg.agents.clarifier.model))
+                                .preamble(clarifier_preamble)
                                 .tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
                                 .build()
                         } else {
-                            c.agent(&cfg.agents.clarifier.model)
-                                .preamble(preamble)
+                            c.agent(&resolve_model_id(providers, &cfg.agents.clarifier.provider, &cfg.agents.clarifier.model))
+                                .preamble(clarifier_preamble)
                                 .build()
                         };
                         factory.build_clarifier_runner(
@@ -218,10 +233,10 @@ impl InfrastructureContext {
                 AgentTag::Orchestrate,
                 build_agent!(
                     &deep_client.client,
-                    &cfg.agents.deep_researcher.orchestrator.model,
+                    &resolve_model_id(providers, &cfg.agents.deep_researcher.orchestrator.provider, &cfg.agents.deep_researcher.orchestrator.model),
                     |c| {
                         let b = c
-                            .agent(&cfg.agents.deep_researcher.orchestrator.model)
+                            .agent(&resolve_model_id(providers, &cfg.agents.deep_researcher.orchestrator.provider, &cfg.agents.deep_researcher.orchestrator.model))
                             .preamble(preamble)
                             .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
                         let b = if let Some(ref wp) = web_provider {
@@ -236,7 +251,8 @@ impl InfrastructureContext {
                         } else {
                             b
                         };
-                        let agent = b.build();
+                        let agent = b
+                            .build();
                         factory.build_runner(
                             agent,
                             AgentTag::Orchestrate,
@@ -256,10 +272,10 @@ impl InfrastructureContext {
                 AgentTag::Plan,
                 build_agent!(
                     &planner_client.client,
-                    &cfg.agents.deep_researcher.planner.model,
+                    &resolve_model_id(providers, &cfg.agents.deep_researcher.planner.provider, &cfg.agents.deep_researcher.planner.model),
                     |c| {
                         let b = c
-                            .agent(&cfg.agents.deep_researcher.planner.model)
+                            .agent(&resolve_model_id(providers, &cfg.agents.deep_researcher.planner.provider, &cfg.agents.deep_researcher.planner.model))
                             .preamble(preamble)
                             .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
                         let b = if let Some(ref wp) = web_provider {
@@ -274,7 +290,8 @@ impl InfrastructureContext {
                         } else {
                             b
                         };
-                        let agent = b.build();
+                        let agent = b
+                            .build();
                         factory.build_planner_runner(
                             agent,
                             AgentTag::Plan,
@@ -294,10 +311,10 @@ impl InfrastructureContext {
                 AgentTag::Search,
                 build_agent!(
                     &researcher_client.client,
-                    &cfg.agents.deep_researcher.researcher.model,
+                    &resolve_model_id(providers, &cfg.agents.deep_researcher.researcher.provider, &cfg.agents.deep_researcher.researcher.model),
                     |c| {
                         let b = c
-                            .agent(&cfg.agents.deep_researcher.researcher.model)
+                            .agent(&resolve_model_id(providers, &cfg.agents.deep_researcher.researcher.provider, &cfg.agents.deep_researcher.researcher.model))
                             .preamble(preamble)
                             .tool(crate::infrastructure::agent_rs::tools::ThinkTool)
                             .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
@@ -316,7 +333,8 @@ impl InfrastructureContext {
                         } else {
                             b
                         };
-                        let agent = b.build();
+                        let agent = b
+                            .build();
                         factory.build_researcher_runner(
                             agent,
                             AgentTag::Search,
