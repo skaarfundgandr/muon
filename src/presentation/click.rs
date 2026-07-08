@@ -33,6 +33,10 @@ pub enum ClickAction {
     AddRagIndex,
     RemoveRagIndex(usize),
     ReindexRagIndex(usize),
+    PlanApprove,
+    PlanReject,
+    PlanFeedback,
+    PlanSelectFeedbackInput,
 }
 
 pub fn is_hovering(rect: Rect, col: u16, row: u16) -> bool {
