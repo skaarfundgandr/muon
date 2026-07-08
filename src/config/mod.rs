@@ -586,37 +586,21 @@ impl Default for DisplayConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AdvancedConfig {
-    #[serde(default)]
     pub max_researcher_loops: u64,
-    #[serde(default)]
     pub max_clarifier_turns: u64,
-    #[serde(default)]
     pub max_plan_iterations: u64,
-    #[serde(default)]
     pub max_shallow_turns: u64,
-    #[serde(default)]
     pub max_deep_turns: u64,
-    #[serde(default)]
     pub escalate_agent: bool,
-    #[serde(default)]
     pub plan_approval: bool,
-    #[serde(default)]
     pub compaction_threshold: f64,
-    #[serde(default)]
     pub max_tool_calls_per_turn: u64,
-    #[serde(default)]
     pub agent_preamble: String,
-    #[serde(default)]
     pub session_db_path: String,
-    #[serde(default)]
     pub rag_db_path: String,
-    #[serde(default)]
     pub max_search_items: u64,
-    #[serde(default)]
     pub embedding_model: String,
-    #[serde(default)]
     pub rag_top_k: u64,
-    #[serde(default)]
     pub similarity_threshold: f64,
 }
 
@@ -631,7 +615,7 @@ impl Default for AdvancedConfig {
             escalate_agent: true,
             plan_approval: false,
             compaction_threshold: 0.80,
-            max_tool_calls_per_turn: 10,
+            max_tool_calls_per_turn: 50,
             agent_preamble: "You are \u{03BC}on, a deep research agent. Be extremely precise, \
                 fact-check everything, compile structured summaries, and cite sources in full \
                 formatting. Maintain terminal safety."

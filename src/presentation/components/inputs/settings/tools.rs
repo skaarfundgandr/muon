@@ -410,6 +410,7 @@ fn render_add_button(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     f: &mut ratatui::Frame,
     area: Rect,

@@ -416,6 +416,7 @@ fn render_empty_state(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(Paragraph::new(line), inner);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     f: &mut ratatui::Frame,
     area: Rect,

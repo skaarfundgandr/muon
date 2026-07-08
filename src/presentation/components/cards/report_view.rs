@@ -139,11 +139,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, report: Option<&ResearchReport
             r.stats.total_sources.to_string(),
             r.stats.verified_sources.to_string(),
             r.citations.len().to_string(),
-            format!("{}%", if r.stats.total_sources > 0 {
-                (r.stats.verified_sources * 100 / r.stats.total_sources).min(100)
-            } else {
-                100
-            })
+            format!("{}%", (r.stats.verified_sources * 100).checked_div(r.stats.total_sources).unwrap_or(100).min(100))
         )
     } else {
         ("—".to_string(), "—".to_string(), "—".to_string(), "—".to_string())

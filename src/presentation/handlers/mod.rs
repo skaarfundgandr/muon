@@ -56,12 +56,11 @@ pub fn handle_key(app: &mut AppState, key: KeyEvent) {
                             feedback_buffer.insert(*feedback_cursor, c);
                             *feedback_cursor += 1;
                         }
-                        KeyCode::Backspace => {
-                            if *feedback_cursor > 0 {
+                        KeyCode::Backspace
+                            if *feedback_cursor > 0 => {
                                 *feedback_cursor -= 1;
                                 feedback_buffer.remove(*feedback_cursor);
                             }
-                        }
                         _ => {}
                     }
                 }

@@ -59,6 +59,7 @@ fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     f: &mut ratatui::Frame,
     area: Rect,
@@ -204,6 +205,7 @@ fn render_source_providers(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_rag_indexes(
     f: &mut ratatui::Frame,
     area: Rect,

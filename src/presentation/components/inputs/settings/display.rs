@@ -37,6 +37,7 @@ fn is_focused(form: &FormState, index: usize) -> bool {
     form.focus == index
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16, pending_dropdown: &mut Option<PendingDropdown>) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)

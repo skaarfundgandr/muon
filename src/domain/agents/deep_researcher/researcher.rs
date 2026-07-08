@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct ResearcherSpec {
     pub model: String,
     pub provider: String,
@@ -15,11 +16,3 @@ impl ResearcherSpec {
     }
 }
 
-impl Default for ResearcherSpec {
-    fn default() -> Self {
-        Self {
-            model: String::new(),
-            provider: String::new(),
-        }
-    }
-}

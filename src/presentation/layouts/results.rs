@@ -10,6 +10,7 @@ use crate::presentation::components::*;
 use crate::presentation::theme;
 use crate::presentation::views::View;
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     f: &mut ratatui::Frame,
     area: Rect,

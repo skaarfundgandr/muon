@@ -153,7 +153,7 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
     (start..=end).any(|i| is_focused(form, i))
 }
 
-#[allow(clippy::vec_init_then_push)]
+#[allow(clippy::vec_init_then_push, clippy::too_many_arguments)]
 pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16, pending_dropdown: &mut Option<PendingDropdown>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)

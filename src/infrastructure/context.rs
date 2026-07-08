@@ -140,7 +140,7 @@ impl InfrastructureContext {
                             If intent is \"meta\", also include a \"response\" field with a direct answer.";
 
                         let agent = c
-                            .agent(&resolve_model_id(providers, &cfg.agents.intent_classifier.provider, &cfg.agents.intent_classifier.model))
+                            .agent(resolve_model_id(providers, &cfg.agents.intent_classifier.provider, &cfg.agents.intent_classifier.model))
                             .preamble(ic_preamble)
                             .build();
                         factory.build_runner(
@@ -165,7 +165,7 @@ impl InfrastructureContext {
                     &resolve_model_id(providers, &cfg.agents.shallow_researcher.provider, &cfg.agents.shallow_researcher.model),
                     |c| {
                         let b = c
-                            .agent(&resolve_model_id(providers, &cfg.agents.shallow_researcher.provider, &cfg.agents.shallow_researcher.model))
+                            .agent(resolve_model_id(providers, &cfg.agents.shallow_researcher.provider, &cfg.agents.shallow_researcher.model))
                             .preamble(preamble)
                             .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
                                 fetch_http.clone(),
@@ -177,6 +177,7 @@ impl InfrastructureContext {
                             b
                         };
                         let agent = b
+                            .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
                             .build();
                         factory.build_runner(
                             agent,
@@ -204,13 +205,15 @@ impl InfrastructureContext {
                     |c| {
                         let clarifier_preamble = "You are a clarifying and planning agent. Ask clarifying questions to resolve ambiguities in the user's query, and construct a detailed research plan. You must respond with strict JSON only.";
                         let agent = if let Some(ref wp) = web_provider {
-                            c.agent(&resolve_model_id(providers, &cfg.agents.clarifier.provider, &cfg.agents.clarifier.model))
+                            c.agent(resolve_model_id(providers, &cfg.agents.clarifier.provider, &cfg.agents.clarifier.model))
                                 .preamble(clarifier_preamble)
                                 .tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+                                .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
                                 .build()
                         } else {
-                            c.agent(&resolve_model_id(providers, &cfg.agents.clarifier.provider, &cfg.agents.clarifier.model))
+                            c.agent(resolve_model_id(providers, &cfg.agents.clarifier.provider, &cfg.agents.clarifier.model))
                                 .preamble(clarifier_preamble)
+                                .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
                                 .build()
                         };
                         factory.build_clarifier_runner(
@@ -236,7 +239,7 @@ impl InfrastructureContext {
                     &resolve_model_id(providers, &cfg.agents.deep_researcher.orchestrator.provider, &cfg.agents.deep_researcher.orchestrator.model),
                     |c| {
                         let b = c
-                            .agent(&resolve_model_id(providers, &cfg.agents.deep_researcher.orchestrator.provider, &cfg.agents.deep_researcher.orchestrator.model))
+                            .agent(resolve_model_id(providers, &cfg.agents.deep_researcher.orchestrator.provider, &cfg.agents.deep_researcher.orchestrator.model))
                             .preamble(preamble)
                             .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
                         let b = if let Some(ref wp) = web_provider {
@@ -252,6 +255,7 @@ impl InfrastructureContext {
                             b
                         };
                         let agent = b
+                            .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
                             .build();
                         factory.build_runner(
                             agent,
@@ -275,7 +279,7 @@ impl InfrastructureContext {
                     &resolve_model_id(providers, &cfg.agents.deep_researcher.planner.provider, &cfg.agents.deep_researcher.planner.model),
                     |c| {
                         let b = c
-                            .agent(&resolve_model_id(providers, &cfg.agents.deep_researcher.planner.provider, &cfg.agents.deep_researcher.planner.model))
+                            .agent(resolve_model_id(providers, &cfg.agents.deep_researcher.planner.provider, &cfg.agents.deep_researcher.planner.model))
                             .preamble(preamble)
                             .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
                         let b = if let Some(ref wp) = web_provider {
@@ -291,6 +295,7 @@ impl InfrastructureContext {
                             b
                         };
                         let agent = b
+                            .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
                             .build();
                         factory.build_planner_runner(
                             agent,
@@ -314,7 +319,7 @@ impl InfrastructureContext {
                     &resolve_model_id(providers, &cfg.agents.deep_researcher.researcher.provider, &cfg.agents.deep_researcher.researcher.model),
                     |c| {
                         let b = c
-                            .agent(&resolve_model_id(providers, &cfg.agents.deep_researcher.researcher.provider, &cfg.agents.deep_researcher.researcher.model))
+                            .agent(resolve_model_id(providers, &cfg.agents.deep_researcher.researcher.provider, &cfg.agents.deep_researcher.researcher.model))
                             .preamble(preamble)
                             .tool(crate::infrastructure::agent_rs::tools::ThinkTool)
                             .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
@@ -334,6 +339,7 @@ impl InfrastructureContext {
                             b
                         };
                         let agent = b
+                            .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
                             .build();
                         factory.build_researcher_runner(
                             agent,
