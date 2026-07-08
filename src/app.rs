@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 use crate::application::bridge::{AgentEvent, BridgeChannels, PlanDecision};
 use crate::application::pipeline::PipelineState;
 use crate::config::MuonConfig;
-use crate::domain::models::log_entry::{AgentTag, LogLevel};
+use crate::domain::models::log_entry::{AgentTag, LogEntry, LogLevel};
 use crate::infrastructure::context::InfrastructureContext;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::query_input::QueryInput;
@@ -21,7 +21,14 @@ use crate::presentation::form::FormState;
 use crate::presentation::views::{RenderParams, SettingsTab, View, ViewRouter};
 use crate::session::SessionService;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlanApprovalFocus {
+    Approve,
+    Reject,
+    Feedback,
+}
+
+#[derive(Debug)]
 pub enum ActivePopup {
     EditModels {
         provider_idx: usize,
@@ -35,6 +42,13 @@ pub enum ActivePopup {
         focus_idx: usize,
         edit_buffer: Option<String>,
         edit_cursor: usize,
+    },
+    PlanApproval {
+        plan: crate::domain::agents::clarifier::ClarifierResult,
+        responder: tokio::sync::oneshot::Sender<crate::application::bridge::PlanDecision>,
+        focus: PlanApprovalFocus,
+        feedback_buffer: String,
+        feedback_cursor: usize,
     },
 }
 
@@ -60,10 +74,19 @@ pub struct AppState {
     pub infra: Option<Arc<InfrastructureContext>>,
     pub config_reload_rx: Option<mpsc::Receiver<MuonConfig>>,
     pub active_popup: Option<ActivePopup>,
+    pub last_report: Option<crate::domain::models::report::ResearchReport>,
+    pub last_sources: Vec<crate::domain::models::source::Source>,
+    pub live_feed_entries: Vec<crate::domain::models::log_entry::LogEntry>,
+    pub last_clarifier_log: String,
+    pub clarifier_focused: bool,
+    pub live_feed_scroll: usize,
 }
 
 impl AppState {
     pub fn spawn_pipeline(&mut self, query: &str) {
+        self.live_feed_entries.clear();
+        self.last_clarifier_log.clear();
+        self.live_feed_scroll = 0;
         let Some(agent_tx) = self.agent_tx.clone() else {
             return;
         };
@@ -75,14 +98,27 @@ impl AppState {
         let mut pipeline = self.pipeline.clone_state_for_task();
         let query = query.to_string();
         tokio::spawn(async move {
-            let _ = crate::application::pipeline_runner::run_pipeline(
+            match crate::application::pipeline_runner::run_pipeline(
                 &query,
                 &mut pipeline,
                 &cfg,
                 &infra,
                 &bridge,
             )
-            .await;
+            .await
+            {
+                Ok(report) => {
+                    let sources = if let Ok(sink) = infra.source_sink.lock() {
+                        sink.sources().to_vec()
+                    } else {
+                        Vec::new()
+                    };
+                    let _ = bridge.events.send(AgentEvent::Completed { report, sources });
+                }
+                Err(e) => {
+                    let _ = bridge.events.send(AgentEvent::Error(format!("pipeline failed: {e}")));
+                }
+            }
         });
     }
 }
@@ -129,6 +165,11 @@ fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
     let view = app.router.active();
     let clarifier_question = app.clarifier_pending.as_ref().map(|c| c.question.as_str());
     let clarifier_response = app.clarifier_response.as_str();
+    let clarifier_log = if app.last_clarifier_log.is_empty() {
+        None
+    } else {
+        Some(app.last_clarifier_log.as_str())
+    };
     view.render(frame, frame.area(), &mut RenderParams {
         query_input: &app.query_input,
         sessions: app.sessions.list(),
@@ -141,6 +182,12 @@ fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
         mouse_row: app.mouse_row,
         clarifier_question,
         clarifier_response,
+        last_report: app.last_report.as_ref(),
+        last_sources: app.last_sources.as_slice(),
+        live_feed: app.live_feed_entries.as_slice(),
+        live_feed_scroll: app.live_feed_scroll,
+        clarifier_log,
+        clarifier_focused: app.clarifier_focused,
     });
 
     if let Some(popup) = &app.active_popup {
@@ -174,6 +221,19 @@ fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
                     app.mouse_row,
                 );
             }
+            ActivePopup::PlanApproval { plan, responder: _, focus, feedback_buffer, feedback_cursor } => {
+                crate::presentation::components::panels::plan_approval::render(
+                    frame,
+                    frame.area(),
+                    plan,
+                    *focus,
+                    feedback_buffer,
+                    *feedback_cursor,
+                    &mut app.hit_registry,
+                    app.mouse_col,
+                    app.mouse_row,
+                );
+            }
         }
     }
 }
@@ -183,6 +243,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
         if !crate::presentation::click::is_hovering(target.rect, col, row) {
             continue;
         }
+        let mut close_popup_decision = None;
         if let Some(popup) = &mut app.active_popup {
             match popup {
                 ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor, scroll_offset } => {
@@ -279,6 +340,35 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         _ => {}
                     }
                 }
+                ActivePopup::PlanApproval { focus, .. } => {
+                    match &target.action {
+                        ClickAction::PlanApprove => {
+                            close_popup_decision = Some(PlanDecision::Approve);
+                        }
+                        ClickAction::PlanReject => {
+                            close_popup_decision = Some(PlanDecision::Reject);
+                        }
+                        ClickAction::PlanFeedback => {
+                            if let ActivePopup::PlanApproval { feedback_buffer, .. } = popup {
+                                close_popup_decision = Some(PlanDecision::Feedback(feedback_buffer.clone()));
+                            }
+                        }
+                        ClickAction::PlanSelectFeedbackInput => {
+                            *focus = PlanApprovalFocus::Feedback;
+                            return;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            if close_popup_decision.is_none() {
+                return;
+            }
+        }
+
+        if let Some(decision) = close_popup_decision {
+            if let Some(ActivePopup::PlanApproval { responder, .. }) = app.active_popup.take() {
+                let _ = responder.send(decision);
             }
             return;
         }
@@ -415,6 +505,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
             }
             ClickAction::ActivateQueryInput => {
                 app.query_input.active = true;
+                app.clarifier_focused = false;
             }
             ClickAction::SelectSession(idx) => {
                 app.sessions.select(*idx);
@@ -490,6 +581,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
             }
             ClickAction::ActivateClarifier => {
                 app.query_input.active = false;
+                app.clarifier_focused = true;
             }
             ClickAction::AddProvider => {
                 use crate::config::{ProviderConfig, ProviderType};
@@ -764,6 +856,12 @@ fn handle_event(app: &mut AppState, event: Event) {
         Event::AgentEvent(AgentEvent::StageChanged(stage)) => {
             app.pipeline.set_stage(stage);
         }
+        Event::AgentEvent(AgentEvent::Completed { report, sources }) => {
+            app.last_report = Some(report);
+            app.last_sources = sources;
+            app.pipeline.finish();
+            app.clarifier_focused = false;
+        }
         Event::AgentEvent(AgentEvent::Log(entry)) => {
             if let Some(active) = app.sessions.active() {
                 let _ = active;
@@ -772,6 +870,10 @@ fn handle_event(app: &mut AppState, event: Event) {
             if matches!(tag, AgentTag::Sys) {
                 tracing::debug!(target: "muon::sys", "{}", entry.message);
             }
+            app.live_feed_entries.push(entry);
+            if app.live_feed_entries.len() > 50 {
+                app.live_feed_entries.remove(0);
+            }
         }
         Event::AgentEvent(AgentEvent::ClarifierQuestion {
             question,
@@ -779,15 +881,37 @@ fn handle_event(app: &mut AppState, event: Event) {
         }) => {
             app.query_input.active = false;
             app.clarifier_pending = Some(ClarifierPending { question, responder });
+            app.clarifier_focused = true;
+        }
+        Event::AgentEvent(AgentEvent::ClarificationComplete { log }) => {
+            app.last_clarifier_log = log;
+            app.clarifier_focused = false;
         }
         Event::AgentEvent(AgentEvent::PlanProposed { plan, responder }) => {
-            app.plan_pending = Some(PlanPending { plan, responder });
+            app.active_popup = Some(ActivePopup::PlanApproval {
+                plan,
+                responder,
+                focus: PlanApprovalFocus::Approve,
+                feedback_buffer: String::new(),
+                feedback_cursor: 0,
+            });
         }
         Event::AgentEvent(AgentEvent::Final(text)) => {
             tracing::info!(target: "muon::final", "{}", text);
         }
         Event::AgentEvent(AgentEvent::Error(msg)) => {
             tracing::error!(target: "muon::agent", "{}", msg);
+            app.clarifier_focused = false;
+            let entry = LogEntry {
+                timestamp: chrono::Utc::now(),
+                agent_tag: AgentTag::Sys,
+                message: msg,
+                level: LogLevel::Error,
+            };
+            app.live_feed_entries.push(entry);
+            if app.live_feed_entries.len() > 50 {
+                app.live_feed_entries.remove(0);
+            }
         }
         Event::ConfigReloaded(new_config) => {
             tracing::info!(target: "muon::config", "config reloaded via event");
@@ -799,28 +923,17 @@ fn handle_event(app: &mut AppState, event: Event) {
 async fn build_infrastructure(
     cfg: &MuonConfig,
     bridge: &BridgeChannels,
-) -> InfrastructureContext {
-    match InfrastructureContext::new_live(cfg, bridge).await {
-        Ok(infra) => infra,
-        Err(e) => {
+) -> Result<InfrastructureContext, crate::error::MuonError> {
+    InfrastructureContext::new_live(cfg, bridge)
+        .await
+        .map_err(|e| {
             bridge.log(
                 AgentTag::Sys,
-                LogLevel::Warn,
-                format!("live backend failed, falling back to mock: {e}"),
+                LogLevel::Error,
+                format!("live backend failed: {e}"),
             );
-            fallback_mock()
-        }
-    }
-}
-
-#[cfg(any(test, feature = "mock"))]
-fn fallback_mock() -> InfrastructureContext {
-    InfrastructureContext::mock()
-}
-
-#[cfg(not(any(test, feature = "mock")))]
-fn fallback_mock() -> InfrastructureContext {
-    panic!("live backend failed and mock feature is not enabled");
+            e
+        })
 }
 
 async fn run_loop(
@@ -864,6 +977,12 @@ async fn run_loop(
         infra: None,
         config_reload_rx: Some(config_reload_rx),
         active_popup: None,
+        last_report: None,
+        last_sources: Vec::new(),
+        live_feed_entries: Vec::new(),
+        live_feed_scroll: 0,
+        last_clarifier_log: String::new(),
+        clarifier_focused: false,
     };
 
     if let Some(palette) = crate::presentation::theme::for_name(&app.config.display.visual_theme) {
@@ -909,7 +1028,7 @@ async fn run_loop(
     });
 
     let bridge_for_init = BridgeChannels::new(agent_tx.clone());
-    let infra = build_infrastructure(&config, &bridge_for_init).await;
+    let infra = build_infrastructure(&config, &bridge_for_init).await?;
     app.infra = Some(Arc::new(infra));
     app.agent_tx = Some(agent_tx);
 
