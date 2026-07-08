@@ -215,10 +215,16 @@ impl<'a> DeepResearcher<'a> {
         plan: &ClarifierResult,
     ) -> Result<String, MuonError> {
         let prompt = format!(
-            "You are the Planner. Decompose the research query for the Orchestrator.\n\n\
-             Query: {query}\nCurrent draft: {draft}\n\
-             Clarifier plan: {}\n\n\
-             Provide a focused outline with 3-5 sections and key points to research.",
+            "You are the Planner for a deep-research pipeline. BEFORE drafting, USE your tools: \
+             call `web_search` and `paper_search` to gather evidence for the query and any prior \
+             draft. Use `think` to reason about what you found.\n\n\
+             Query: {query}\nCurrent draft (may be empty):\n{draft}\n\
+             Clarifier sections to cover: {}\n\n\
+             Then produce a focused outline with 3-5 sections. Each section MUST start with a \
+             `## Section Title` heading and include:\n  \
+             - 2-4 bullet points of key claims to investigate\n  \
+             - one concrete `search query:` line the Researcher can run\n\
+             Return ONLY the outline (markdown with ## headings).",
             plan.plan_sections.join(", ")
         );
         let result = self.infra.planner.prompt_raw(&prompt).await?;
@@ -253,10 +259,15 @@ impl<'a> DeepResearcher<'a> {
         };
 
         let prompt = format!(
-            "You are the Researcher. Find concrete sources for the Orchestrator's draft.\n\
-             Query: {query}\nDraft: {draft}\n\
-             Focus: {}{prior_context}\n\
-             Return a list of URLs and a one-line summary for each.",
+            "You are the Researcher for a deep-research pipeline. USE your tools to find concrete \
+             sources: call `web_search` and `paper_search` for each topic below, then `fetch_page` \
+             on the most relevant results to read their content. Use `think` to decide which \
+             sources best support the claims.\n\n\
+             Query: {query}\nDraft:\n{draft}\n\
+             Topics to cover: {}{prior_context}\n\n\
+             Return a numbered list of sources. For EACH source give the URL and a one-line \
+             summary of what it contributes. Format:\n  \
+             1. <URL> — <one-line summary>",
             plan.plan_sections.join(", ")
         );
         let result = self.infra.researcher.prompt_raw(&prompt).await?;
@@ -280,14 +291,22 @@ impl<'a> DeepResearcher<'a> {
         planner_output: &str,
         researcher_output: &str,
     ) -> Result<String, MuonError> {
-        // Prompt content finalized in Phase 2 — placeholder kept minimal here only until 2.3.
         let prompt = format!(
-            "You are the Orchestrator. Synthesize a complete markdown report.\n\n\
-             Query: {query}\nPrevious draft: {draft}\n\n\
-             Planner outline:\n{planner_output}\n\n\
-             Researcher sources:\n{researcher_output}\n\n\
-             Clarifier sections: {}\n\n\
-             Write a comprehensive markdown report with sections under ## headings.",
+            "You are the Orchestrator for a deep-research pipeline. You are given the Planner's \
+             outline and the Researcher's sources. Synthesize them into one cohesive markdown \
+             report. If the sources are sparse for any section, USE `web_search` to fill the gap, \
+             then `think` before writing.\n\n\
+             Query: {query}\nPrevious draft (refine, don't discard):\n{draft}\n\n\
+             ## Planner outline\n{planner_output}\n\n\
+             ## Researcher sources\n{researcher_output}\n\n\
+             Clarifier sections to cover: {}\n\n\
+             Requirements:\n  \
+             - Begin with a `# Title` line, then a 2-3 sentence summary.\n  \
+             - Body sections under `## Section Title` headings.\n  \
+             - Cite inline as markdown links: [n] → full URL at the end is NOT needed; link the \
+               claim directly to its source URL from the Researcher's list.\n  \
+             - Do not invent sources — only cite URLs that appear in the Researcher output or \
+               your own `web_search` results.",
             plan.plan_sections.join(", ")
         );
         let result = self.infra.deep_orchestrator.prompt_raw(&prompt).await?;
