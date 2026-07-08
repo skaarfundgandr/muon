@@ -34,7 +34,8 @@ fn parse_clarify_json(text: &str) -> Result<ClarifyDecision, MuonError> {
     if trimmed.is_empty() {
         return Err(MuonError::Pipeline("clarifier returned empty".into()));
     }
-    let value: serde_json::Value = serde_json::from_str(trimmed).map_err(|e| {
+    let json_str = crate::infrastructure::util::extract_json(text).unwrap_or(text);
+    let value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
         MuonError::Pipeline(format!("clarifier returned non-JSON: {e}; raw={trimmed}"))
     })?;
     let needs = value
@@ -84,7 +85,8 @@ fn parse_plan_json(text: &str) -> Result<PlanProposal, MuonError> {
     if trimmed.is_empty() {
         return Err(MuonError::Pipeline("planner returned empty".into()));
     }
-    let value: serde_json::Value = serde_json::from_str(trimmed).map_err(|e| {
+    let json_str = crate::infrastructure::util::extract_json(text).unwrap_or(text);
+    let value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
         MuonError::Pipeline(format!("planner returned non-JSON: {e}; raw={trimmed}"))
     })?;
     let title = value
@@ -189,10 +191,16 @@ pub async fn run_clarifier(
         let _ = approved;
     }
 
-    Ok(ClarifierResult {
+    let result = ClarifierResult {
         clarifier_log: state.clarifier_log,
         plan_title: state.plan_title,
         plan_sections: state.plan_sections,
         plan_approved: state.plan_approved,
-    })
+    };
+
+    let _ = bridge.events.send(AgentEvent::ClarificationComplete {
+        log: result.clarifier_log.clone(),
+    });
+
+    Ok(result)
 }
