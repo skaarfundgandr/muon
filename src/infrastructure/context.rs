@@ -77,6 +77,7 @@ impl InfrastructureContext {
     ) -> Result<Self, MuonError> {
         use rig_core::client::CompletionClient;
         use std::sync::Arc;
+        use crate::infrastructure::providers::ProviderClient;
 
         let factory =
             crate::infrastructure::agent_rs::ReActFactory::new(
@@ -101,6 +102,16 @@ impl InfrastructureContext {
         let planner_client = resolve_client(&cfg.agents.deep_researcher.planner.provider)?;
         let researcher_client = resolve_client(&cfg.agents.deep_researcher.researcher.provider)?;
 
+        macro_rules! build_agent {
+            ($client:expr, $model:expr, |$c:ident| $body:expr) => {
+                match $client {
+                    ProviderClient::OpenAI($c) | ProviderClient::OpenAICompatible($c) => $body,
+                    ProviderClient::Gemini($c) => $body,
+                    ProviderClient::Anthropic($c) => $body,
+                }
+            };
+        }
+
         let web_provider: Option<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
             crate::infrastructure::search::provider::resolve_web_provider(cfg);
         let paper_providers: Vec<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
@@ -108,193 +119,212 @@ impl InfrastructureContext {
         let fetch_http = reqwest::Client::new();
 
         // Intent Classifier — no tools.
-        let intent_agent = intent_client
-            .client
-            .agent(&cfg.agents.intent_classifier.model)
-            .preamble(preamble)
-            .build();
         let intent_classifier: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Intent,
-                factory.build_runner(
-                    intent_agent,
-                    AgentTag::Intent,
-                    5,
-                    cfg.agents.intent_classifier.timeout_sec,
-                    source_sink.clone(),
+                build_agent!(
+                    &intent_client.client,
+                    &cfg.agents.intent_classifier.model,
+                    |c| {
+                        let agent = c
+                            .agent(&cfg.agents.intent_classifier.model)
+                            .preamble(preamble)
+                            .build();
+                        factory.build_runner(
+                            agent,
+                            AgentTag::Intent,
+                            5,
+                            cfg.agents.intent_classifier.timeout_sec,
+                            source_sink.clone(),
+                        )
+                    }
                 ),
                 bridge.clone(),
             ),
         );
 
         // Shallow Researcher — fetch_page (always), web_search (if configured).
-        let shallow_agent = {
-            let b = shallow_client
-                .client
-                .agent(&cfg.agents.shallow_researcher.model)
-                .preamble(preamble)
-                .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
-                    fetch_http.clone(),
-                    8000,
-                ));
-            let b = if let Some(ref wp) = web_provider {
-                b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
-            } else {
-                b
-            };
-            b.build()
-        };
         let shallow: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Search,
-                factory.build_runner(
-                    shallow_agent,
-                    AgentTag::Search,
-                    cfg.agents.shallow_researcher.max_tool_iters
-                        as usize,
-                    30,
-                    source_sink.clone(),
+                build_agent!(
+                    &shallow_client.client,
+                    &cfg.agents.shallow_researcher.model,
+                    |c| {
+                        let b = c
+                            .agent(&cfg.agents.shallow_researcher.model)
+                            .preamble(preamble)
+                            .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
+                                fetch_http.clone(),
+                                8000,
+                            ));
+                        let b = if let Some(ref wp) = web_provider {
+                            b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+                        } else {
+                            b
+                        };
+                        let agent = b.build();
+                        factory.build_runner(
+                            agent,
+                            AgentTag::Search,
+                            cfg.agents.shallow_researcher.max_tool_iters
+                                as usize,
+                            30,
+                            source_sink.clone(),
+                        )
+                    }
                 ),
                 bridge.clone(),
             ),
         );
 
         // Clarifier — web_search (if configured).
-        let clarifier_agent = if let Some(ref wp) = web_provider {
-            clarifier_client
-                .client
-                .agent(&cfg.agents.clarifier.model)
-                .preamble(preamble)
-                .tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
-                .build()
-        } else {
-            clarifier_client
-                .client
-                .agent(&cfg.agents.clarifier.model)
-                .preamble(preamble)
-                .build()
-        };
         let compaction_threshold =
             (cfg.advanced.compaction_threshold * 100.0) as usize;
         let clarifier: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Clarify,
-                factory.build_clarifier_runner(
-                    clarifier_agent,
-                    AgentTag::Clarify,
-                    cfg.agents.clarifier.max_iterations as usize,
-                    30,
-                    compaction_threshold,
-                    source_sink.clone(),
+                build_agent!(
+                    &clarifier_client.client,
+                    &cfg.agents.clarifier.model,
+                    |c| {
+                        let agent = if let Some(ref wp) = web_provider {
+                            c.agent(&cfg.agents.clarifier.model)
+                                .preamble(preamble)
+                                .tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+                                .build()
+                        } else {
+                            c.agent(&cfg.agents.clarifier.model)
+                                .preamble(preamble)
+                                .build()
+                        };
+                        factory.build_clarifier_runner(
+                            agent,
+                            AgentTag::Clarify,
+                            cfg.agents.clarifier.max_iterations as usize,
+                            30,
+                            compaction_threshold,
+                            source_sink.clone(),
+                        )
+                    }
                 ),
                 bridge.clone(),
             ),
         );
 
         // Deep Orchestrator — think (always), web_search + paper_search (if configured).
-        let deep_agent = {
-            let b = deep_client
-                .client
-                .agent(&cfg.agents.deep_researcher.orchestrator.model)
-                .preamble(preamble)
-                .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
-            let b = if let Some(ref wp) = web_provider {
-                b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
-            } else {
-                b
-            };
-            let b = if !paper_providers.is_empty() {
-                b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
-                    paper_providers.clone(),
-                ))
-            } else {
-                b
-            };
-            b.build()
-        };
         let deep_orchestrator: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Orchestrate,
-                factory.build_runner(
-                    deep_agent,
-                    AgentTag::Orchestrate,
-                    cfg.agents.deep_researcher.iterations as usize,
-                    30,
-                    source_sink.clone(),
+                build_agent!(
+                    &deep_client.client,
+                    &cfg.agents.deep_researcher.orchestrator.model,
+                    |c| {
+                        let b = c
+                            .agent(&cfg.agents.deep_researcher.orchestrator.model)
+                            .preamble(preamble)
+                            .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
+                        let b = if let Some(ref wp) = web_provider {
+                            b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+                        } else {
+                            b
+                        };
+                        let b = if !paper_providers.is_empty() {
+                            b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
+                                paper_providers.clone(),
+                            ))
+                        } else {
+                            b
+                        };
+                        let agent = b.build();
+                        factory.build_runner(
+                            agent,
+                            AgentTag::Orchestrate,
+                            cfg.agents.deep_researcher.iterations as usize,
+                            30,
+                            source_sink.clone(),
+                        )
+                    }
                 ),
                 bridge.clone(),
             ),
         );
 
         // Planner — think (always), web_search + paper_search (if configured).
-        let planner_agent = {
-            let b = planner_client
-                .client
-                .agent(&cfg.agents.deep_researcher.planner.model)
-                .preamble(preamble)
-                .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
-            let b = if let Some(ref wp) = web_provider {
-                b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
-            } else {
-                b
-            };
-            let b = if !paper_providers.is_empty() {
-                b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
-                    paper_providers.clone(),
-                ))
-            } else {
-                b
-            };
-            b.build()
-        };
         let planner: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Plan,
-                factory.build_planner_runner(
-                    planner_agent,
-                    AgentTag::Plan,
-                    cfg.agents.deep_researcher.iterations as usize,
-                    30,
-                    source_sink.clone(),
+                build_agent!(
+                    &planner_client.client,
+                    &cfg.agents.deep_researcher.planner.model,
+                    |c| {
+                        let b = c
+                            .agent(&cfg.agents.deep_researcher.planner.model)
+                            .preamble(preamble)
+                            .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
+                        let b = if let Some(ref wp) = web_provider {
+                            b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+                        } else {
+                            b
+                        };
+                        let b = if !paper_providers.is_empty() {
+                            b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
+                                paper_providers.clone(),
+                            ))
+                        } else {
+                            b
+                        };
+                        let agent = b.build();
+                        factory.build_planner_runner(
+                            agent,
+                            AgentTag::Plan,
+                            cfg.agents.deep_researcher.iterations as usize,
+                            30,
+                            source_sink.clone(),
+                        )
+                    }
                 ),
                 bridge.clone(),
             ),
         );
 
         // Researcher — think + fetch_page (always), web_search + paper_search (if configured).
-        let researcher_agent = {
-            let b = researcher_client
-                .client
-                .agent(&cfg.agents.deep_researcher.researcher.model)
-                .preamble(preamble)
-                .tool(crate::infrastructure::agent_rs::tools::ThinkTool)
-                .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
-                    fetch_http.clone(),
-                    8000,
-                ));
-            let b = if let Some(ref wp) = web_provider {
-                b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
-            } else {
-                b
-            };
-            let b = if !paper_providers.is_empty() {
-                b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
-                    paper_providers.clone(),
-                ))
-            } else {
-                b
-            };
-            b.build()
-        };
         let researcher: Box<dyn MuonAgent> = Box::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Search,
-                factory.build_researcher_runner(
-                    researcher_agent,
-                    AgentTag::Search,
-                    cfg.agents.deep_researcher.iterations as usize,
-                    30,
-                    source_sink.clone(),
+                build_agent!(
+                    &researcher_client.client,
+                    &cfg.agents.deep_researcher.researcher.model,
+                    |c| {
+                        let b = c
+                            .agent(&cfg.agents.deep_researcher.researcher.model)
+                            .preamble(preamble)
+                            .tool(crate::infrastructure::agent_rs::tools::ThinkTool)
+                            .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
+                                fetch_http.clone(),
+                                8000,
+                            ));
+                        let b = if let Some(ref wp) = web_provider {
+                            b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(wp.clone()))
+                        } else {
+                            b
+                        };
+                        let b = if !paper_providers.is_empty() {
+                            b.tool(crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
+                                paper_providers.clone(),
+                            ))
+                        } else {
+                            b
+                        };
+                        let agent = b.build();
+                        factory.build_researcher_runner(
+                            agent,
+                            AgentTag::Search,
+                            cfg.agents.deep_researcher.iterations as usize,
+                            30,
+                            source_sink.clone(),
+                        )
+                    }
                 ),
                 bridge.clone(),
             ),
