@@ -488,11 +488,10 @@ fn render_deep_researcher(
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
-            Constraint::Length(1),
         ])
         .split(inner);
 
-    let field_map: [Option<usize>; 6] = [None, Some(13), Some(15), Some(17), Some(19), Some(20)];
+    let field_map: [Option<usize>; 5] = [None, None, None, Some(19), Some(20)];
     for (i, row_rect) in grid.iter().enumerate() {
         if let Some(field_idx) = field_map[i] {
             hit_registry.push(ClickTarget {
@@ -502,86 +501,121 @@ fn render_deep_researcher(
         }
     }
 
-    let title = Line::from(Span::styled(
-        "4. DEEP RESEARCHER",
-        Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD),
-    ));
-    f.render_widget(Paragraph::new(title), grid[0]);
+    // Split click targets for Orchestrator (13, 14), Planner (15, 16), and Researcher (17, 18)
+    let orch_focused = is_focused(form, 13) || is_focused(form, 14);
+    let plan_focused = is_focused(form, 15) || is_focused(form, 16);
+    let res_focused = is_focused(form, 17) || is_focused(form, 18);
+
+    let rows_data = [
+        (0, 13, 14, cfg.orchestrator.model.len() as u16, cfg.orchestrator.provider.len() as u16, orch_focused),
+        (1, 15, 16, cfg.planner.model.len() as u16, cfg.planner.provider.len() as u16, plan_focused),
+        (2, 17, 18, cfg.researcher.model.len() as u16, cfg.researcher.provider.len() as u16, res_focused),
+    ];
+    for &(grid_idx, model_field, provider_field, model_len, provider_len, focused) in &rows_data {
+        let row_rect = grid[grid_idx];
+        let label_offset = if focused { 2 } else { 0 };
+
+        // Model clickable area (label + model bracket)
+        let model_width = (label_offset + 17 + model_len).min(row_rect.width);
+        hit_registry.push(ClickTarget {
+            rect: Rect::new(row_rect.x, row_rect.y, model_width, row_rect.height),
+            action: ClickAction::ActivateField(model_field),
+        });
+
+        // Provider clickable area (provider bracket)
+        let provider_start = label_offset + 14 + 1 + model_len + 1 + 13;
+        if provider_start < row_rect.width {
+            let provider_width = (provider_len + 3).min(row_rect.width - provider_start);
+            hit_registry.push(ClickTarget {
+                rect: Rect::new(row_rect.x + provider_start, row_rect.y, provider_width, row_rect.height),
+                action: ClickAction::ActivateField(provider_field),
+            });
+        }
+    }
 
     // Orchestrator (13, 14)
-    let orch_line = Line::from(vec![
-        Span::styled(
-            format!("  {:<13}", "Orchestrator"),
-            if is_focused(form, 13) || is_focused(form, 14) {
-                Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::new().fg(theme::text_dim())
-            },
-        ),
-        Span::styled("[", if is_focused(form, 13) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-        Span::styled(&cfg.orchestrator.model, if is_focused(form, 13) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("\u{25BC}", if is_focused(form, 13) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("] Provider: [", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-        Span::styled(&cfg.orchestrator.provider, if is_focused(form, 14) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("\u{25BC}", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("]", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-    ]);
-    f.render_widget(Paragraph::new(orch_line), grid[1]);
+    let mut orch_spans = Vec::new();
+    if orch_focused {
+        orch_spans.push(Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)));
+    }
+    orch_spans.push(Span::styled(
+        format!("{:<14}", "Orchestrator"),
+        if orch_focused {
+            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        } else {
+            Style::new().fg(theme::text_dim())
+        },
+    ));
+    orch_spans.push(Span::styled("[", if is_focused(form, 13) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    orch_spans.push(Span::styled(&cfg.orchestrator.model, if is_focused(form, 13) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
+    orch_spans.push(Span::styled("\u{25BC}", if is_focused(form, 13) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
+    orch_spans.push(Span::styled("] Provider: [", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    orch_spans.push(Span::styled(&cfg.orchestrator.provider, if is_focused(form, 14) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
+    orch_spans.push(Span::styled("\u{25BC}", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
+    orch_spans.push(Span::styled("]", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    let orch_line = Line::from(orch_spans);
+    f.render_widget(Paragraph::new(orch_line), grid[0]);
 
     // Planner (15, 16)
-    let plan_line = Line::from(vec![
-        Span::styled(
-            format!("  {:<13}", "Planner"),
-            if is_focused(form, 15) || is_focused(form, 16) {
-                Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::new().fg(theme::text_dim())
-            },
-        ),
-        Span::styled("[", if is_focused(form, 15) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-        Span::styled(&cfg.planner.model, if is_focused(form, 15) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("\u{25BC}", if is_focused(form, 15) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("] Provider: [", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-        Span::styled(&cfg.planner.provider, if is_focused(form, 16) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("\u{25BC}", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("]", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-    ]);
-    f.render_widget(Paragraph::new(plan_line), grid[2]);
+    let mut plan_spans = Vec::new();
+    if plan_focused {
+        plan_spans.push(Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)));
+    }
+    plan_spans.push(Span::styled(
+        format!("{:<14}", "Planner"),
+        if plan_focused {
+            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        } else {
+            Style::new().fg(theme::text_dim())
+        },
+    ));
+    plan_spans.push(Span::styled("[", if is_focused(form, 15) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    plan_spans.push(Span::styled(&cfg.planner.model, if is_focused(form, 15) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
+    plan_spans.push(Span::styled("\u{25BC}", if is_focused(form, 15) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
+    plan_spans.push(Span::styled("] Provider: [", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    plan_spans.push(Span::styled(&cfg.planner.provider, if is_focused(form, 16) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
+    plan_spans.push(Span::styled("\u{25BC}", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
+    plan_spans.push(Span::styled("]", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    let plan_line = Line::from(plan_spans);
+    f.render_widget(Paragraph::new(plan_line), grid[1]);
 
     // Researcher (17, 18)
-    let res_line = Line::from(vec![
-        Span::styled(
-            format!("  {:<13}", "Researcher"),
-            if is_focused(form, 17) || is_focused(form, 18) {
-                Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-            } else {
-                Style::new().fg(theme::text_dim())
-            },
-        ),
-        Span::styled("[", if is_focused(form, 17) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-        Span::styled(&cfg.researcher.model, if is_focused(form, 17) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("\u{25BC}", if is_focused(form, 17) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("] Provider: [", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-        Span::styled(&cfg.researcher.provider, if is_focused(form, 18) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("\u{25BC}", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }),
-        Span::styled("]", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }),
-    ]);
-    f.render_widget(Paragraph::new(res_line), grid[3]);
+    let mut res_spans = Vec::new();
+    if res_focused {
+        res_spans.push(Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)));
+    }
+    res_spans.push(Span::styled(
+        format!("{:<14}", "Researcher"),
+        if res_focused {
+            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        } else {
+            Style::new().fg(theme::text_dim())
+        },
+    ));
+    res_spans.push(Span::styled("[", if is_focused(form, 17) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    res_spans.push(Span::styled(&cfg.researcher.model, if is_focused(form, 17) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
+    res_spans.push(Span::styled("\u{25BC}", if is_focused(form, 17) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
+    res_spans.push(Span::styled("] Provider: [", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    res_spans.push(Span::styled(&cfg.researcher.provider, if is_focused(form, 18) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
+    res_spans.push(Span::styled("\u{25BC}", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
+    res_spans.push(Span::styled("]", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
+    let res_line = Line::from(res_spans);
+    f.render_widget(Paragraph::new(res_line), grid[2]);
 
     // Iterations (19)
     let iter_str = cfg.iterations.to_string();
-    let iter_line = input_line("Iterations", &iter_str, is_focused(form, 19), is_focused(form, 19) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(grid[4], form.mouse_col, form.mouse_row) && !is_focused(form, 19));
-    f.render_widget(Paragraph::new(iter_line), grid[4]);
+    let iter_line = input_line("Iterations", &iter_str, is_focused(form, 19), is_focused(form, 19) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(grid[3], form.mouse_col, form.mouse_row) && !is_focused(form, 19));
+    f.render_widget(Paragraph::new(iter_line), grid[3]);
 
     // Citation Verify (20)
-    let cit_line = checkbox_line("Citation Verify", cfg.citation_verify, is_focused(form, 20), crate::presentation::click::is_hovering(grid[5], form.mouse_col, form.mouse_row) && !is_focused(form, 20));
-    f.render_widget(Paragraph::new(cit_line), grid[5]);
+    let cit_line = checkbox_line("Citation Verify", cfg.citation_verify, is_focused(form, 20), crate::presentation::click::is_hovering(grid[4], form.mouse_col, form.mouse_row) && !is_focused(form, 20));
+    f.render_widget(Paragraph::new(cit_line), grid[4]);
 
     if form.dropdown_open && (13..=18).contains(&form.focus) {
         let grid_idx = match form.focus {
-            13 | 14 => 1,
-            15 | 16 => 2,
-            17 | 18 => 3,
+            13 | 14 => 0,
+            15 | 16 => 1,
+            17 | 18 => 2,
             _ => 0,
         };
         let field_label = fields()[form.focus].label;
