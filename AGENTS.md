@@ -13,7 +13,7 @@ CLEAN layered architecture. Presentation → Application → Domain → Infrastr
 
 **Bootstrap:** `src/main.rs` calls `app::run()` which sets up terminal (raw mode, alternate screen, mouse capture), spawns tokio event task (250ms poll on mpsc channel), runs main loop.
 
-**Headless CLI:** `muon run --headless --mock "query"` prints report to stdout without TUI. `muon export <session> <format> -o path` exports completed sessions. `MUON_LIVE=1` env var gates real OpenAI/Diesel/RAG adapters; default is mock.
+**Headless CLI:** `muon run --headless --mock "query"` prints report to stdout without TUI (requires building with the `mock` feature). `muon export <session> <format> -o path` exports completed sessions. The mock backend is opt-in via `--features mock` or `cargo test`; the live backend is used by default.
 
 ## Module Conventions
 

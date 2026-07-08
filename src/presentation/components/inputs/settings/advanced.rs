@@ -26,14 +26,15 @@ pub fn fields() -> &'static [FieldDef] {
         FieldDef::number("Max Deep Turns"),
         FieldDef::checkbox("Escalate Agent"),
         FieldDef::checkbox("Plan Approval"),
-        // Compaction & Preamble (7-8)
+        // Compaction & Preamble (7-9)
         FieldDef::number("Compaction Threshold"),
+        FieldDef::number("Max tool calls per turn"),
         FieldDef::text("Agent Preamble"),
-        // Storage (9-11)
+        // Storage (10-12)
         FieldDef::text("Session DB Path"),
         FieldDef::text("RAG DB Path"),
         FieldDef::number("Max search items"),
-        // Embedding & RAG (12-14)
+        // Embedding & RAG (13-15)
         FieldDef::dropdown("Embedding Model", EMBEDDING_MODELS),
         FieldDef::number("RAG Top-K"),
         FieldDef::number("Similarity Threshold"),
@@ -51,13 +52,14 @@ pub fn get_field(config: &AdvancedConfig, index: usize) -> String {
         5 => config.escalate_agent.to_string(),
         6 => config.plan_approval.to_string(),
         7 => config.compaction_threshold.to_string(),
-        8 => config.agent_preamble.clone(),
-        9 => config.session_db_path.clone(),
-        10 => config.rag_db_path.clone(),
-        11 => config.max_search_items.to_string(),
-        12 => config.embedding_model.clone(),
-        13 => config.rag_top_k.to_string(),
-        14 => config.similarity_threshold.to_string(),
+        8 => config.max_tool_calls_per_turn.to_string(),
+        9 => config.agent_preamble.clone(),
+        10 => config.session_db_path.clone(),
+        11 => config.rag_db_path.clone(),
+        12 => config.max_search_items.to_string(),
+        13 => config.embedding_model.clone(),
+        14 => config.rag_top_k.to_string(),
+        15 => config.similarity_threshold.to_string(),
         _ => String::new(),
     }
 }
@@ -72,13 +74,14 @@ pub fn set_field(config: &mut AdvancedConfig, index: usize, value: &str) {
         5 => config.escalate_agent = value == "true",
         6 => config.plan_approval = value == "true",
         7 => config.compaction_threshold = value.parse().ok().unwrap_or(0.80),
-        8 => config.agent_preamble = value.to_string(),
-        9 => config.session_db_path = value.to_string(),
-        10 => config.rag_db_path = value.to_string(),
-        11 => config.max_search_items = value.parse().unwrap_or(15),
-        12 => config.embedding_model = value.to_string(),
-        13 => config.rag_top_k = value.parse().unwrap_or(5),
-        14 => config.similarity_threshold = value.parse().ok().unwrap_or(0.70),
+        8 => config.max_tool_calls_per_turn = value.parse().unwrap_or(10),
+        9 => config.agent_preamble = value.to_string(),
+        10 => config.session_db_path = value.to_string(),
+        11 => config.rag_db_path = value.to_string(),
+        12 => config.max_search_items = value.parse().unwrap_or(15),
+        13 => config.embedding_model = value.to_string(),
+        14 => config.rag_top_k = value.parse().unwrap_or(5),
+        15 => config.similarity_threshold = value.parse().ok().unwrap_or(0.70),
         _ => {}
     }
 }
@@ -315,7 +318,7 @@ fn render_compaction(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
 ) {
-    let focused = section_has_focus(form, 7, 8);
+    let focused = section_has_focus(form, 7, 9);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let block = section_block("COMPACTION & PREAMBLE", focused, hovered && !focused);
     let inner = block.inner(area);
@@ -330,6 +333,7 @@ fn render_compaction(
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3),
+            Constraint::Length(3),
             Constraint::Min(4),
             Constraint::Length(1),
         ])
@@ -342,6 +346,10 @@ fn render_compaction(
     hit_registry.push(ClickTarget {
         rect: chunks[1],
         action: ClickAction::ActivateField(8),
+    });
+    hit_registry.push(ClickTarget {
+        rect: chunks[2],
+        action: ClickAction::ActivateField(9),
     });
 
     let ratio_block = Block::default()
@@ -360,7 +368,23 @@ fn render_compaction(
     ];
     f.render_widget(Paragraph::new(ratio_lines), ratio_inner);
 
-    let preamble_border = if is_focused(form, 8) { theme::border_focus() } else { theme::border() };
+    let tool_calls_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::new().fg(if is_focused(form, 8) { theme::border_focus() } else { theme::border() }));
+    let tool_calls_inner = tool_calls_block.inner(chunks[1]);
+    f.render_widget(tool_calls_block, chunks[1]);
+
+    let tool_calls_str = config.max_tool_calls_per_turn.to_string();
+    let tool_calls_lines: Vec<Line> = vec![
+        numeric_row("Max tool calls per turn", &tool_calls_str, is_focused(form, 8), is_focused(form, 8) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[1], form.mouse_col, form.mouse_row) && !is_focused(form, 8)),
+        Line::from(Span::styled(
+            "Max tool calls allowed in a single agent turn",
+            Style::new().fg(theme::text_dim()),
+        )),
+    ];
+    f.render_widget(Paragraph::new(tool_calls_lines), tool_calls_inner);
+
+    let preamble_border = if is_focused(form, 9) { theme::border_focus() } else { theme::border() };
     let preamble_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(preamble_border))
@@ -368,10 +392,10 @@ fn render_compaction(
             " Agent Preamble ",
             Style::new().fg(theme::purple()),
         ));
-    let preamble_inner = preamble_block.inner(chunks[1]);
-    f.render_widget(preamble_block, chunks[1]);
+    let preamble_inner = preamble_block.inner(chunks[2]);
+    f.render_widget(preamble_block, chunks[2]);
 
-    let preamble_editing = is_focused(form, 8) && form.is_editing();
+    let preamble_editing = is_focused(form, 9) && form.is_editing();
     let preamble_text: String = if preamble_editing {
         if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
@@ -382,7 +406,7 @@ fn render_compaction(
     } else {
         config.agent_preamble.clone()
     };
-    let preamble_style = if preamble_editing || is_focused(form, 8) {
+    let preamble_style = if preamble_editing || is_focused(form, 9) {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_main())
@@ -397,7 +421,7 @@ fn render_compaction(
             "Default system prompt injected for all agent instances.",
             Style::new().fg(theme::text_dim()),
         )),
-        chunks[2],
+        chunks[3],
     );
 }
 
@@ -408,7 +432,7 @@ fn render_storage(
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
 ) {
-    let focused = section_has_focus(form, 9, 11);
+    let focused = section_has_focus(form, 10, 12);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let block = section_block("STORAGE CONFIGURATION", focused, hovered && !focused);
     let inner = block.inner(area);
@@ -416,7 +440,7 @@ fn render_storage(
 
     hit_registry.push(ClickTarget {
         rect: area,
-        action: ClickAction::FocusField(9),
+        action: ClickAction::FocusField(10),
     });
 
     let chunks = Layout::default()
@@ -431,24 +455,24 @@ fn render_storage(
 
     hit_registry.push(ClickTarget {
         rect: chunks[0],
-        action: ClickAction::ActivateField(9),
-    });
-    hit_registry.push(ClickTarget {
-        rect: chunks[1],
         action: ClickAction::ActivateField(10),
     });
     hit_registry.push(ClickTarget {
-        rect: chunks[2],
+        rect: chunks[1],
         action: ClickAction::ActivateField(11),
     });
+    hit_registry.push(ClickTarget {
+        rect: chunks[2],
+        action: ClickAction::ActivateField(12),
+    });
 
-    let path1_prefix = if is_focused(form, 9) { "> " } else { "  " };
-    let path1_label_style = if is_focused(form, 9) {
+    let path1_prefix = if is_focused(form, 10) { "> " } else { "  " };
+    let path1_label_style = if is_focused(form, 10) {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_main())
     };
-    let path1_value: String = if is_focused(form, 9) && form.is_editing() {
+    let path1_value: String = if is_focused(form, 10) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
             format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
@@ -458,7 +482,7 @@ fn render_storage(
     } else {
         config.session_db_path.clone()
     };
-    let path1_value_style = if is_focused(form, 9) {
+    let path1_value_style = if is_focused(form, 10) {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::cyan())
@@ -474,13 +498,13 @@ fn render_storage(
         chunks[0],
     );
 
-    let path2_prefix = if is_focused(form, 10) { "> " } else { "  " };
-    let path2_label_style = if is_focused(form, 10) {
+    let path2_prefix = if is_focused(form, 11) { "> " } else { "  " };
+    let path2_label_style = if is_focused(form, 11) {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_main())
     };
-    let path2_value: String = if is_focused(form, 10) && form.is_editing() {
+    let path2_value: String = if is_focused(form, 11) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
             format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
@@ -490,7 +514,7 @@ fn render_storage(
     } else {
         config.rag_db_path.clone()
     };
-    let path2_value_style = if is_focused(form, 10) {
+    let path2_value_style = if is_focused(form, 11) {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::cyan())
@@ -508,7 +532,7 @@ fn render_storage(
 
     let max_search_str = config.max_search_items.to_string();
     f.render_widget(
-        Paragraph::new(numeric_row("Max search items", &max_search_str, is_focused(form, 11), is_focused(form, 11) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[2], form.mouse_col, form.mouse_row) && !is_focused(form, 11))),
+        Paragraph::new(numeric_row("Max search items", &max_search_str, is_focused(form, 12), is_focused(form, 12) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[2], form.mouse_col, form.mouse_row) && !is_focused(form, 12))),
         chunks[2],
     );
 
@@ -527,7 +551,7 @@ fn render_embedding(
     hit_registry: &mut Vec<ClickTarget>,
     pending_dropdown: &mut Option<PendingDropdown>,
 ) {
-    let focused = section_has_focus(form, 12, 15);
+    let focused = section_has_focus(form, 13, 16);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let block = section_block("EMBEDDING & RAG", focused, hovered && !focused);
     let inner = block.inner(area);
@@ -535,7 +559,7 @@ fn render_embedding(
 
     hit_registry.push(ClickTarget {
         rect: area,
-        action: ClickAction::FocusField(12),
+        action: ClickAction::FocusField(13),
     });
 
     let chunks = Layout::default()
@@ -553,34 +577,34 @@ fn render_embedding(
 
     hit_registry.push(ClickTarget {
         rect: chunks[0],
-        action: ClickAction::ActivateField(12),
-    });
-    hit_registry.push(ClickTarget {
-        rect: chunks[1],
         action: ClickAction::ActivateField(13),
     });
     hit_registry.push(ClickTarget {
-        rect: chunks[2],
+        rect: chunks[1],
         action: ClickAction::ActivateField(14),
     });
     hit_registry.push(ClickTarget {
-        rect: chunks[5],
+        rect: chunks[2],
         action: ClickAction::ActivateField(15),
+    });
+    hit_registry.push(ClickTarget {
+        rect: chunks[5],
+        action: ClickAction::ActivateField(16),
     });
 
     f.render_widget(
-        Paragraph::new(dropdown_line("Embedding Model", &config.embedding_model, is_focused(form, 12), crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row) && !is_focused(form, 12))),
+        Paragraph::new(dropdown_line("Embedding Model", &config.embedding_model, is_focused(form, 13), crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row) && !is_focused(form, 13))),
         chunks[0],
     );
 
     let rag_top_k_str = config.rag_top_k.to_string();
     let sim_thresh_str = config.similarity_threshold.to_string();
     f.render_widget(
-        Paragraph::new(numeric_row("RAG Top-K", &rag_top_k_str, is_focused(form, 13), is_focused(form, 13) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[1], form.mouse_col, form.mouse_row) && !is_focused(form, 13))),
+        Paragraph::new(numeric_row("RAG Top-K", &rag_top_k_str, is_focused(form, 14), is_focused(form, 14) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[1], form.mouse_col, form.mouse_row) && !is_focused(form, 14))),
         chunks[1],
     );
     f.render_widget(
-        Paragraph::new(numeric_row("Similarity Threshold", &sim_thresh_str, is_focused(form, 14), is_focused(form, 14) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[2], form.mouse_col, form.mouse_row) && !is_focused(form, 14))),
+        Paragraph::new(numeric_row("Similarity Threshold", &sim_thresh_str, is_focused(form, 15), is_focused(form, 15) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(chunks[2], form.mouse_col, form.mouse_row) && !is_focused(form, 15))),
         chunks[2],
     );
     f.render_widget(
@@ -590,7 +614,7 @@ fn render_embedding(
         )),
         chunks[3],
     );
-    let btn_focused = is_focused(form, 15);
+    let btn_focused = is_focused(form, 16);
     let btn_hovered = crate::presentation::click::is_hovering(chunks[5], form.mouse_col, form.mouse_row) && !btn_focused;
     let btn_color = if btn_focused {
         theme::border_focus()
@@ -615,8 +639,8 @@ fn render_embedding(
             Span::styled(
                 "Warning: ",
                 Style::new()
-                    .fg(theme::error())
-                    .add_modifier(Modifier::BOLD),
+                     .fg(theme::error())
+                     .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 "Clears vector tables and re-embeds all active sources.",
@@ -626,7 +650,7 @@ fn render_embedding(
         chunks[6],
     );
 
-    if form.dropdown_open && form.focus == 12 {
+    if form.dropdown_open && form.focus == 13 {
         let field_label = crate::presentation::components::inputs::settings::advanced::fields()[form.focus].label;
         let options: Vec<String> = crate::presentation::components::inputs::settings::advanced::fields()[form.focus]
             .options

@@ -2,6 +2,7 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::Block;
 
+use crate::config::MuonConfig;
 use crate::application::pipeline::PipelineState;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
@@ -18,11 +19,14 @@ pub fn render(
     query: &QueryInput,
     sessions: &[SessionSummary],
     pipeline: &PipelineState,
+    config: &MuonConfig,
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
     clarifier_question: Option<&str>,
     clarifier_response: &str,
+    clarifier_log: Option<&str>,
+    clarifier_focused: bool,
 ) {
     f.render_widget(Block::default().style(Style::default().bg(theme::bg_main())), area);
 
@@ -73,7 +77,7 @@ pub fn render(
     });
     query_input::render(f, main_split[0], query);
     let mut clarifier_input_rect: Option<ratatui::layout::Rect> = None;
-    pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render), clarifier_question, clarifier_response, mouse_col, mouse_row, pipeline, &mut clarifier_input_rect);
+    pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render), clarifier_question, clarifier_response, mouse_col, mouse_row, pipeline, &mut clarifier_input_rect, clarifier_log, clarifier_focused);
     if let Some(rect) = clarifier_input_rect
         && clarifier_question.is_some()
     {
@@ -82,5 +86,5 @@ pub fn render(
             action: ClickAction::ActivateClarifier,
         });
     }
-    source_registry::render(f, main_split[2]);
+    source_registry::render(f, main_split[2], config);
 }

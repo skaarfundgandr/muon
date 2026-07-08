@@ -482,6 +482,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                     app.active_popup = None;
                 }
             }
+            ActivePopup::PlanApproval { .. } => {}
         }
         return true;
     }
@@ -490,6 +491,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
     let is_editing = match &popup {
         ActivePopup::EditModels { edit_buffer, .. } => edit_buffer.is_some(),
         ActivePopup::ConfigureSearch { edit_buffer, .. } => edit_buffer.is_some(),
+        ActivePopup::PlanApproval { .. } => false,
     };
 
     if is_editing {
@@ -588,6 +590,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                     }
                 }
             }
+            ActivePopup::PlanApproval { .. } => {}
         }
         app.active_popup = Some(popup);
         return true;
@@ -602,6 +605,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
         ActivePopup::ConfigureSearch { .. } => {
             5
         }
+        ActivePopup::PlanApproval { .. } => 0,
     };
 
     match key.code {
@@ -610,6 +614,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                 ActivePopup::EditModels { focus_idx, .. } | ActivePopup::ConfigureSearch { focus_idx, .. } => {
                     *focus_idx = (*focus_idx + max_focus - 1) % max_focus;
                 }
+                ActivePopup::PlanApproval { .. } => {}
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
@@ -617,6 +622,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                 ActivePopup::EditModels { focus_idx, .. } | ActivePopup::ConfigureSearch { focus_idx, .. } => {
                     *focus_idx = (*focus_idx + 1) % max_focus;
                 }
+                ActivePopup::PlanApproval { .. } => {}
             }
         }
         KeyCode::Tab => {
@@ -624,6 +630,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                 ActivePopup::EditModels { focus_idx, .. } | ActivePopup::ConfigureSearch { focus_idx, .. } => {
                     *focus_idx = (*focus_idx + 1) % max_focus;
                 }
+                ActivePopup::PlanApproval { .. } => {}
             }
         }
         KeyCode::BackTab => {
@@ -631,6 +638,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                 ActivePopup::EditModels { focus_idx, .. } | ActivePopup::ConfigureSearch { focus_idx, .. } => {
                     *focus_idx = (*focus_idx + max_focus - 1) % max_focus;
                 }
+                ActivePopup::PlanApproval { .. } => {}
             }
         }
         KeyCode::Enter | KeyCode::Char(' ') => {
@@ -711,6 +719,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                         return true;
                     }
                 }
+                ActivePopup::PlanApproval { .. } => {}
             }
         }
         _ => {}

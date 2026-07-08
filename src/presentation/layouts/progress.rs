@@ -10,7 +10,16 @@ use crate::presentation::components::*;
 use crate::presentation::theme;
 use crate::presentation::views::View;
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
+pub fn render(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    pipeline: &PipelineState,
+    live_feed: &[crate::domain::models::log_entry::LogEntry],
+    live_feed_scroll: usize,
+    hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
+) {
     let bg = Block::default().style(Style::default().bg(theme::bg_main()));
     f.render_widget(bg, area);
 
@@ -67,8 +76,8 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_
         .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
         .split(chunks[2]);
 
-    pipeline_graph::render(f, body_chunks[0]);
-    live_feed::render(f, body_chunks[1]);
+    pipeline_graph::render(f, body_chunks[0], pipeline);
+    live_feed::render(f, body_chunks[1], live_feed, live_feed_scroll);
     resource_monitor::render(f, chunks[3]);
     footer::render(f, chunks[4], View::Progress, hit_registry, mouse_col, mouse_row);
 }

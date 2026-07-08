@@ -33,12 +33,14 @@ pub fn handle(app: &mut AppState, key: KeyEvent) {
                     let response = std::mem::take(&mut app.clarifier_response);
                     let _ = pending.responder.send(response);
                 }
+                app.clarifier_focused = false;
             }
             KeyCode::Esc => {
                 app.clarifier_response.clear();
                 if let Some(pending) = app.clarifier_pending.take() {
                     let _ = pending.responder.send(String::new());
                 }
+                app.clarifier_focused = false;
             }
             _ => {
                 let _ = app.router.handle_key(key);

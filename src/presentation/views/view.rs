@@ -32,6 +32,12 @@ pub struct RenderParams<'a> {
     pub mouse_row: u16,
     pub clarifier_question: Option<&'a str>,
     pub clarifier_response: &'a str,
+    pub last_report: Option<&'a crate::domain::models::report::ResearchReport>,
+    pub last_sources: &'a [crate::domain::models::source::Source],
+    pub live_feed: &'a [crate::domain::models::log_entry::LogEntry],
+    pub live_feed_scroll: usize,
+    pub clarifier_log: Option<&'a str>,
+    pub clarifier_focused: bool,
 }
 
 impl View {
@@ -74,7 +80,7 @@ impl View {
     ) {
         match self {
             View::Welcome => {
-                crate::presentation::layouts::welcome::render(f, area);
+                crate::presentation::layouts::welcome::render(f, area, params.config);
             }
             View::Dashboard => {
                 crate::presentation::layouts::dashboard::render(
@@ -83,18 +89,39 @@ impl View {
                     params.query_input,
                     params.sessions,
                     params.pipeline,
+                    params.config,
                     params.hit_registry,
                     params.mouse_col,
                     params.mouse_row,
                     params.clarifier_question,
                     params.clarifier_response,
+                    params.clarifier_log,
+                    params.clarifier_focused,
                 );
             }
             View::Progress => {
-                crate::presentation::layouts::progress::render(f, area, params.pipeline, params.hit_registry, params.mouse_col, params.mouse_row);
+                crate::presentation::layouts::progress::render(
+                    f,
+                    area,
+                    params.pipeline,
+                    params.live_feed,
+                    params.live_feed_scroll,
+                    params.hit_registry,
+                    params.mouse_col,
+                    params.mouse_row,
+                );
             }
             View::Results => {
-                crate::presentation::layouts::results::render(f, area, params.pipeline, params.hit_registry, params.mouse_col, params.mouse_row);
+                crate::presentation::layouts::results::render(
+                    f,
+                    area,
+                    params.pipeline,
+                    params.last_report,
+                    params.last_sources,
+                    params.hit_registry,
+                    params.mouse_col,
+                    params.mouse_row,
+                );
             }
             View::Settings => {
                 let tab = params.settings_tab;

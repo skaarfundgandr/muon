@@ -10,7 +10,16 @@ use crate::presentation::components::*;
 use crate::presentation::theme;
 use crate::presentation::views::View;
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
+pub fn render(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    pipeline: &PipelineState,
+    last_report: Option<&crate::domain::models::report::ResearchReport>,
+    last_sources: &[crate::domain::models::source::Source],
+    hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
+) {
     let total_time_secs = pipeline.elapsed_secs();
     f.render_widget(Block::default().style(Style::default().bg(theme::bg_main())), area);
 
@@ -44,8 +53,8 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &PipelineState, hit_
     let report_area = horizontal[0];
     let sources_area = horizontal[1];
 
-    report_view::render(f, report_area);
-    source_card::render(f, sources_area);
+    report_view::render(f, report_area, last_report);
+    source_card::render(f, sources_area, last_sources);
 
     let action_block = Block::default()
         .borders(Borders::ALL)

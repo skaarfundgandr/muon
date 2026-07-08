@@ -6,7 +6,7 @@ use ratatui::widgets::{Block, Paragraph};
 use crate::presentation::components::*;
 use crate::presentation::theme;
 
-pub fn render(f: &mut ratatui::Frame, area: Rect) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &crate::config::MuonConfig) {
     let bg = Block::default().style(Style::default().bg(theme::bg_main()));
     f.render_widget(bg, area);
 
@@ -21,8 +21,9 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .style(Style::default().bg(theme::bg_dark()))
         .border_style(Style::default().fg(theme::border()));
 
+    let footer_text = format!(" Built with Rust • Powered by rig • {} Theme ", config.display.visual_theme);
     let footer = Paragraph::new(Line::from(ratatui::text::Span::styled(
-        " Built with Rust • Powered by rig • Tokyo Night Theme ",
+        footer_text,
         Style::default().fg(theme::text_dim()).bg(theme::bg_dark()),
     )))
     .style(Style::default().bg(theme::bg_dark()))
