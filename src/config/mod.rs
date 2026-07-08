@@ -378,8 +378,8 @@ pub struct AgentEntryConfig {
 impl Default for AgentEntryConfig {
     fn default() -> Self {
         Self {
-            model: "glm-5.2".to_string(),
-            provider: "opencode-go".to_string(),
+            model: String::new(),
+            provider: String::new(),
             timeout_sec: 90,
             verbose: false,
         }
@@ -398,10 +398,10 @@ pub struct ClarifierConfig {
 impl Default for ClarifierConfig {
     fn default() -> Self {
         Self {
-            model: "glm-5.2".to_string(),
-            provider: "opencode-go".to_string(),
+            model: String::new(),
+            provider: String::new(),
             max_turns: 3,
-            plan_approval: true,
+            plan_approval: false,
             max_iterations: 10,
         }
     }
@@ -418,8 +418,8 @@ pub struct ShallowResearcherConfig {
 impl Default for ShallowResearcherConfig {
     fn default() -> Self {
         Self {
-            model: "glm-5.2".to_string(),
-            provider: "NeuralWatt".to_string(),
+            model: String::new(),
+            provider: String::new(),
             max_llm_turns: 10,
             max_tool_iters: 5,
         }
@@ -439,16 +439,16 @@ impl Default for DeepResearcherConfig {
     fn default() -> Self {
         Self {
             orchestrator: SubagentConfig {
-                model: "glm-5.2".to_string(),
-                provider: "opencode-go".to_string(),
+                model: String::new(),
+                provider: String::new(),
             },
             planner: SubagentConfig {
-                model: "glm-5.2-short".to_string(),
-                provider: "NeuralWatt".to_string(),
+                model: String::new(),
+                provider: String::new(),
             },
             researcher: SubagentConfig {
-                model: "glm-5.2-flex".to_string(),
-                provider: "NeuralWatt".to_string(),
+                model: String::new(),
+                provider: String::new(),
             },
             iterations: 2,
             citation_verify: true,
@@ -584,21 +584,39 @@ impl Default for DisplayConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct AdvancedConfig {
+    #[serde(default)]
     pub max_researcher_loops: u64,
+    #[serde(default)]
     pub max_clarifier_turns: u64,
+    #[serde(default)]
     pub max_plan_iterations: u64,
+    #[serde(default)]
     pub max_shallow_turns: u64,
+    #[serde(default)]
     pub max_deep_turns: u64,
+    #[serde(default)]
     pub escalate_agent: bool,
+    #[serde(default)]
     pub plan_approval: bool,
+    #[serde(default)]
     pub compaction_threshold: f64,
+    #[serde(default)]
+    pub max_tool_calls_per_turn: u64,
+    #[serde(default)]
     pub agent_preamble: String,
+    #[serde(default)]
     pub session_db_path: String,
+    #[serde(default)]
     pub rag_db_path: String,
+    #[serde(default)]
     pub max_search_items: u64,
+    #[serde(default)]
     pub embedding_model: String,
+    #[serde(default)]
     pub rag_top_k: u64,
+    #[serde(default)]
     pub similarity_threshold: f64,
 }
 
@@ -611,8 +629,9 @@ impl Default for AdvancedConfig {
             max_shallow_turns: 10,
             max_deep_turns: 25,
             escalate_agent: true,
-            plan_approval: true,
+            plan_approval: false,
             compaction_threshold: 0.80,
+            max_tool_calls_per_turn: 10,
             agent_preamble: "You are \u{03BC}on, a deep research agent. Be extremely precise, \
                 fact-check everything, compile structured summaries, and cite sources in full \
                 formatting. Maintain terminal safety."

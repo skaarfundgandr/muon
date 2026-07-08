@@ -11,8 +11,8 @@ pub struct ShallowResearcherSpec {
 impl Default for ShallowResearcherSpec {
     fn default() -> Self {
         Self {
-            model: "glm-5.2".to_string(),
-            provider: "opencode-go".to_string(),
+            model: String::new(),
+            provider: String::new(),
             max_cycles: 10,
             tool_timeout_secs: 60,
         }

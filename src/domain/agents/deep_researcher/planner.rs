@@ -18,8 +18,8 @@ impl PlannerSpec {
 impl Default for PlannerSpec {
     fn default() -> Self {
         Self {
-            model: "glm-5.2-short".to_string(),
-            provider: "NeuralWatt".to_string(),
+            model: String::new(),
+            provider: String::new(),
         }
     }
 }

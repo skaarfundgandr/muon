@@ -13,8 +13,8 @@ pub struct IntentClassifierSpec {
 impl Default for IntentClassifierSpec {
     fn default() -> Self {
         Self {
-            model: "glm-5.2".to_string(),
-            provider: "opencode-go".to_string(),
+            model: String::new(),
+            provider: String::new(),
             timeout_sec: 90,
         }
     }
@@ -27,7 +27,8 @@ pub fn parse_intent(text: &str) -> Result<QueryIntent, MuonError> {
             "intent classifier returned empty text".to_string(),
         ));
     }
-    let value: serde_json::Value = serde_json::from_str(trimmed).map_err(|e| {
+    let json_str = crate::infrastructure::util::extract_json(text).unwrap_or(text);
+    let value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
         MuonError::Pipeline(format!(
             "intent classifier returned non-JSON: {e}; raw={trimmed}"
         ))

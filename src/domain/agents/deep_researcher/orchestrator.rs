@@ -20,8 +20,8 @@ impl Default for DeepResearcherSpec {
     fn default() -> Self {
         Self {
             orchestrator_llm: OrchestratorLlm {
-                model: "glm-5.2".to_string(),
-                provider: "opencode-go".to_string(),
+                model: String::new(),
+                provider: String::new(),
             },
             planner_llm: Some(PlannerSpec::default()),
             researcher_llm: Some(ResearcherSpec::default()),

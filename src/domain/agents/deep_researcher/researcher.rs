@@ -18,8 +18,8 @@ impl ResearcherSpec {
 impl Default for ResearcherSpec {
     fn default() -> Self {
         Self {
-            model: "glm-5.2-flex".to_string(),
-            provider: "NeuralWatt".to_string(),
+            model: String::new(),
+            provider: String::new(),
         }
     }
 }
