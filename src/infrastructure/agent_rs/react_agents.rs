@@ -206,7 +206,11 @@ impl<'a> ReActFactory<'a> {
             .on_error({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |e: &agent_rs::domain::errors::ReActError| {
-                    b.log(tag, LogLevel::Error, format!("error: {e:?}"));
+                    let msg = format!("error: {e:?}");
+                    let is_turn_limit = msg.to_lowercase().contains("max_turns")
+                        || msg.to_lowercase().contains("max turns");
+                    let level = if is_turn_limit { LogLevel::Warn } else { LogLevel::Error };
+                    b.log(tag, level, msg);
                 }
             })
             .with_span_emitter(crate::infrastructure::observability::Observability::span_emitter())
@@ -320,7 +324,11 @@ impl<'a> ReActFactory<'a> {
             .on_error({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |e: &agent_rs::domain::errors::ReActError| {
-                    b.log(tag, LogLevel::Error, format!("error: {e:?}"));
+                    let msg = format!("error: {e:?}");
+                    let is_turn_limit = msg.to_lowercase().contains("max_turns")
+                        || msg.to_lowercase().contains("max turns");
+                    let level = if is_turn_limit { LogLevel::Warn } else { LogLevel::Error };
+                    b.log(tag, level, msg);
                 }
             })
             .with_span_emitter(crate::infrastructure::observability::Observability::span_emitter())
