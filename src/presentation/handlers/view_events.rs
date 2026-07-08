@@ -21,6 +21,28 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
         return true;
     }
 
+    if view == View::Progress && app.active_popup.is_none() && app.clarifier_pending.is_none() {
+        match key.code {
+            KeyCode::Up => {
+                app.live_feed_scroll = app.live_feed_scroll.saturating_add(1);
+                return true;
+            }
+            KeyCode::Down => {
+                app.live_feed_scroll = app.live_feed_scroll.saturating_sub(1);
+                return true;
+            }
+            KeyCode::PageUp => {
+                app.live_feed_scroll = app.live_feed_scroll.saturating_add(5);
+                return true;
+            }
+            KeyCode::PageDown => {
+                app.live_feed_scroll = app.live_feed_scroll.saturating_sub(5);
+                return true;
+            }
+            _ => {}
+        }
+    }
+
     // Fallback: let the router handle f-keys, tab cycling
     app.router.handle_key(key)
 }
