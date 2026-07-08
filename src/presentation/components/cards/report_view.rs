@@ -1,9 +1,13 @@
-use ratatui::layout::{Constraint, Direction, Layout, Rect};
+#![allow(dead_code)]
+
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::presentation::theme;
+
+use crate::domain::models::report::ResearchReport;
 
 fn citation_line<'a>(text: &'a str, citations: &[&'a str]) -> Line<'a> {
     let mut spans = Vec::new();
@@ -23,11 +27,7 @@ fn citation_line<'a>(text: &'a str, citations: &[&'a str]) -> Line<'a> {
     Line::from(spans)
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect) {
-    let body1 = "Germany's renewable transition, or Energiewende, has expanded green energy capacity to over 52% of domestic generation as of late 2024, driving regional job growth but causing structural cost shifts in industrial manufacturing sectors [1]. In contrast, Japan's green growth strategies prioritize offshore wind and grid improvements to combat high electricity price premiums that drag down industrial export competitiveness [2].";
-
-    let body2 = "Comparative macroeconomic modeling indicates Germany's feed-in tariff policies yielded high initial deployment velocity but lower cost efficiency than Japan's corporate-backed PPAs [3]. Moving forward, both countries face critical bottlenecks in grid storage infrastructure and regulatory limits on inter-regional transmission loops, capping immediate GDP growth opportunities to 1.2-1.5% annually [4].";
-
+pub fn render(f: &mut ratatui::Frame, area: Rect, report: Option<&ResearchReport>) {
     let block = Block::new()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(theme::border()))
@@ -49,20 +49,73 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         ])
         .split(inner);
 
-    f.render_widget(
-        Paragraph::new(Line::from(Span::styled(
-            "Economic Impacts of Renewable Energy in Germany & Japan",
-            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
-        ))),
-        chunks[0],
-    );
+    if let Some(r) = report {
+        f.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                format!("Title: {}", r.title),
+                Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
+            ))),
+            chunks[0],
+        );
 
-    let body_lines: Vec<Line> = vec![
-        citation_line(body1, &["[1]", "[2]"]),
-        Line::from(""),
-        citation_line(body2, &["[3]", "[4]"]),
-    ];
-    f.render_widget(Paragraph::new(body_lines), chunks[1]);
+        let mut body_lines = Vec::new();
+        body_lines.push(Line::from(Span::styled(
+            &r.summary,
+            Style::new().fg(theme::text_main()),
+        )));
+
+        for section in &r.sections {
+            body_lines.push(Line::from(""));
+            body_lines.push(Line::from(Span::styled(
+                format!("## {}", section.heading),
+                Style::new().fg(theme::cyan()).add_modifier(Modifier::BOLD),
+            )));
+            body_lines.push(Line::from(Span::styled(
+                &section.body_markdown,
+                Style::new().fg(theme::text_main()),
+            )));
+        }
+
+        if !r.citations.is_empty() {
+            body_lines.push(Line::from(""));
+            body_lines.push(Line::from(Span::styled(
+                "Citations:",
+                Style::new().fg(theme::success()).add_modifier(Modifier::BOLD),
+            )));
+            for cite in &r.citations {
+                body_lines.push(Line::from(vec![
+                    Span::styled(format!(" [{}] ", cite.reference_number), Style::new().fg(theme::cyan())),
+                    Span::styled(&cite.title, Style::new().fg(theme::text_main())),
+                    Span::styled(format!(" - {}", cite.url), Style::new().fg(theme::text_dim())),
+                ]));
+            }
+        }
+
+        f.render_widget(
+            Paragraph::new(body_lines).wrap(ratatui::widgets::Wrap { trim: true }),
+            chunks[1],
+        );
+    } else {
+        f.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                "—",
+                Style::new().fg(theme::text_dim()),
+            ))),
+            chunks[0],
+        );
+
+        let body_lines = vec![
+            Line::from(""),
+            Line::from(Span::styled(
+                "No report generated yet. Run a query to see results.",
+                Style::new().fg(theme::text_dim()),
+            )),
+        ];
+        f.render_widget(
+            Paragraph::new(body_lines).alignment(Alignment::Center),
+            chunks[1],
+        );
+    }
 
     let stats_block = Block::default()
         .borders(Borders::ALL)
@@ -81,11 +134,26 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         ])
         .split(stats_inner);
 
+    let (sources_analyzed, docs_read, citations_verified, overall_confidence) = if let Some(r) = report {
+        (
+            r.stats.total_sources.to_string(),
+            r.stats.verified_sources.to_string(),
+            r.citations.len().to_string(),
+            format!("{}%", if r.stats.total_sources > 0 {
+                (r.stats.verified_sources * 100 / r.stats.total_sources).min(100)
+            } else {
+                100
+            })
+        )
+    } else {
+        ("—".to_string(), "—".to_string(), "—".to_string(), "—".to_string())
+    };
+
     f.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled("Sources Analyzed:    ", Style::new().fg(theme::text_dim())),
             Span::styled(
-                "47",
+                sources_analyzed,
                 Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
             ),
         ])),
@@ -95,7 +163,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         Paragraph::new(Line::from(vec![
             Span::styled("Documents Deep-Read:  ", Style::new().fg(theme::text_dim())),
             Span::styled(
-                "12",
+                docs_read,
                 Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
             ),
         ])),
@@ -105,8 +173,8 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         Paragraph::new(Line::from(vec![
             Span::styled("Citations Verified:   ", Style::new().fg(theme::text_dim())),
             Span::styled(
-                "8 / 8 (100% ✓)",
-                Style::new().fg(theme::success()).add_modifier(Modifier::BOLD),
+                citations_verified,
+                Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
             ),
         ])),
         stats_rows[2],
@@ -114,21 +182,19 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(
         Paragraph::new(Line::from(vec![
             Span::styled("Overall Confidence:  ", Style::new().fg(theme::text_dim())),
-            Span::styled("87%", Style::new().fg(theme::cyan()).add_modifier(Modifier::BOLD)),
+            Span::styled(overall_confidence, Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD)),
         ])),
         stats_rows[3],
     );
 
-    let tag_line = Line::from(vec![
-        Span::styled("#renewable", Style::new().fg(theme::purple())),
-        Span::raw("  "),
-        Span::styled("#energy", Style::new().fg(theme::purple())),
-        Span::raw("  "),
-        Span::styled("#germany", Style::new().fg(theme::purple())),
-        Span::raw("  "),
-        Span::styled("#japan", Style::new().fg(theme::purple())),
-        Span::raw("  "),
-        Span::styled("#gdp", Style::new().fg(theme::purple())),
-    ]);
+    let tag_line = if let Some(r) = report {
+        Line::from(vec![
+            Span::styled(format!("Elapsed: {}s | Tokens In/Out: {}/{}", r.stats.elapsed_secs, r.stats.tokens_in, r.stats.tokens_out), Style::new().fg(theme::text_dim())),
+        ])
+    } else {
+        Line::from(vec![
+            Span::styled("—", Style::new().fg(theme::text_dim())),
+        ])
+    };
     f.render_widget(Paragraph::new(tag_line), chunks[3]);
 }

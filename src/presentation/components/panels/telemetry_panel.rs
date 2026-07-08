@@ -13,15 +13,15 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let lines = vec![
         Line::from(vec![
             Span::styled("Sessions:      ", Style::default().fg(theme::text_dim())),
-            Span::styled("12", Style::default().fg(theme::text_main())),
+            Span::styled("—", Style::default().fg(theme::text_main())),
         ]),
         Line::from(vec![
             Span::styled("Total Tokens:  ", Style::default().fg(theme::text_dim())),
-            Span::styled("847,291", Style::default().fg(theme::text_main())),
+            Span::styled("—", Style::default().fg(theme::text_main())),
         ]),
         Line::from(vec![
             Span::styled("Est. Cost:     ", Style::default().fg(theme::text_dim())),
-            Span::styled("$1.84", Style::default().fg(theme::success())),
+            Span::styled("—", Style::default().fg(theme::text_dim())),
         ]),
         Line::from(vec![
             Span::styled("Framework:     ", Style::default().fg(theme::text_dim())),

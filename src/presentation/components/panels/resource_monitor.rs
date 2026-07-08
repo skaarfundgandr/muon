@@ -9,11 +9,13 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         .borders(Borders::TOP)
         .border_style(Style::default().fg(theme::border()));
 
-    let context_pct: u16 = 62;
+    let context_pct: u16 = 0;
     let filled_count = (context_pct / 10) as usize;
     let empty_count = 10 - filled_count;
 
-    let bar_color = if context_pct >= 80 {
+    let bar_color = if context_pct == 0 {
+        theme::text_dim()
+    } else if context_pct >= 80 {
         theme::error()
     } else if context_pct >= 60 {
         theme::warning()
@@ -34,18 +36,18 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         ),
         Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled("Tokens: ", Style::default().fg(theme::text_dim())),
-        Span::styled("↓8,421", Style::default().fg(theme::success())),
+        Span::styled("↓—", Style::default().fg(theme::text_dim())),
         Span::styled(" ", Style::default().fg(theme::text_main())),
-        Span::styled("↑4,426", Style::default().fg(theme::accent())),
+        Span::styled("↑—", Style::default().fg(theme::text_dim())),
         Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled("Cost: ", Style::default().fg(theme::text_dim())),
         Span::styled(
-            "$0.034",
-            Style::default().fg(theme::success()).add_modifier(Modifier::BOLD),
+            "—",
+            Style::default().fg(theme::text_dim()).add_modifier(Modifier::BOLD),
         ),
         Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled("Mem: ", Style::default().fg(theme::text_dim())),
-        Span::styled("142MB", Style::default().fg(theme::text_main())),
+        Span::styled("—", Style::default().fg(theme::text_dim())),
     ]);
 
     let paragraph = Paragraph::new(line);
