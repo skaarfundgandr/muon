@@ -32,10 +32,12 @@ pub fn render_dropdown_overlay(
         return;
     }
 
-    let list_h = options.len() as u16 + 2; // borders
-    let popup_h = list_h.min(6);
-    let popup_y = below.y.saturating_add(below.height);
     let term_h = f.area().height;
+    // Increase maximum height to 12 (10 options + 2 borders) to accommodate many models
+    let max_popup_h = 12u16.min(term_h.saturating_sub(2)).max(3);
+    let list_h = options.len() as u16 + 2; // borders
+    let popup_h = list_h.min(max_popup_h);
+    let popup_y = below.y.saturating_add(below.height);
     let popup_y = if popup_y.saturating_add(popup_h) > term_h {
         // Not enough space below — try above the field
         let above = below.y.saturating_sub(popup_h);
@@ -55,23 +57,44 @@ pub fn render_dropdown_overlay(
 
     f.render_widget(Clear, popup_area);
 
+    let total_items = options.len();
+    let max_items = popup_h.saturating_sub(2) as usize;
+    let cursor = form.dropdown_cursor;
+
+    // Calculate start_idx centering/sliding window to keep the cursor in view
+    let start_idx = if total_items <= max_items {
+        0
+    } else {
+        cursor.saturating_sub(max_items / 2).min(total_items - max_items)
+    };
+    let end_idx = (start_idx + max_items).min(total_items);
+    let visible_options = &options[start_idx..end_idx];
+
+    let title_suffix = if total_items > max_items {
+        format!(" ({}/{})", cursor + 1, total_items)
+    } else {
+        String::new()
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default().bg(theme::bg_main()))
         .border_style(Style::new().fg(theme::border_focus()))
         .title(Span::styled(
-            format!(" {} ", field_label),
+            format!(" {} {} ", field_label, title_suffix),
             Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(popup_area);
     f.render_widget(block, popup_area);
 
-    let mut items: Vec<ListItem> = Vec::with_capacity(options.len());
-    let option_rects: Vec<Rect> = options.iter().enumerate().map(|(i, _)| {
+    let mut items: Vec<ListItem> = Vec::with_capacity(visible_options.len());
+    let option_rects: Vec<Rect> = (0..visible_options.len()).map(|i| {
         Rect::new(inner.x, inner.y.saturating_add(i as u16), inner.width, 1)
     }).collect();
-    for (i, opt) in options.iter().enumerate() {
-        let selected = i == form.dropdown_cursor;
+
+    for (i, opt) in visible_options.iter().enumerate() {
+        let actual_idx = start_idx + i;
+        let selected = actual_idx == cursor;
         let hovered = is_hovering(option_rects[i], mouse_col, mouse_row) && !selected;
         let (style, arrow) = if selected {
             (Style::new().bg(theme::bg_highlight()).fg(theme::text_main()).add_modifier(Modifier::BOLD), "\u{25B6} ")
@@ -88,10 +111,11 @@ pub fn render_dropdown_overlay(
     let list = List::new(items);
     f.render_widget(list, inner);
 
-    for (i, _) in options.iter().enumerate() {
+    for (i, _) in visible_options.iter().enumerate() {
+        let actual_idx = start_idx + i;
         hit_registry.push(ClickTarget {
             rect: option_rects[i],
-            action: ClickAction::SelectDropdownOption(i),
+            action: ClickAction::SelectDropdownOption(actual_idx),
         });
     }
 }
