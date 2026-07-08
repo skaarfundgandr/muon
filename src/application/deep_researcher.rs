@@ -55,15 +55,21 @@ impl<'a> DeepResearcher<'a> {
         );
 
         for loop_idx in 0..max_loops {
-            let (plan_q, _research_out) = futures::join!(
+            let (planner_output, researcher_output) = futures::join!(
                 self.planner_step(query, &draft, plan),
                 self.researcher_step(query, &draft, plan, &mut registry),
             );
-            let plan_query = plan_q?;
-            let _ = _research_out?;
+            let planner_output = planner_output?;
+            let researcher_output = researcher_output?;
 
             draft = self
-                .orchestrator_step(query, &draft, plan, &plan_query, &registry)
+                .orchestrator_step(
+                    query,
+                    &draft,
+                    plan,
+                    &planner_output,
+                    &researcher_output,
+                )
                 .await?;
 
             if loop_idx + 1 < max_loops {
@@ -272,13 +278,14 @@ impl<'a> DeepResearcher<'a> {
         draft: &str,
         plan: &ClarifierResult,
         planner_output: &str,
-        registry: &SourceRegistry,
+        researcher_output: &str,
     ) -> Result<String, MuonError> {
-        let _ = registry;
+        // Prompt content finalized in Phase 2 — placeholder kept minimal here only until 2.3.
         let prompt = format!(
             "You are the Orchestrator. Synthesize a complete markdown report.\n\n\
-             Query: {query}\nPrevious draft: {draft}\n\
-             Planner outline: {planner_output}\n\
+             Query: {query}\nPrevious draft: {draft}\n\n\
+             Planner outline:\n{planner_output}\n\n\
+             Researcher sources:\n{researcher_output}\n\n\
              Clarifier sections: {}\n\n\
              Write a comprehensive markdown report with sections under ## headings.",
             plan.plan_sections.join(", ")
