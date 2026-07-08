@@ -28,6 +28,7 @@ pub enum ActivePopup {
         focus_idx: usize,
         edit_buffer: Option<String>,
         edit_cursor: usize,
+        scroll_offset: usize,
     },
     ConfigureSearch {
         provider_idx: usize,
@@ -144,13 +145,14 @@ fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
 
     if let Some(popup) = &app.active_popup {
         match popup {
-            ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor } => {
+            ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor, scroll_offset } => {
                 crate::presentation::components::inputs::settings::providers::render_models_popup(
                     frame,
                     frame.area(),
                     &app.config,
                     *provider_idx,
                     *focus_idx,
+                    *scroll_offset,
                     edit_buffer.as_deref(),
                     *edit_cursor,
                     &mut app.hit_registry,
@@ -183,7 +185,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
         }
         if let Some(popup) = &mut app.active_popup {
             match popup {
-                ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor } => {
+                ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor, scroll_offset } => {
                     match &target.action {
                         ClickAction::ActivateField(idx) => {
                             *focus_idx = *idx;
@@ -202,12 +204,24 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                     *edit_cursor = current.len();
                                 }
                             }
+                            
+                            // Adjust scroll_offset to keep focused model in view
+                            let popup_h = 18u16.min(app.term_rows);
+                            let inner_h = popup_h.saturating_sub(2);
+                            let chunks_0_h = inner_h.saturating_sub(2);
+                            let max_visible_models = ((chunks_0_h / 2) as usize).max(1);
+                            if model_idx < *scroll_offset {
+                                *scroll_offset = model_idx;
+                            } else if model_idx >= *scroll_offset + max_visible_models {
+                                *scroll_offset = model_idx + 1 - max_visible_models;
+                            }
                             return;
                         }
                         ClickAction::RemoveModel(idx) => {
                             if *idx < app.config.providers[*provider_idx].models.len() {
                                 app.config.providers[*provider_idx].models.remove(*idx);
                                 *focus_idx = 0;
+                                *scroll_offset = 0;
                                 app.forms[SettingsTab::Providers as usize].dirty = true;
                             }
                             return;
@@ -218,7 +232,17 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                 model_id: String::new(),
                                 description: String::new(),
                             });
-                            *focus_idx = 3 * app.config.providers[*provider_idx].models.len() - 3;
+                            let m = app.config.providers[*provider_idx].models.len();
+                            *focus_idx = 3 * m - 3;
+                            let popup_h = 18u16.min(app.term_rows);
+                            let inner_h = popup_h.saturating_sub(2);
+                            let chunks_0_h = inner_h.saturating_sub(2);
+                            let max_visible_models = ((chunks_0_h / 2) as usize).max(1);
+                            if m > max_visible_models {
+                                *scroll_offset = m - max_visible_models;
+                            } else {
+                                *scroll_offset = 0;
+                            }
                             app.forms[SettingsTab::Providers as usize].dirty = true;
                             return;
                         }
@@ -517,6 +541,7 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     focus_idx: 0,
                     edit_buffer: None,
                     edit_cursor: 0,
+                    scroll_offset: 0,
                 });
             }
             ClickAction::FetchProviderModels(idx) => {
@@ -619,9 +644,72 @@ fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
 }
 
 fn handle_scroll(app: &mut AppState, delta: i32) {
-    use crate::presentation::handlers::settings::{scroll_list_len, scroll_visible_rows};
+    // 1. If EditModels popup is active, scroll the popup list
+    if let Some(ActivePopup::EditModels { provider_idx, scroll_offset, .. }) = &mut app.active_popup {
+        let m = app.config.providers[*provider_idx].models.len();
+        let popup_h = 18u16.min(app.term_rows);
+        let inner_h = popup_h.saturating_sub(2);
+        let chunks_0_h = inner_h.saturating_sub(2);
+        let max_visible_models = ((chunks_0_h / 2) as usize).max(1);
+        let max_offset = m.saturating_sub(max_visible_models);
+        if delta > 0 {
+            *scroll_offset = (*scroll_offset + 1).min(max_offset);
+        } else {
+            *scroll_offset = scroll_offset.saturating_sub(1);
+        }
+        return;
+    }
+
+    // 2. If a dropdown is open on the active settings tab, scroll the dropdown cursor
     let tab = app.router.settings_tab();
     let tab_idx = tab as usize;
+    if app.forms[tab_idx].dropdown_open {
+        let options = match tab {
+            SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::fields(&app.config)[app.forms[tab_idx].focus]
+                .options
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::options_for(
+                app.forms[tab_idx].focus,
+                &app.config,
+            ),
+            SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::fields(&app.config)[app.forms[tab_idx].focus]
+                .options
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::fields(&app.config)[app.forms[tab_idx].focus]
+                .options
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            SettingsTab::Display => crate::presentation::components::inputs::settings::display::fields()[app.forms[tab_idx].focus]
+                .options
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::fields()[app.forms[tab_idx].focus]
+                .options
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+        };
+        let max = options.len();
+        if max > 0 {
+            if delta > 0 {
+                if app.forms[tab_idx].dropdown_cursor + 1 < max {
+                    app.forms[tab_idx].dropdown_cursor += 1;
+                }
+            } else {
+                app.forms[tab_idx].dropdown_cursor = app.forms[tab_idx].dropdown_cursor.saturating_sub(1);
+            }
+        }
+        return;
+    }
+
+    // 3. Otherwise scroll the background tab list
+    use crate::presentation::handlers::settings::{scroll_list_len, scroll_visible_rows};
     let Some(visible) = scroll_visible_rows(app, tab) else {
         return;
     };

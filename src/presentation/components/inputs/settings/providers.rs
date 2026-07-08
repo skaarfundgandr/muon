@@ -550,6 +550,7 @@ pub fn render_models_popup(
     config: &MuonConfig,
     provider_idx: usize,
     focus_idx: usize,
+    scroll_offset: usize,
     edit_buffer: Option<&str>,
     edit_cursor: usize,
     hit_registry: &mut Vec<ClickTarget>,
@@ -563,12 +564,24 @@ pub fn render_models_popup(
     let popup_area = absolute_centered_rect(75, 18, area);
     f.render_widget(Clear, popup_area);
 
+    let m = provider.models.len();
+
+    let inner_h = popup_area.height.saturating_sub(2);
+    let chunks_0_h = inner_h.saturating_sub(2);
+    let max_visible_models = ((chunks_0_h / 2) as usize).max(1);
+
+    let title_suffix = if m > max_visible_models {
+        format!(" ({}/{})", scroll_offset + 1, m.saturating_sub(max_visible_models) + 1)
+    } else {
+        String::new()
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
         .style(Style::default().bg(theme::bg_main()))
         .border_style(Style::new().fg(theme::border_focus()))
         .title(Span::styled(
-            format!(" EDIT MODELS - {} ", provider.name.to_uppercase()),
+            format!(" EDIT MODELS - {} {} ", provider.name.to_uppercase(), title_suffix),
             Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(popup_area);
@@ -591,8 +604,6 @@ pub fn render_models_popup(
             Constraint::Min(0),
         ])
         .split(chunks[2]);
-
-    let m = provider.models.len();
 
     let add_focused = focus_idx == 3 * m;
     let add_hovered = is_hovering(bottom_cols[1], mouse_col, mouse_row);
@@ -632,14 +643,18 @@ pub fn render_models_popup(
         action: ClickAction::SwitchView(View::Settings),
     });
 
+    let scroll_end = (scroll_offset + max_visible_models).min(m);
+    let visible_count = scroll_end.saturating_sub(scroll_offset);
+
     let list_chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints(vec![Constraint::Length(2); m])
+        .constraints(vec![Constraint::Length(2); visible_count])
         .split(chunks[0]);
 
-    for i in 0..m {
+    for i in scroll_offset..scroll_end {
         let model = &provider.models[i];
-        let row_area = list_chunks[i];
+        let visible_idx = i - scroll_offset;
+        let row_area = list_chunks[visible_idx];
 
         let row_cols = Layout::default()
             .direction(Direction::Horizontal)

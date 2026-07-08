@@ -361,6 +361,7 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                                             focus_idx: 0,
                                             edit_buffer: None,
                                             edit_cursor: 0,
+                                            scroll_offset: 0,
                                         });
                                     }
                                 }
@@ -493,7 +494,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
 
     if is_editing {
         match &mut popup {
-            ActivePopup::EditModels { edit_buffer, edit_cursor, focus_idx, provider_idx } => {
+            ActivePopup::EditModels { edit_buffer, edit_cursor, focus_idx, provider_idx, .. } => {
                 if let Some(buf) = edit_buffer {
                     match key.code {
                         KeyCode::Char(c) => {
@@ -634,7 +635,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
         }
         KeyCode::Enter | KeyCode::Char(' ') => {
             match &mut popup {
-                ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor } => {
+                ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor, scroll_offset } => {
                     let m = app.config.providers[*provider_idx].models.len();
                     if *focus_idx < 3 * m {
                         let model_idx = *focus_idx / 3;
@@ -654,6 +655,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                                 // Remove model
                                 app.config.providers[*provider_idx].models.remove(model_idx);
                                 *focus_idx = 0;
+                                *scroll_offset = 0;
                                 app.forms[SettingsTab::Providers as usize].dirty = true;
                             }
                             _ => {}
@@ -665,7 +667,20 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                             model_id: String::new(),
                             description: String::new(),
                         });
-                        *focus_idx = 3 * m; // focus name of new model
+                        let m_new = app.config.providers[*provider_idx].models.len();
+                        *focus_idx = 3 * m_new - 3; // focus name of new model
+                        
+                        // Adjust scroll_offset to show new model at bottom
+                        let popup_h = 18u16.min(app.term_rows);
+                        let inner_h = popup_h.saturating_sub(2);
+                        let chunks_0_h = inner_h.saturating_sub(2);
+                        let max_visible_models = ((chunks_0_h / 2) as usize).max(1);
+                        if m_new > max_visible_models {
+                            *scroll_offset = m_new - max_visible_models;
+                        } else {
+                            *scroll_offset = 0;
+                        }
+                        
                         app.forms[SettingsTab::Providers as usize].dirty = true;
                     } else if *focus_idx == 3 * m + 1 {
                         // [Close]
@@ -699,6 +714,30 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
             }
         }
         _ => {}
+    }
+
+    // Keep focus visible for EditModels popup
+    if let ActivePopup::EditModels { provider_idx, focus_idx, scroll_offset, .. } = &mut popup {
+        let m = app.config.providers[*provider_idx].models.len();
+        let popup_h = 18u16.min(app.term_rows);
+        let inner_h = popup_h.saturating_sub(2);
+        let chunks_0_h = inner_h.saturating_sub(2);
+        let max_visible_models = ((chunks_0_h / 2) as usize).max(1);
+
+        if *focus_idx < 3 * m {
+            let focused_model = *focus_idx / 3;
+            if focused_model < *scroll_offset {
+                *scroll_offset = focused_model;
+            } else if focused_model >= *scroll_offset + max_visible_models {
+                *scroll_offset = focused_model + 1 - max_visible_models;
+            }
+        } else {
+            if m > max_visible_models {
+                *scroll_offset = m - max_visible_models;
+            } else {
+                *scroll_offset = 0;
+            }
+        }
     }
 
     app.active_popup = Some(popup);
