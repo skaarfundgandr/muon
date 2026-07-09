@@ -67,9 +67,15 @@ provider = "NeuralWatt"
 max_llm_turns = 10
 max_tool_iters = 5
 
-# Deep researcher — orchestrator/planner/researcher sub-agents.
+# Deep researcher — orchestrator drives planning + research via delegate tools.
 [agents.deep_researcher]
-iterations = 2
+iterations = 8
+max_retries = 3
+planner_max_cycles = 3
+researcher_max_cycles = 3
+orchestrator_max_tool_calls = 8
+planner_max_tool_calls = 4
+researcher_max_tool_calls = 10
 citation_verify = true
 
 [agents.deep_researcher.orchestrator]
@@ -119,6 +125,7 @@ escalate_agent = true
 plan_approval = true
 compaction_threshold = 0.80
 agent_preamble = "You are μon, a deep research agent. Be extremely precise, fact-check everything, compile structured summaries, and cite sources in full formatting."
+agents_dir = "~/.config/muon/agents"
 session_db_path = "~/.local/share/muon/sessions.db"
 rag_db_path = "~/.local/share/muon/rag.db"
 max_search_items = 15
