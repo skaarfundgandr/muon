@@ -53,38 +53,46 @@ fn render_obsidian(report: &ResearchReport) -> String {
 }
 
 pub async fn run_headless(query: &str, mock: bool, output: Option<&Path>) -> Result<()> {
-    let config = MuonConfig::load();
-    let (tx, _rx) = mpsc::unbounded_channel();
-    let bridge = BridgeChannels::new(tx);
+    let obs = crate::infrastructure::observability::Observability::init("muon")?;
 
-    let infra = if mock {
-        #[cfg(any(test, feature = "mock"))]
-        {
-            InfrastructureContext::mock()
+    let result = async {
+        let config = MuonConfig::load();
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let bridge = BridgeChannels::new(tx);
+
+        let infra = if mock {
+            #[cfg(any(test, feature = "mock"))]
+            {
+                InfrastructureContext::mock()
+            }
+            #[cfg(not(any(test, feature = "mock")))]
+            {
+                return Err(MuonError::Config(
+                    "mock mode requires building with the 'mock' feature".to_string(),
+                ));
+            }
+        } else {
+            InfrastructureContext::new_live(&config, &bridge).await?
+        };
+
+        let mut state = PipelineState::default();
+        let report = run_pipeline(query, &mut state, &config, &infra, &bridge, None).await?;
+
+        let content = render_markdown(&report, query);
+
+        if let Some(path) = output {
+            std::fs::write(path, &content)?;
+            eprintln!("Report written to {}", path.display());
+        } else {
+            print!("{content}");
         }
-        #[cfg(not(any(test, feature = "mock")))]
-        {
-            return Err(MuonError::Config(
-                "mock mode requires building with the 'mock' feature".to_string(),
-            ));
-        }
-    } else {
-        InfrastructureContext::new_live(&config, &bridge).await?
-    };
 
-    let mut state = PipelineState::default();
-    let report = run_pipeline(query, &mut state, &config, &infra, &bridge).await?;
-
-    let content = render_markdown(&report, query);
-
-    if let Some(path) = output {
-        std::fs::write(path, &content)?;
-        eprintln!("Report written to {}", path.display());
-    } else {
-        print!("{content}");
+        Ok(())
     }
+    .await;
 
-    Ok(())
+    obs.shutdown().await?;
+    result
 }
 
 fn session_from_summary(summary: &SessionSummary) -> Session {

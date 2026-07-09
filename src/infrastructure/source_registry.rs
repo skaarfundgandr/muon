@@ -12,14 +12,32 @@ impl SourceRegistry {
     }
 
     pub fn record(&mut self, url: impl Into<String>, source_type: SourceType) {
+        self.record_with_meta(url, source_type, String::new(), String::new());
+    }
+
+    pub fn record_with_meta(
+        &mut self,
+        url: impl Into<String>,
+        source_type: SourceType,
+        title: impl Into<String>,
+        snippet: impl Into<String>,
+    ) {
         let url: String = url.into();
-        if self.entries.iter().any(|e| e.url == url) {
+        let title: String = title.into();
+        let snippet: String = snippet.into();
+        if let Some(existing) = self.entries.iter_mut().find(|e| e.url == url) {
+            if existing.title.is_empty() && !title.is_empty() {
+                existing.title = title;
+            }
+            if existing.snippet.is_empty() && !snippet.is_empty() {
+                existing.snippet = snippet;
+            }
             return;
         }
         self.entries.push(Source {
             url,
-            title: String::new(),
-            snippet: String::new(),
+            title,
+            snippet,
             relevance: 0.0,
             source_type,
             verified: false,

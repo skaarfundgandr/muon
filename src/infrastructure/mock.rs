@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[cfg(any(test, feature = "mock"))]
 use crate::application::pipeline_runner::services::session_service::InMemorySessionStore;
@@ -56,26 +56,14 @@ impl InfrastructureContext {
                 AgentTag::Intent,
                 r#"{"intent":"research","depth":"shallow"}"#,
             )),
-            Box::new(MockAgent::new(
-                AgentTag::Search,
-                "Mock shallow answer.",
-            )),
+            Box::new(MockAgent::new(AgentTag::Search, "Mock shallow answer.")),
             Box::new(MockAgent::new(
                 AgentTag::Clarify,
                 r#"{"needs_clarification":false,"clarification_question":""}"#,
             )),
-            Box::new(MockAgent::new(
-                AgentTag::Orchestrate,
-                "Mock deep report.",
-            )),
-            Box::new(MockAgent::new(
-                AgentTag::Plan,
-                "Mock plan.",
-            )),
-            Box::new(MockAgent::new(
-                AgentTag::Search,
-                "Mock researcher answer.",
-            )),
+            Box::new(MockAgent::new(AgentTag::Orchestrate, "Mock deep report.")),
+            Arc::new(MockAgent::new(AgentTag::Plan, "Mock plan.")),
+            Arc::new(MockAgent::new(AgentTag::Search, "Mock researcher answer.")),
             Box::new(InMemorySessionStore::new()),
         )
     }

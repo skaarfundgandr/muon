@@ -235,6 +235,14 @@ fn test_extract_urls() -> Result<(), MuonError> {
 }
 
 #[test]
+fn test_extract_urls_json_garbage() -> Result<(), MuonError> {
+    let junk = r#"{"url":"https://schema.org","@graph":[{"@type":"WebPage"}]}"#;
+    let urls = extract_urls(junk)?;
+    assert_eq!(urls, vec!["https://schema.org".to_string()]);
+    Ok(())
+}
+
+#[test]
 fn test_verify_full_pipeline() -> Result<(), MuonError> {
     let report = make_report(
         vec![

@@ -10,6 +10,54 @@ use crate::infrastructure::source_registry::SourceRegistry;
 
 type SourceSink = std::sync::Arc<std::sync::Mutex<SourceRegistry>>;
 
+const FEED_SNIPPET_MAX: usize = 160;
+
+pub(crate) fn feed_snippet(s: &str) -> String {
+    let count = s.chars().count();
+    if count <= FEED_SNIPPET_MAX {
+        return s.to_string();
+    }
+    let mut out: String = s.chars().take(FEED_SNIPPET_MAX).collect();
+    out.push('…');
+    out
+}
+
+pub(crate) fn record_observation_sources(sink: &SourceSink, tool_name: &str, result: &str) {
+    if matches!(tool_name, "web_search" | "paper_search")
+        && let Ok(v) = serde_json::from_str::<serde_json::Value>(result)
+        && let Some(results) = v.get("results").and_then(|r| r.as_array())
+    {
+        let source_type = if tool_name == "paper_search" {
+            SourceType::Paper
+        } else {
+            SourceType::Web
+        };
+        if let Ok(mut g) = sink.lock() {
+            for item in results {
+                let Some(url) = item.get("url").and_then(|u| u.as_str()) else {
+                    continue;
+                };
+                if url.is_empty() {
+                    continue;
+                }
+                let title = item.get("title").and_then(|t| t.as_str()).unwrap_or("");
+                let snippet = item.get("snippet").and_then(|s| s.as_str()).unwrap_or("");
+                g.record_with_meta(url, source_type, title, snippet);
+            }
+        }
+        return;
+    }
+
+    if let Ok(urls) =
+        crate::application::pipeline_runner::citation_verifier::extract_urls(result)
+        && let Ok(mut g) = sink.lock()
+    {
+        for url in &urls {
+            g.record(url.as_str(), SourceType::Web);
+        }
+    }
+}
+
 #[async_trait]
 pub trait ReActRunner: Send + Sync {
     async fn prompt_trace(
@@ -114,13 +162,35 @@ impl MuonAgent for ReActAgent {
     }
 
     async fn prompt_raw(&self, prompt: &str) -> Result<String> {
-        let trace = self
-            .runner
-            .prompt_trace(prompt.to_string())
-            .await
-            .map_err(MuonError::from)?;
-        let text = trace.final_answer.map(|fa| fa.text).unwrap_or_default();
-        Ok(text)
+        use agent_rs::observability::conventions::KIND_AGENT;
+        use tracing::Instrument;
+
+        let span = tracing::info_span!(
+            "react_agent",
+            "langsmith.span.kind" = KIND_AGENT,
+            "openinference.span.kind" = "AGENT",
+            "input.value" = prompt,
+            "output.value" = tracing::field::Empty,
+            "agent.tag" = self.tag.as_str(),
+        );
+
+        let result = async {
+            self.runner
+                .prompt_trace(prompt.to_string())
+                .await
+                .map_err(MuonError::from)
+        }
+        .instrument(span.clone())
+        .await;
+
+        match result {
+            Ok(trace) => {
+                let text = trace.final_answer.map(|fa| fa.text).unwrap_or_default();
+                span.record("output.value", text.as_str());
+                Ok(text)
+            }
+            Err(e) => Err(e),
+        }
     }
 }
 
@@ -158,7 +228,11 @@ impl<'a> ReActFactory<'a> {
             .on_thought({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |t: &agent_rs::domain::agent::Thought| {
-                    b.log(tag, LogLevel::Info, format!("thought: {}", t.reasoning));
+                    b.log(
+                        tag,
+                        LogLevel::Info,
+                        format!("thought: {}", feed_snippet(&t.reasoning)),
+                    );
                 }
             })
             .on_action({
@@ -167,7 +241,11 @@ impl<'a> ReActFactory<'a> {
                     b.log(
                         tag,
                         LogLevel::Info,
-                        format!("action: {} args={}", a.tool_name, a.args),
+                        format!(
+                            "action: {} args={}",
+                            a.tool_name,
+                            feed_snippet(&a.args)
+                        ),
                     );
                 }
             })
@@ -182,18 +260,10 @@ impl<'a> ReActFactory<'a> {
                         } else {
                             LogLevel::Info
                         },
-                        format!("obs: {} => {}", o.tool_name, o.result),
+                        format!("obs: {} => {}", o.tool_name, feed_snippet(&o.result)),
                     );
-                    if !o.is_error
-                        && let Ok(urls) =
-                            crate::application::pipeline_runner::citation_verifier::extract_urls(
-                                &o.result,
-                            )
-                        && let Ok(mut g) = sink.lock()
-                    {
-                        for url in &urls {
-                            g.record(url.as_str(), SourceType::Web);
-                        }
+                    if !o.is_error {
+                        record_observation_sources(&sink, &o.tool_name, &o.result);
                     }
                 }
             })
@@ -206,7 +276,7 @@ impl<'a> ReActFactory<'a> {
             .on_error({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |e: &agent_rs::domain::errors::ReActError| {
-                    let msg = format!("error: {e:?}");
+                    let msg = format!("error: {e}");
                     let is_turn_limit = msg.to_lowercase().contains("max_turns")
                         || msg.to_lowercase().contains("max turns");
                     let level = if is_turn_limit { LogLevel::Warn } else { LogLevel::Error };
@@ -276,7 +346,11 @@ impl<'a> ReActFactory<'a> {
             .on_thought({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |t: &agent_rs::domain::agent::Thought| {
-                    b.log(tag, LogLevel::Info, format!("thought: {}", t.reasoning));
+                    b.log(
+                        tag,
+                        LogLevel::Info,
+                        format!("thought: {}", feed_snippet(&t.reasoning)),
+                    );
                 }
             })
             .on_action({
@@ -285,7 +359,11 @@ impl<'a> ReActFactory<'a> {
                     b.log(
                         tag,
                         LogLevel::Info,
-                        format!("action: {} args={}", a.tool_name, a.args),
+                        format!(
+                            "action: {} args={}",
+                            a.tool_name,
+                            feed_snippet(&a.args)
+                        ),
                     );
                 }
             })
@@ -300,18 +378,10 @@ impl<'a> ReActFactory<'a> {
                         } else {
                             LogLevel::Info
                         },
-                        format!("obs: {} => {}", o.tool_name, o.result),
+                        format!("obs: {} => {}", o.tool_name, feed_snippet(&o.result)),
                     );
-                    if !o.is_error
-                        && let Ok(urls) =
-                            crate::application::pipeline_runner::citation_verifier::extract_urls(
-                                &o.result,
-                            )
-                        && let Ok(mut g) = sink.lock()
-                    {
-                        for url in &urls {
-                            g.record(url.as_str(), SourceType::Web);
-                        }
+                    if !o.is_error {
+                        record_observation_sources(&sink, &o.tool_name, &o.result);
                     }
                 }
             })
@@ -324,7 +394,7 @@ impl<'a> ReActFactory<'a> {
             .on_error({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |e: &agent_rs::domain::errors::ReActError| {
-                    let msg = format!("error: {e:?}");
+                    let msg = format!("error: {e}");
                     let is_turn_limit = msg.to_lowercase().contains("max_turns")
                         || msg.to_lowercase().contains("max turns");
                     let level = if is_turn_limit { LogLevel::Warn } else { LogLevel::Error };

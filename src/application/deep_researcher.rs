@@ -1,16 +1,26 @@
 use crate::application::bridge::BridgeChannels;
-use crate::application::pipeline_runner::citation_verifier::{self, ValidCitation, VerificationOutput};
 use crate::application::pipeline::PipelineStage;
+use crate::application::pipeline_runner::citation_verifier::{
+    self, ValidCitation, VerificationOutput,
+};
 use crate::application::services::report_builder;
 use crate::config::MuonConfig;
 use crate::domain::agents::clarifier::ClarifierResult;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::report::{ResearchReport, VerificationLevel};
 use crate::domain::models::session::ReportStats;
-use crate::domain::models::source::SourceType;
 use crate::error::MuonError;
 use crate::infrastructure::context::InfrastructureContext;
 use crate::infrastructure::source_registry::SourceRegistry;
+
+const GAVE_UP_PATTERNS: &[&str] = &[
+    "please confirm",
+    "do you want me to",
+    "should i proceed",
+    "i can't produce",
+    "i cannot produce",
+    "what i need from you",
+];
 
 pub struct DeepResearcher<'a> {
     cfg: &'a MuonConfig,
@@ -24,11 +34,7 @@ impl<'a> DeepResearcher<'a> {
         infra: &'a InfrastructureContext,
         bridge: &'a BridgeChannels,
     ) -> Self {
-        Self {
-            cfg,
-            infra,
-            bridge,
-        }
+        Self { cfg, infra, bridge }
     }
 
     pub async fn run(
@@ -36,7 +42,7 @@ impl<'a> DeepResearcher<'a> {
         query: &str,
         plan: &ClarifierResult,
     ) -> Result<ResearchReport, MuonError> {
-        let max_loops = self.cfg.agents.deep_researcher.iterations.max(1);
+        let max_retries = self.cfg.agents.deep_researcher.max_retries.max(1);
         let mut draft = String::new();
         let mut registry = SourceRegistry::new();
         if let Ok(sink) = self.infra.source_sink.lock() {
@@ -46,39 +52,96 @@ impl<'a> DeepResearcher<'a> {
         }
         let start = std::time::Instant::now();
 
-        self.bridge
-            .stage(PipelineStage::DeepResearch);
+        self.bridge.stage(PipelineStage::DeepResearch);
         self.bridge.log(
             AgentTag::Orchestrate,
             LogLevel::Info,
-            format!("deep researcher started: max_loops={max_loops}"),
+            format!("deep researcher started: max_retries={max_retries}"),
         );
 
-        for loop_idx in 0..max_loops {
-            let (planner_output, researcher_output) = futures::join!(
-                self.planner_step(query, &draft, plan),
-                self.researcher_step(query, &draft, plan, &mut registry),
+        let mut last_reason: Option<String> = None;
+
+        for invoke_idx in 0..max_retries {
+            let prompt = self.build_orchestrator_prompt(
+                query,
+                &draft,
+                plan,
+                invoke_idx,
+                last_reason.as_deref(),
             );
-            let planner_output = planner_output?;
-            let researcher_output = researcher_output?;
+            match self.infra.deep_orchestrator.prompt_raw(&prompt).await {
+                Ok(text) => {
+                    draft = text;
+                    self.bridge.log(
+                        AgentTag::Orchestrate,
+                        LogLevel::Info,
+                        format!("orchestrator produced draft (len={})", draft.len()),
+                    );
+                }
+                Err(e) => {
+                    let msg = e.to_string().to_lowercase();
+                    let is_cycle_limit = msg.contains("max_cycles")
+                        || msg.contains("max cycles")
+                        || msg.contains("max_turns")
+                        || msg.contains("max turns");
+                    if is_cycle_limit {
+                        self.bridge.log(
+                            AgentTag::Orchestrate,
+                            LogLevel::Warn,
+                            format!("orchestrator hit iteration limit (soft-fail): {e}"),
+                        );
+                        if draft.is_empty() {
+                            draft = "# Research Report\n\n\
+                                     The research orchestrator reached its iteration limit \
+                                     before producing a complete draft. Findings may be \
+                                     incomplete.\n"
+                                .to_string();
+                        }
+                        break;
+                    } else if !draft.is_empty() {
+                        self.bridge.log(
+                            AgentTag::Orchestrate,
+                            LogLevel::Warn,
+                            format!(
+                                "orchestrator error with partial draft; producing partial report: {e}"
+                            ),
+                        );
+                        break;
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
 
-            draft = self
-                .orchestrator_step(
-                    query,
-                    &draft,
-                    plan,
-                    &planner_output,
-                    &researcher_output,
-                )
-                .await?;
-
-            if loop_idx + 1 < max_loops {
+            let (complete, reason) = is_report_complete(
+                &draft,
+                &registry.urls(),
+                self.cfg.agents.deep_researcher.min_report_length,
+                self.cfg.agents.deep_researcher.min_report_sections,
+            );
+            if complete {
                 self.bridge.log(
                     AgentTag::Orchestrate,
                     LogLevel::Info,
-                    format!("loop {} complete", loop_idx),
+                    format!("loop {invoke_idx} complete: quality gate passed, exiting early"),
                 );
+                break;
             }
+
+            last_reason = Some(reason);
+
+            let remaining = invoke_idx + 1 < max_retries;
+            let msg = if remaining {
+                format!(
+                    "loop {invoke_idx} complete: continuing (reason: {})",
+                    last_reason.as_deref().unwrap_or("")
+                )
+            } else {
+                format!(
+                    "loop {invoke_idx} complete: quality gate not met, reached max iterations ({max_retries})"
+                )
+            };
+            self.bridge.log(AgentTag::Orchestrate, LogLevel::Info, msg);
         }
 
         // Fold URLs discovered by tool calls during the loop (planner/researcher/orchestrator)
@@ -138,6 +201,39 @@ impl<'a> DeepResearcher<'a> {
             ),
         );
         Ok(final_report)
+    }
+
+    fn build_orchestrator_prompt(
+        &self,
+        query: &str,
+        draft: &str,
+        plan: &ClarifierResult,
+        invoke_idx: u64,
+        last_reason: Option<&str>,
+    ) -> String {
+        let mut prompt = format!(
+            "You are the Orchestrator for a deep-research pipeline. USE your tools: \
+             call `delegate_planner` to get a research plan, then `delegate_researcher` \
+             (possibly multiple times) to gather findings, and `think` to reason. \
+             You also have `web_search` and `paper_search` if configured.\n\n\
+             Query: {query}\nPrevious draft (refine, don't discard):\n{draft}\n\n\
+             Clarifier sections to cover: {}\n\n\
+             Requirements:\n  \
+             - Begin with a `# Title` line, then a 2-3 sentence summary.\n  \
+             - Body sections under `## Section Title` headings.\n  \
+             - Cite inline as markdown links to source URLs from the Researcher or your web_search.\n  \
+             - Do not invent sources.\n",
+            plan.plan_sections.join(", ")
+        );
+        if invoke_idx > 0
+            && let Some(reason) = last_reason
+        {
+            prompt.push_str(&format!(
+                "\nYour previous report was incomplete. Reason: {reason}. \
+                 Produce a complete, self-contained markdown report now.\n"
+            ));
+        }
+        prompt
     }
 
     fn to_report(&self, draft: &str, registry: &SourceRegistry) -> ResearchReport {
@@ -215,114 +311,48 @@ impl<'a> DeepResearcher<'a> {
             },
         }
     }
+}
 
-    async fn planner_step(
-        &self,
-        query: &str,
-        draft: &str,
-        plan: &ClarifierResult,
-    ) -> Result<String, MuonError> {
-        let prompt = format!(
-            "You are the Planner for a deep-research pipeline. BEFORE drafting, USE your tools: \
-             call `web_search` and `paper_search` to gather evidence for the query and any prior \
-             draft. Use `think` to reason about what you found.\n\n\
-             Query: {query}\nCurrent draft (may be empty):\n{draft}\n\
-             Clarifier sections to cover: {}\n\n\
-             Then produce a focused outline with 3-5 sections. Each section MUST start with a \
-             `## Section Title` heading and include:\n  \
-             - 2-4 bullet points of key claims to investigate\n  \
-             - one concrete `search query:` line the Researcher can run\n\
-             Return ONLY the outline (markdown with ## headings).",
-            plan.plan_sections.join(", ")
+pub fn is_report_complete(
+    draft: &str,
+    registry_urls: &[String],
+    min_length: u64,
+    min_sections: u64,
+) -> (bool, String) {
+    let len_chars = draft.chars().count() as u64;
+    if len_chars < min_length {
+        return (
+            false,
+            format!("draft too short ({len_chars} chars, need {min_length})"),
         );
-        let result = self.infra.planner.prompt_raw(&prompt).await?;
-        self.bridge.log(
-            AgentTag::Plan,
-            LogLevel::Info,
-            format!("planner produced plan (len={})", result.len()),
-        );
-        Ok(result)
     }
 
-    async fn researcher_step(
-        &self,
-        query: &str,
-        draft: &str,
-        plan: &ClarifierResult,
-        registry: &mut SourceRegistry,
-    ) -> Result<String, MuonError> {
-        let prior_context = if let Some(ref vs) = self.infra.vector_store {
-            match vs.query(query, self.cfg.advanced.rag_top_k as usize).await {
-                Ok(prior) if !prior.is_empty() => {
-                    let items: Vec<String> = prior
-                        .iter()
-                        .map(|s| format!("- [{}] {}", s.title, s.snippet))
-                        .collect();
-                    format!("\nPrior knowledge:\n{}\n\n", items.join("\n"))
-                }
-                _ => String::new(),
-            }
-        } else {
-            String::new()
-        };
-
-        let prompt = format!(
-            "You are the Researcher for a deep-research pipeline. USE your tools to find concrete \
-             sources: call `web_search` and `paper_search` for each topic below, then `fetch_page` \
-             on the most relevant results to read their content. Use `think` to decide which \
-             sources best support the claims.\n\n\
-             Query: {query}\nDraft:\n{draft}\n\
-             Topics to cover: {}{prior_context}\n\n\
-             Return a numbered list of sources. For EACH source give the URL and a one-line \
-             summary of what it contributes. Format:\n  \
-             1. <URL> — <one-line summary>",
-            plan.plan_sections.join(", ")
+    let section_count = draft.lines().filter(|l| l.starts_with("## ")).count() as u64;
+    if section_count < min_sections {
+        return (
+            false,
+            format!("missing section headers ({section_count} found, need {min_sections})"),
         );
-        let result = self.infra.researcher.prompt_raw(&prompt).await?;
-        let urls = citation_verifier::extract_urls(&result)?;
-        for url in &urls {
-            registry.record(url.as_str(), SourceType::Web);
-        }
-        self.bridge.log(
-            AgentTag::Search,
-            LogLevel::Info,
-            format!("researcher returned {} urls", urls.len()),
-        );
-        Ok(result)
     }
 
-    async fn orchestrator_step(
-        &self,
-        query: &str,
-        draft: &str,
-        plan: &ClarifierResult,
-        planner_output: &str,
-        researcher_output: &str,
-    ) -> Result<String, MuonError> {
-        let prompt = format!(
-            "You are the Orchestrator for a deep-research pipeline. You are given the Planner's \
-             outline and the Researcher's sources. Synthesize them into one cohesive markdown \
-             report. If the sources are sparse for any section, USE `web_search` to fill the gap, \
-             then `think` before writing.\n\n\
-             Query: {query}\nPrevious draft (refine, don't discard):\n{draft}\n\n\
-             ## Planner outline\n{planner_output}\n\n\
-             ## Researcher sources\n{researcher_output}\n\n\
-             Clarifier sections to cover: {}\n\n\
-             Requirements:\n  \
-             - Begin with a `# Title` line, then a 2-3 sentence summary.\n  \
-             - Body sections under `## Section Title` headings.\n  \
-             - Cite inline as markdown links: [n] → full URL at the end is NOT needed; link the \
-               claim directly to its source URL from the Researcher's list.\n  \
-             - Do not invent sources — only cite URLs that appear in the Researcher output or \
-               your own `web_search` results.",
-            plan.plan_sections.join(", ")
-        );
-        let result = self.infra.deep_orchestrator.prompt_raw(&prompt).await?;
-        self.bridge.log(
-            AgentTag::Orchestrate,
-            LogLevel::Info,
-            format!("orchestrator produced draft (len={})", result.len()),
-        );
-        Ok(result)
+    let has_sources_section = draft.lines().any(|l| {
+        l.strip_prefix("## ")
+            .map(|h| {
+                let h = h.to_lowercase();
+                h.contains("source") || h.contains("reference")
+            })
+            .unwrap_or(false)
+    });
+    let cites_known =
+        !registry_urls.is_empty() && registry_urls.iter().any(|u| draft.contains(u.as_str()));
+    if !has_sources_section && !registry_urls.is_empty() && !cites_known {
+        return (false, "no valid citations / sources section".to_string());
     }
+
+    let lower = draft.to_lowercase();
+    if let Some(matched) = GAVE_UP_PATTERNS.iter().find(|p| lower.contains(*p)) {
+        return (false, format!("agent gave up signal: \"{matched}\""));
+    }
+
+    (true, String::new())
 }

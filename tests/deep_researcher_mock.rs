@@ -30,3 +30,33 @@ async fn deep_researcher_runs_max_loops_with_mock() {
     }
     assert!(loop_count >= 1);
 }
+
+#[tokio::test]
+async fn deep_researcher_exits_early_when_quality_passes() {
+    let mut cfg = MuonConfig::default();
+    cfg.agents.deep_researcher.iterations = 5;
+    cfg.agents.deep_researcher.min_report_length = 1;
+    cfg.agents.deep_researcher.min_report_sections = 0;
+    let infra = InfrastructureContext::mock();
+    let (tx, mut rx) = mpsc::unbounded_channel::<AgentEvent>();
+    let bridge = BridgeChannels::new(tx);
+    let plan = ClarifierResult::default();
+    let researcher = DeepResearcher::new(&cfg, &infra, &bridge);
+    let report = researcher.run("query", &plan).await.unwrap();
+    assert!(!report.title.is_empty());
+
+    let mut loop_logs = 0;
+    let mut early_exit = false;
+    while let Ok(ev) = rx.try_recv() {
+        if let AgentEvent::Log(l) = ev {
+            if l.message.contains("loop ") {
+                loop_logs += 1;
+            }
+            if l.message.contains("exiting early") {
+                early_exit = true;
+            }
+        }
+    }
+    assert!(early_exit, "expected early-exit log");
+    assert!(loop_logs < 5, "expected early exit, ran {loop_logs} loops");
+}

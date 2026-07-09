@@ -90,18 +90,30 @@ pub fn verify(
     })
 }
 
-/// Extracts all HTTP/HTTPS URLs from markdown text.
 pub fn extract_urls(markdown: &str) -> Result<Vec<String>, MuonError> {
-    let re = Regex::new(r"(?P<url>https?://[^\s)\]]+)")
+    let re = Regex::new(r#"(?P<url>https?://[^\s\)\]\}\{\"\'\\<>]+)"#)
         .map_err(|e| MuonError::Database(e.to_string()))?;
-    Ok(re
-        .captures_iter(markdown)
-        .filter_map(|cap| cap.name("url").map(|m| {
-            m.as_str()
-                .trim_end_matches(['.', ',', ';', ':', ')', ']', '}'])
-                .to_string()
-        }))
-        .collect())
+    let mut out = Vec::new();
+    for cap in re.captures_iter(markdown) {
+        let Some(m) = cap.name("url") else {
+            continue;
+        };
+        let candidate = m
+            .as_str()
+            .trim_end_matches(['.', ',', ';', ':', ')', ']', '}', '"', '\'', '\\', '{', '>'])
+            .to_string();
+        if candidate.contains('"') || candidate.contains('\\') {
+            continue;
+        }
+        let Ok(parsed) = url::Url::parse(&candidate) else {
+            continue;
+        };
+        if !matches!(parsed.scheme(), "http" | "https") || parsed.host().is_none() {
+            continue;
+        }
+        out.push(candidate);
+    }
+    Ok(out)
 }
 
 /// Returns false if the URL is suspicious or unverifiable.
