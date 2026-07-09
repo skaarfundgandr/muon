@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
@@ -7,15 +7,27 @@ use crate::error::MuonError;
 pub struct MarkdownExporter;
 
 impl MarkdownExporter {
-    pub fn export(report: &ResearchReport, session: &Session) -> Result<PathBuf, MuonError> {
+    pub fn default_export_dir() -> Result<PathBuf, MuonError> {
         let base = dirs::data_dir().ok_or_else(|| {
             MuonError::Io(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 "data directory not found",
             ))
         })?;
-        let dir = base.join("muon").join("exports");
-        std::fs::create_dir_all(&dir)?;
+        Ok(base.join("muon").join("exports"))
+    }
+
+    pub fn export(report: &ResearchReport, session: &Session) -> Result<PathBuf, MuonError> {
+        let dir = Self::default_export_dir()?;
+        Self::export_to(report, session, &dir)
+    }
+
+    pub fn export_to(
+        report: &ResearchReport,
+        session: &Session,
+        dir: &Path,
+    ) -> Result<PathBuf, MuonError> {
+        std::fs::create_dir_all(dir)?;
         let path = dir.join(format!("{}.md", session.id));
 
         let mut content = String::from("---\n");

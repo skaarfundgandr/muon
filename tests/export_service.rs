@@ -1,10 +1,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use chrono::Utc;
 use muon::application::pipeline::PipelineStage;
 use muon::application::services::*;
 use muon::domain::models::report::ResearchReport;
 use muon::domain::models::session::{ReportStats, Session, SessionStatus};
-use chrono::Utc;
 use uuid::Uuid;
 
 fn make_session() -> Session {
@@ -30,10 +30,12 @@ fn make_report() -> ResearchReport {
 
 #[test]
 fn markdown_export_writes_file_with_frontmatter() {
+    let tmp = tempfile::tempdir().unwrap();
     let report = make_report();
     let session = make_session();
-    let path = MarkdownExporter::export(&report, &session).unwrap();
+    let path = MarkdownExporter::export_to(&report, &session, tmp.path()).unwrap();
     assert!(path.exists());
+    assert!(path.starts_with(tmp.path()));
     let content = std::fs::read_to_string(&path).unwrap();
     assert!(content.contains("title: Test Report"));
     assert!(content.contains("query: test query"));
@@ -58,6 +60,7 @@ fn obsidian_export_writes_to_vault_and_appends_moc() {
 
 #[test]
 fn export_service_routes_format() {
+    let tmp = tempfile::tempdir().unwrap();
     let report = make_report();
     let session = make_session();
 
@@ -66,16 +69,19 @@ fn export_service_routes_format() {
         session: &session,
         format: ExportFormat::Markdown,
         obsidian_vault: None,
+        markdown_dir: Some(tmp.path()),
     };
     let path = ExportService::export(req_md).unwrap();
     assert!(path.exists());
+    assert!(path.starts_with(tmp.path()));
 
-    let tmp = tempfile::tempdir().unwrap();
+    let vault = tempfile::tempdir().unwrap();
     let req_obs = ExportRequest {
         report: &report,
         session: &session,
         format: ExportFormat::Obsidian,
-        obsidian_vault: Some(tmp.path()),
+        obsidian_vault: Some(vault.path()),
+        markdown_dir: None,
     };
     let path = ExportService::export(req_obs).unwrap();
     assert!(path.exists());
@@ -85,14 +91,21 @@ fn export_service_routes_format() {
         session: &session,
         format: ExportFormat::Obsidian,
         obsidian_vault: None,
+        markdown_dir: None,
     };
     assert!(ExportService::export(req_no_vault).is_err());
 }
 
 #[test]
 fn export_format_from_str() {
-    assert_eq!("markdown".parse::<ExportFormat>().unwrap(), ExportFormat::Markdown);
-    assert_eq!("Obsidian".parse::<ExportFormat>().unwrap(), ExportFormat::Obsidian);
+    assert_eq!(
+        "markdown".parse::<ExportFormat>().unwrap(),
+        ExportFormat::Markdown
+    );
+    assert_eq!(
+        "Obsidian".parse::<ExportFormat>().unwrap(),
+        ExportFormat::Obsidian
+    );
     assert!("unknown".parse::<ExportFormat>().is_err());
 }
 

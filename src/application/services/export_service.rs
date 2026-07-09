@@ -44,6 +44,7 @@ pub struct ExportRequest<'a> {
     pub session: &'a Session,
     pub format: ExportFormat,
     pub obsidian_vault: Option<&'a Path>,
+    pub markdown_dir: Option<&'a Path>,
 }
 
 pub struct ExportService;
@@ -51,7 +52,10 @@ pub struct ExportService;
 impl ExportService {
     pub fn export(req: ExportRequest<'_>) -> Result<PathBuf, MuonError> {
         match req.format {
-            ExportFormat::Markdown => MarkdownExporter::export(req.report, req.session),
+            ExportFormat::Markdown => match req.markdown_dir {
+                Some(dir) => MarkdownExporter::export_to(req.report, req.session, dir),
+                None => MarkdownExporter::export(req.report, req.session),
+            },
             ExportFormat::Obsidian => {
                 let vault = req.obsidian_vault.ok_or_else(|| {
                     MuonError::Config("obsidian_vault missing".into())
