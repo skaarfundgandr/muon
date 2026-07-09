@@ -43,6 +43,56 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
         }
     }
 
+    if view == View::Results {
+        match key.code {
+            KeyCode::Up => {
+                app.report_scroll = app.report_scroll.saturating_add(1);
+                return true;
+            }
+            KeyCode::Down => {
+                app.report_scroll = app.report_scroll.saturating_sub(1);
+                return true;
+            }
+            KeyCode::PageUp => {
+                app.report_scroll = app.report_scroll.saturating_add(5);
+                return true;
+            }
+            KeyCode::PageDown => {
+                app.report_scroll = app.report_scroll.saturating_sub(5);
+                return true;
+            }
+            KeyCode::Left => {
+                app.source_scroll = app.source_scroll.saturating_add(1);
+                return true;
+            }
+            KeyCode::Right => {
+                app.source_scroll = app.source_scroll.saturating_sub(1);
+                return true;
+            }
+            KeyCode::F(1) => {
+                app.action_export_markdown();
+                return true;
+            }
+            KeyCode::F(3) => {
+                app.action_sync_obsidian();
+                return true;
+            }
+            KeyCode::F(4) => {
+                app.action_new_query();
+                return true;
+            }
+            KeyCode::F(5) => {
+                app.action_refine_search();
+                return true;
+            }
+            KeyCode::F(6) => {
+                app.action_toggle_full_report();
+                return true;
+            }
+            _ => {}
+        }
+    }
+
     // Fallback: let the router handle f-keys, tab cycling
     app.router.handle_key(key)
 }

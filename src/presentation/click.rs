@@ -37,6 +37,12 @@ pub enum ClickAction {
     PlanReject,
     PlanFeedback,
     PlanSelectFeedbackInput,
+    ExportMarkdown,
+    SyncObsidian,
+    NewQuery,
+    RefineSearch,
+    FullReportView,
+    CopySourceUrl(String),
 }
 
 pub fn is_hovering(rect: Rect, col: u16, row: u16) -> bool {

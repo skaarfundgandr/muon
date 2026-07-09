@@ -38,6 +38,11 @@ pub struct RenderParams<'a> {
     pub live_feed_scroll: usize,
     pub clarifier_log: Option<&'a str>,
     pub clarifier_focused: bool,
+    pub report_scroll: usize,
+    pub source_scroll: usize,
+    pub full_report_mode: bool,
+    pub term_cols: u16,
+    pub term_rows: u16,
 }
 
 impl View {
@@ -72,17 +77,16 @@ impl View {
     }
 
     /// Dispatch rendering to the appropriate layout.
-    pub fn render(
-        self,
-        f: &mut ratatui::Frame,
-        area: Rect,
-        params: &mut RenderParams,
-    ) {
+    pub fn render(self, f: &mut ratatui::Frame, area: Rect, params: &mut RenderParams) {
         match self {
             View::Welcome => {
                 crate::presentation::layouts::welcome::render(f, area, params.config);
             }
             View::Dashboard => {
+                let (tokens_in, tokens_out) = params
+                    .last_report
+                    .map(|r| (r.stats.tokens_in, r.stats.tokens_out))
+                    .unwrap_or((0, 0));
                 crate::presentation::layouts::dashboard::render(
                     f,
                     area,
@@ -97,6 +101,8 @@ impl View {
                     params.clarifier_response,
                     params.clarifier_log,
                     params.clarifier_focused,
+                    tokens_in,
+                    tokens_out,
                 );
             }
             View::Progress => {
@@ -121,12 +127,26 @@ impl View {
                     params.hit_registry,
                     params.mouse_col,
                     params.mouse_row,
+                    params.report_scroll,
+                    params.source_scroll,
+                    params.full_report_mode,
                 );
             }
             View::Settings => {
                 let tab = params.settings_tab;
                 let form = &params.forms[tab as usize];
-                crate::presentation::layouts::settings::render(f, area, tab, params.config, form, params.hit_registry, params.mouse_col, params.mouse_row);
+                crate::presentation::layouts::settings::render(
+                    f,
+                    area,
+                    tab,
+                    params.config,
+                    form,
+                    params.hit_registry,
+                    params.mouse_col,
+                    params.mouse_row,
+                    params.term_cols,
+                    params.term_rows,
+                );
             }
         }
     }

@@ -1,8 +1,8 @@
 use crate::config::DisplayConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
-use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -10,7 +10,10 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 
 pub fn fields() -> &'static [FieldDef] {
     Box::leak(Box::new([
-        FieldDef::dropdown("Visual Theme", &["Tokyo Night", "Gruvbox", "Catppuccin", "Nord"]),
+        FieldDef::dropdown(
+            "Visual Theme",
+            &["Tokyo Night", "Gruvbox", "Catppuccin", "Nord"],
+        ),
         FieldDef::dropdown("Font Size", &["Small 12px", "Medium 14px", "Large 16px"]),
     ])) as &'static [FieldDef]
 }
@@ -38,14 +41,25 @@ fn is_focused(form: &FormState, index: usize) -> bool {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16, pending_dropdown: &mut Option<PendingDropdown>) {
+pub fn render(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    config: &DisplayConfig,
+    form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
+    _mouse_col: u16,
+    _mouse_row: u16,
+    pending_dropdown: &mut Option<PendingDropdown>,
+    term_cols: u16,
+    term_rows: u16,
+) {
     let grid = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
     render_left(f, grid[0], config, form, hit_registry, pending_dropdown);
-    render_right(f, grid[1], config);
+    render_right(f, grid[1], config, term_cols, term_rows);
 }
 
 fn section_block<'a>(title: &'a str) -> Block<'a> {
@@ -61,21 +75,39 @@ fn section_block<'a>(title: &'a str) -> Block<'a> {
 fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: bool) -> Line<'a> {
     if focused {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<14}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "> ",
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{:<14}", label),
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("[", Style::new().fg(theme::border_focus())),
-            Span::styled(value, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                value,
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("\u{25BC}", Style::new().fg(theme::border_focus())),
             Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
     } else if hovered {
         Line::from(vec![
-            Span::styled("  ", Style::new().fg(crate::presentation::theme::border_hover())),
-            Span::styled(format!("{:<14}", label), Style::new().fg(crate::presentation::theme::border_hover())),
-            Span::styled("[", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled("  ", Style::new().fg(theme::border_hover())),
+            Span::styled(
+                format!("{:<14}", label),
+                Style::new().fg(theme::border_hover()),
+            ),
+            Span::styled("[", Style::new().fg(theme::border_hover())),
             Span::styled(value, Style::new().fg(theme::text_main())),
-            Span::styled("\u{25BC}", Style::new().fg(crate::presentation::theme::border_hover())),
-            Span::styled("]", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled("\u{25BC}", Style::new().fg(theme::border_hover())),
+            Span::styled("]", Style::new().fg(theme::border_hover())),
         ])
     } else {
         Line::from(vec![
@@ -128,15 +160,32 @@ fn render_left(
     });
 
     f.render_widget(
-        dropdown_line("Visual Theme", &config.visual_theme, is_focused(form, 0), crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row) && !is_focused(form, 0)),
+        dropdown_line(
+            "Visual Theme",
+            &config.visual_theme,
+            is_focused(form, 0),
+            crate::presentation::click::is_hovering(chunks[0], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 0),
+        ),
         chunks[0],
     );
-    f.render_widget(dropdown_line("Font Size", &config.font_size, is_focused(form, 1), crate::presentation::click::is_hovering(chunks[1], form.mouse_col, form.mouse_row) && !is_focused(form, 1)), chunks[1]);
     f.render_widget(
-        Paragraph::new(Span::styled("Live Preview", Style::new().fg(theme::text_dim()))),
+        dropdown_line(
+            "Font Size",
+            &config.font_size,
+            is_focused(form, 1),
+            crate::presentation::click::is_hovering(chunks[1], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 1),
+        ),
+        chunks[1],
+    );
+    f.render_widget(
+        Paragraph::new(Span::styled(
+            "Live Preview",
+            Style::new().fg(theme::text_dim()),
+        )),
         chunks[2],
     );
-
 
     let preview_block = Block::default()
         .borders(Borders::ALL)
@@ -157,17 +206,22 @@ fn render_left(
             "abcdefghijklmnopqrstuvwxyz",
             Style::new().fg(theme::text_main()),
         )),
-        Line::from(Span::styled("0123456789", Style::new().fg(theme::text_main()))),
+        Line::from(Span::styled(
+            "0123456789",
+            Style::new().fg(theme::text_main()),
+        )),
     ];
     f.render_widget(Paragraph::new(preview_lines), preview_inner);
 
     if form.dropdown_open && (form.focus == 0 || form.focus == 1) {
-        let field_label = crate::presentation::components::inputs::settings::display::fields()[form.focus].label;
-        let options: Vec<String> = crate::presentation::components::inputs::settings::display::fields()[form.focus]
-            .options
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let field_label =
+            crate::presentation::components::inputs::settings::display::fields()[form.focus].label;
+        let options: Vec<String> =
+            crate::presentation::components::inputs::settings::display::fields()[form.focus]
+                .options
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
         *pending_dropdown = Some(PendingDropdown {
             below: chunks[form.focus],
             field_label: field_label.to_string(),
@@ -176,26 +230,29 @@ fn render_left(
     }
 }
 
-fn render_right(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig) {
+fn render_right(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    config: &DisplayConfig,
+    term_cols: u16,
+    term_rows: u16,
+) {
     let block = section_block("STATUS BAR & ENVIRONMENT INFO (READ-ONLY)");
     let inner = block.inner(area);
     f.render_widget(block, area);
 
-    // Pull the numeric px out of the saved font_size option (e.g. "Medium 14px").
-    let px = config
-        .font_size
-        .split_whitespace()
-        .find(|t| t.chars().any(|c| c.is_ascii_digit()))
-        .unwrap_or("14");
-    let font_stack = format!("{} / {} / JetBrains Mono", config.visual_theme, px);
+    let window_size = format!("{term_cols} x {term_rows} cells");
+    let theme_note = format!(
+        "Theme: {} — font/size are emulator-controlled",
+        config.visual_theme
+    );
 
     let lines: Vec<Line> = vec![
         info_row(
             "Active Renderer:",
-            "HTML TUI Emulator (Bex/Ratatui Mock)",
+            "ratatui + crossterm",
             Style::new().fg(theme::cyan()),
         ),
-        info_row("Font Stack:", &font_stack, Style::new().fg(theme::purple())),
         info_row(
             "Terminal Encoding:",
             "UTF-8 / Unicode Standard",
@@ -208,13 +265,18 @@ fn render_right(f: &mut ratatui::Frame, area: Rect, config: &DisplayConfig) {
         ),
         info_row(
             "Window Size:",
-            "1200 x 800 (Simulated Viewport)",
+            &window_size,
             Style::new().fg(theme::cyan()),
         ),
         info_row(
             "Note:",
-            "Font size is terminal-emulator controlled.",
+            &theme_note,
             Style::new().fg(theme::text_dim()),
+        ),
+        info_row(
+            "Font / Theme:",
+            "emulator-controlled",
+            Style::new().fg(theme::purple()),
         ),
     ];
     f.render_widget(Paragraph::new(lines), inner);

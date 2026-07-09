@@ -6,9 +6,11 @@ use ratatui::widgets::{Block, Paragraph};
 use crate::config::MuonConfig;
 use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
-use crate::presentation::components::*;
-use crate::presentation::components::settings::{advanced, agents, data_sources, display, providers, tools};
 use crate::presentation::components::settings::dropdown_overlay::PendingDropdown;
+use crate::presentation::components::settings::{
+    advanced, agents, data_sources, display, providers, tools,
+};
+use crate::presentation::components::*;
 use crate::presentation::form::FormState;
 use crate::presentation::theme;
 use crate::presentation::views::{SettingsTab, View};
@@ -23,6 +25,8 @@ pub fn render(
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
     mouse_row: u16,
+    term_cols: u16,
+    term_rows: u16,
 ) {
     let bg = Block::default().style(Style::default().bg(theme::bg_main()));
     f.render_widget(bg, area);
@@ -44,26 +48,89 @@ pub fn render(
 
     match tab {
         SettingsTab::Providers => {
-            providers::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
+            providers::render(
+                f,
+                chunks[2],
+                config,
+                _form,
+                hit_registry,
+                mouse_col,
+                mouse_row,
+                &mut pending_dropdown,
+            );
         }
         SettingsTab::Agents => {
-            agents::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
+            agents::render(
+                f,
+                chunks[2],
+                config,
+                _form,
+                hit_registry,
+                mouse_col,
+                mouse_row,
+                &mut pending_dropdown,
+            );
         }
         SettingsTab::Tools => {
-            tools::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
+            tools::render(
+                f,
+                chunks[2],
+                config,
+                _form,
+                hit_registry,
+                mouse_col,
+                mouse_row,
+                &mut pending_dropdown,
+            );
         }
         SettingsTab::DataSources => {
-            data_sources::render(f, chunks[2], config, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
+            data_sources::render(
+                f,
+                chunks[2],
+                config,
+                _form,
+                hit_registry,
+                mouse_col,
+                mouse_row,
+                &mut pending_dropdown,
+            );
         }
         SettingsTab::Display => {
-            display::render(f, chunks[2], &config.display, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
+            display::render(
+                f,
+                chunks[2],
+                &config.display,
+                _form,
+                hit_registry,
+                mouse_col,
+                mouse_row,
+                &mut pending_dropdown,
+                term_cols,
+                term_rows,
+            );
         }
         SettingsTab::Advanced => {
-            advanced::render(f, chunks[2], &config.advanced, _form, hit_registry, mouse_col, mouse_row, &mut pending_dropdown);
+            advanced::render(
+                f,
+                chunks[2],
+                &config.advanced,
+                _form,
+                hit_registry,
+                mouse_col,
+                mouse_row,
+                &mut pending_dropdown,
+            );
         }
     }
 
-    footer::render(f, chunks[3], View::Settings, hit_registry, mouse_col, mouse_row);
+    footer::render(
+        f,
+        chunks[3],
+        View::Settings,
+        hit_registry,
+        mouse_col,
+        mouse_row,
+    );
 
     if let Some(pending) = pending_dropdown {
         crate::presentation::components::settings::dropdown_overlay::render_dropdown_overlay(
@@ -79,7 +146,14 @@ pub fn render(
     }
 }
 
-fn render_tab_bar(f: &mut ratatui::Frame, area: Rect, active: SettingsTab, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
+fn render_tab_bar(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    active: SettingsTab,
+    hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
+) {
     let mut spans: Vec<Span> = Vec::new();
     let mut col = area.x;
     let tabs = SettingsTab::ALL;
@@ -131,7 +205,6 @@ fn render_tab_bar(f: &mut ratatui::Frame, area: Rect, active: SettingsTab, hit_r
         col = col.saturating_add(rendered_width);
     }
 
-    // Remove unused import for per_segment — we don't use the labels vec anymore either
     f.render_widget(
         Paragraph::new(Line::from(spans)).block(Block::default()),
         area,

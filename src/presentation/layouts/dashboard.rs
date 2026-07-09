@@ -2,15 +2,15 @@ use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::widgets::Block;
 
-use crate::config::MuonConfig;
 use crate::application::pipeline::PipelineState;
+use crate::config::MuonConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
+use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::components::*;
 use crate::presentation::theme;
 use crate::presentation::views::View;
 use crate::session::SessionSummary;
-use crate::presentation::components::query_input::QueryInput;
 
 #[allow(clippy::too_many_arguments)]
 pub fn render(
@@ -27,8 +27,13 @@ pub fn render(
     clarifier_response: &str,
     clarifier_log: Option<&str>,
     clarifier_focused: bool,
+    tokens_in: u64,
+    tokens_out: u64,
 ) {
-    f.render_widget(Block::default().style(Style::default().bg(theme::bg_main())), area);
+    f.render_widget(
+        Block::default().style(Style::default().bg(theme::bg_main())),
+        area,
+    );
 
     let vertical = Layout::default()
         .direction(Direction::Vertical)
@@ -44,7 +49,14 @@ pub fn render(
     let footer_area = vertical[2];
 
     header::render(f, header_area, HeaderConfig::for_view(View::Dashboard, 0));
-    footer::render(f, footer_area, View::Dashboard, hit_registry, mouse_col, mouse_row);
+    footer::render(
+        f,
+        footer_area,
+        View::Dashboard,
+        hit_registry,
+        mouse_col,
+        mouse_row,
+    );
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
@@ -59,8 +71,21 @@ pub fn render(
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(sidebar_area);
 
-    session_list::render(f, sidebar_split[0], sessions, hit_registry, mouse_col, mouse_row);
-    telemetry_panel::render(f, sidebar_split[1]);
+    session_list::render(
+        f,
+        sidebar_split[0],
+        sessions,
+        hit_registry,
+        mouse_col,
+        mouse_row,
+    );
+    telemetry_panel::render(
+        f,
+        sidebar_split[1],
+        sessions.len(),
+        tokens_in,
+        tokens_out,
+    );
 
     let main_split = Layout::default()
         .direction(Direction::Vertical)
@@ -77,7 +102,19 @@ pub fn render(
     });
     query_input::render(f, main_split[0], query);
     let mut clarifier_input_rect: Option<ratatui::layout::Rect> = None;
-    pipeline_graph::render_horizontal(f, main_split[1], Some(clarifier_panel::render), clarifier_question, clarifier_response, mouse_col, mouse_row, pipeline, &mut clarifier_input_rect, clarifier_log, clarifier_focused);
+    pipeline_graph::render_horizontal(
+        f,
+        main_split[1],
+        Some(clarifier_panel::render),
+        clarifier_question,
+        clarifier_response,
+        mouse_col,
+        mouse_row,
+        pipeline,
+        &mut clarifier_input_rect,
+        clarifier_log,
+        clarifier_focused,
+    );
     if let Some(rect) = clarifier_input_rect
         && clarifier_question.is_some()
     {

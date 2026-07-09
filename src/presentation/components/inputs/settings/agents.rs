@@ -26,15 +26,21 @@ pub fn fields() -> &'static [FieldDef] {
         FieldDef::dropdown("Sh Provider", &[]),
         FieldDef::number("Sh Max LLM turns"),
         FieldDef::number("Sh Max tool iters"),
-        // Deep (13-20)
-        FieldDef::dropdown("D Orch Model", &[]),
-        FieldDef::dropdown("D Orch Provider", &[]),
-        FieldDef::dropdown("D Plan Model", &[]),
-        FieldDef::dropdown("D Plan Provider", &[]),
-        FieldDef::dropdown("D Res Model", &[]),
-        FieldDef::dropdown("D Res Provider", &[]),
-        FieldDef::number("D Iterations"),
-        FieldDef::checkbox("D Citation Verify"),
+        // Deep (13-26)
+        FieldDef::dropdown("Deep Orchestrator Model", &[]),
+        FieldDef::dropdown("Deep Orchestrator Provider", &[]),
+        FieldDef::dropdown("Deep Planner Model", &[]),
+        FieldDef::dropdown("Deep Planner Provider", &[]),
+        FieldDef::dropdown("Deep Researcher Model", &[]),
+        FieldDef::dropdown("Deep Researcher Provider", &[]),
+        FieldDef::number("Deep Orchestrator Cycles"),
+        FieldDef::number("Deep Max Retries"),
+        FieldDef::number("Deep Planner Cycles"),
+        FieldDef::number("Deep Researcher Cycles"),
+        FieldDef::number("Deep Orchestrator Tool Calls"),
+        FieldDef::number("Deep Planner Tool Calls"),
+        FieldDef::number("Deep Researcher Tool Calls"),
+        FieldDef::checkbox("Deep Citation Verify"),
     ])) as &'static [FieldDef]
 }
 
@@ -60,7 +66,13 @@ pub fn get_field(config: &AgentsConfig, index: usize) -> String {
         17 => config.deep_researcher.researcher.model.clone(),
         18 => config.deep_researcher.researcher.provider.clone(),
         19 => config.deep_researcher.iterations.to_string(),
-        20 => config.deep_researcher.citation_verify.to_string(),
+        20 => config.deep_researcher.max_retries.to_string(),
+        21 => config.deep_researcher.planner_max_cycles.to_string(),
+        22 => config.deep_researcher.researcher_max_cycles.to_string(),
+        23 => config.deep_researcher.orchestrator_max_tool_calls.to_string(),
+        24 => config.deep_researcher.planner_max_tool_calls.to_string(),
+        25 => config.deep_researcher.researcher_max_tool_calls.to_string(),
+        26 => config.deep_researcher.citation_verify.to_string(),
         _ => String::new(),
     }
 }
@@ -86,8 +98,30 @@ pub fn set_field(config: &mut AgentsConfig, index: usize, value: &str) {
         16 => config.deep_researcher.planner.provider = value.to_string(),
         17 => config.deep_researcher.researcher.model = value.to_string(),
         18 => config.deep_researcher.researcher.provider = value.to_string(),
-        19 => config.deep_researcher.iterations = value.parse().unwrap_or(2),
-        20 => config.deep_researcher.citation_verify = value == "true",
+        19 => {
+            config.deep_researcher.iterations = value.parse().unwrap_or(8).max(1);
+        }
+        20 => {
+            config.deep_researcher.max_retries = value.parse().unwrap_or(3).max(1);
+        }
+        21 => {
+            config.deep_researcher.planner_max_cycles = value.parse().unwrap_or(3).max(1);
+        }
+        22 => {
+            config.deep_researcher.researcher_max_cycles = value.parse().unwrap_or(3).max(1);
+        }
+        23 => {
+            config.deep_researcher.orchestrator_max_tool_calls =
+                value.parse().unwrap_or(8).max(1);
+        }
+        24 => {
+            config.deep_researcher.planner_max_tool_calls = value.parse().unwrap_or(4).max(1);
+        }
+        25 => {
+            config.deep_researcher.researcher_max_tool_calls =
+                value.parse().unwrap_or(10).max(1);
+        }
+        26 => config.deep_researcher.citation_verify = value == "true",
         _ => {}
     }
 }
@@ -96,7 +130,7 @@ pub fn toggle_field(config: &mut AgentsConfig, index: usize) {
     match index {
         3 => config.intent_classifier.verbose = !config.intent_classifier.verbose,
         7 => config.clarifier.plan_approval = !config.clarifier.plan_approval,
-        20 => config.deep_researcher.citation_verify = !config.deep_researcher.citation_verify,
+        26 => config.deep_researcher.citation_verify = !config.deep_researcher.citation_verify,
         _ => {}
     }
 }
@@ -466,6 +500,124 @@ fn render_shallow_researcher(
     }
 }
 
+fn deep_role_line(
+    role: &str,
+    model: &str,
+    provider: &str,
+    model_field: usize,
+    provider_field: usize,
+    form: &FormState,
+) -> Line<'static> {
+    let role_focused = is_focused(form, model_field) || is_focused(form, provider_field);
+    let mut spans = Vec::new();
+    if role_focused {
+        spans.push(Span::styled(
+            "> ",
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD),
+        ));
+    } else {
+        spans.push(Span::raw("  "));
+    }
+    spans.push(Span::styled(
+        format!("{role:<12}"),
+        if role_focused {
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::new().fg(theme::text_dim())
+        },
+    ));
+    let mf = is_focused(form, model_field);
+    let pf = is_focused(form, provider_field);
+    let bracket = |on: bool| {
+        if on {
+            Style::new().fg(theme::border_focus())
+        } else {
+            Style::new().fg(theme::text_dim())
+        }
+    };
+    let val = |on: bool| {
+        if on {
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::new().fg(theme::accent())
+        }
+    };
+    spans.push(Span::styled("[", bracket(mf)));
+    spans.push(Span::styled(model.to_string(), val(mf)));
+    spans.push(Span::styled("\u{25BC}", val(mf)));
+    spans.push(Span::styled("] ", bracket(mf)));
+    spans.push(Span::styled("[", bracket(pf)));
+    spans.push(Span::styled(provider.to_string(), val(pf)));
+    spans.push(Span::styled("\u{25BC}", val(pf)));
+    spans.push(Span::styled("]", bracket(pf)));
+    Line::from(spans)
+}
+
+fn deep_num_cell(
+    label: &str,
+    value: &str,
+    field: usize,
+    form: &FormState,
+    area: Rect,
+) -> Line<'static> {
+    let focused = is_focused(form, field);
+    let editing = focused && form.is_editing();
+    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row)
+        && !focused;
+    let display = if editing {
+        form.edit_buffer.as_deref().unwrap_or(value)
+    } else {
+        value
+    };
+    let label_style = if focused {
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
+    } else if hovered {
+        Style::new().fg(theme::border_hover())
+    } else {
+        Style::new().fg(theme::text_dim())
+    };
+    let val_style = if focused || editing {
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(theme::success())
+    };
+    let mut spans = Vec::new();
+    if focused {
+        spans.push(Span::styled(
+            "> ",
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD),
+        ));
+    }
+    spans.push(Span::styled(format!("{label} "), label_style));
+    spans.push(Span::styled("[", label_style));
+    if editing {
+        let buf = form.edit_buffer.as_deref().unwrap_or("");
+        let cur = form.edit_cursor.min(buf.len());
+        spans.push(Span::styled(buf[..cur].to_string(), val_style));
+        spans.push(Span::styled(
+            "\u{258E}",
+            Style::new().fg(theme::border_focus()),
+        ));
+        spans.push(Span::styled(buf[cur..].to_string(), val_style));
+    } else {
+        spans.push(Span::styled(display.to_string(), val_style));
+    }
+    spans.push(Span::styled("]", label_style));
+    Line::from(spans)
+}
+
 fn render_deep_researcher(
     f: &mut ratatui::Frame,
     area: Rect,
@@ -475,12 +627,13 @@ fn render_deep_researcher(
     config: &MuonConfig,
     pending_dropdown: &mut Option<PendingDropdown>,
 ) {
-    let focused = section_has_focus(form, 13, 20);
+    let focused = section_has_focus(form, 13, 26);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let block = agent_block("DEEP RESEARCHER", focused, hovered && !focused);
     let inner = block.inner(area);
     f.render_widget(block, area);
-    let grid = Layout::default()
+
+    let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1),
@@ -488,128 +641,155 @@ fn render_deep_researcher(
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Min(0),
         ])
         .split(inner);
 
-    let field_map: [Option<usize>; 5] = [None, None, None, Some(19), Some(20)];
-    for (i, row_rect) in grid.iter().enumerate() {
-        if let Some(field_idx) = field_map[i] {
-            hit_registry.push(ClickTarget {
-                rect: *row_rect,
-                action: ClickAction::ActivateField(field_idx),
-            });
-        }
-    }
-
-    // Split click targets for Orchestrator (13, 14), Planner (15, 16), and Researcher (17, 18)
-    let orch_focused = is_focused(form, 13) || is_focused(form, 14);
-    let plan_focused = is_focused(form, 15) || is_focused(form, 16);
-    let res_focused = is_focused(form, 17) || is_focused(form, 18);
-
-    let rows_data = [
-        (0, 13, 14, cfg.orchestrator.model.len() as u16, cfg.orchestrator.provider.len() as u16, orch_focused),
-        (1, 15, 16, cfg.planner.model.len() as u16, cfg.planner.provider.len() as u16, plan_focused),
-        (2, 17, 18, cfg.researcher.model.len() as u16, cfg.researcher.provider.len() as u16, res_focused),
+    let role_rows = [
+        (
+            0usize,
+            13usize,
+            14usize,
+            "Orchestrator",
+            cfg.orchestrator.model.as_str(),
+            cfg.orchestrator.provider.as_str(),
+        ),
+        (
+            1,
+            15,
+            16,
+            "Planner",
+            cfg.planner.model.as_str(),
+            cfg.planner.provider.as_str(),
+        ),
+        (
+            2,
+            17,
+            18,
+            "Researcher",
+            cfg.researcher.model.as_str(),
+            cfg.researcher.provider.as_str(),
+        ),
     ];
-    for &(grid_idx, model_field, provider_field, model_len, provider_len, focused) in &rows_data {
-        let row_rect = grid[grid_idx];
-        let label_offset = if focused { 2 } else { 0 };
-
-        // Model clickable area (label + model bracket)
-        let model_width = (label_offset + 17 + model_len).min(row_rect.width);
+    for &(row, model_f, prov_f, role, model, provider) in &role_rows {
+        let rect = rows[row];
+        let half = rect.width / 2;
         hit_registry.push(ClickTarget {
-            rect: Rect::new(row_rect.x, row_rect.y, model_width, row_rect.height),
-            action: ClickAction::ActivateField(model_field),
+            rect: Rect::new(rect.x, rect.y, half.max(1), rect.height),
+            action: ClickAction::ActivateField(model_f),
         });
-
-        // Provider clickable area (provider bracket)
-        let provider_start = label_offset + 14 + 1 + model_len + 1 + 13;
-        if provider_start < row_rect.width {
-            let provider_width = (provider_len + 3).min(row_rect.width - provider_start);
-            hit_registry.push(ClickTarget {
-                rect: Rect::new(row_rect.x + provider_start, row_rect.y, provider_width, row_rect.height),
-                action: ClickAction::ActivateField(provider_field),
-            });
-        }
+        hit_registry.push(ClickTarget {
+            rect: Rect::new(
+                rect.x + half,
+                rect.y,
+                rect.width.saturating_sub(half),
+                rect.height,
+            ),
+            action: ClickAction::ActivateField(prov_f),
+        });
+        f.render_widget(
+            Paragraph::new(deep_role_line(role, model, provider, model_f, prov_f, form)),
+            rect,
+        );
     }
 
-    // Orchestrator (13, 14)
-    let mut orch_spans = Vec::new();
-    if orch_focused {
-        orch_spans.push(Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)));
+    let pair = |row: Rect| {
+        Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(row)
+    };
+
+    #[allow(clippy::type_complexity)]
+    let limit_pairs: [((usize, usize, &str, String), (usize, usize, &str, String)); 3] = [
+        (
+            (3, 19, "Orchestrator cycles", cfg.iterations.to_string()),
+            (
+                3,
+                23,
+                "Orchestrator tool calls",
+                cfg.orchestrator_max_tool_calls.to_string(),
+            ),
+        ),
+        (
+            (4, 21, "Planner cycles", cfg.planner_max_cycles.to_string()),
+            (
+                4,
+                24,
+                "Planner tool calls",
+                cfg.planner_max_tool_calls.to_string(),
+            ),
+        ),
+        (
+            (
+                5,
+                22,
+                "Researcher cycles",
+                cfg.researcher_max_cycles.to_string(),
+            ),
+            (
+                5,
+                25,
+                "Researcher tool calls",
+                cfg.researcher_max_tool_calls.to_string(),
+            ),
+        ),
+    ];
+
+    for ((row_idx, field_l, label_l, value_l), (_, field_r, label_r, value_r)) in &limit_pairs {
+        let cols = pair(rows[*row_idx]);
+        hit_registry.push(ClickTarget {
+            rect: cols[0],
+            action: ClickAction::ActivateField(*field_l),
+        });
+        hit_registry.push(ClickTarget {
+            rect: cols[1],
+            action: ClickAction::ActivateField(*field_r),
+        });
+        f.render_widget(
+            Paragraph::new(deep_num_cell(label_l, value_l, *field_l, form, cols[0])),
+            cols[0],
+        );
+        f.render_widget(
+            Paragraph::new(deep_num_cell(label_r, value_r, *field_r, form, cols[1])),
+            cols[1],
+        );
     }
-    orch_spans.push(Span::styled(
-        format!("{:<14}", "Orchestrator"),
-        if orch_focused {
-            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-        } else {
-            Style::new().fg(theme::text_dim())
-        },
-    ));
-    orch_spans.push(Span::styled("[", if is_focused(form, 13) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    orch_spans.push(Span::styled(&cfg.orchestrator.model, if is_focused(form, 13) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
-    orch_spans.push(Span::styled("\u{25BC}", if is_focused(form, 13) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
-    orch_spans.push(Span::styled("] Provider: [", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    orch_spans.push(Span::styled(&cfg.orchestrator.provider, if is_focused(form, 14) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
-    orch_spans.push(Span::styled("\u{25BC}", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
-    orch_spans.push(Span::styled("]", if is_focused(form, 14) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    let orch_line = Line::from(orch_spans);
-    f.render_widget(Paragraph::new(orch_line), grid[0]);
 
-    // Planner (15, 16)
-    let mut plan_spans = Vec::new();
-    if plan_focused {
-        plan_spans.push(Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)));
-    }
-    plan_spans.push(Span::styled(
-        format!("{:<14}", "Planner"),
-        if plan_focused {
-            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-        } else {
-            Style::new().fg(theme::text_dim())
-        },
-    ));
-    plan_spans.push(Span::styled("[", if is_focused(form, 15) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    plan_spans.push(Span::styled(&cfg.planner.model, if is_focused(form, 15) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
-    plan_spans.push(Span::styled("\u{25BC}", if is_focused(form, 15) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
-    plan_spans.push(Span::styled("] Provider: [", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    plan_spans.push(Span::styled(&cfg.planner.provider, if is_focused(form, 16) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
-    plan_spans.push(Span::styled("\u{25BC}", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
-    plan_spans.push(Span::styled("]", if is_focused(form, 16) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    let plan_line = Line::from(plan_spans);
-    f.render_widget(Paragraph::new(plan_line), grid[1]);
-
-    // Researcher (17, 18)
-    let mut res_spans = Vec::new();
-    if res_focused {
-        res_spans.push(Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)));
-    }
-    res_spans.push(Span::styled(
-        format!("{:<14}", "Researcher"),
-        if res_focused {
-            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
-        } else {
-            Style::new().fg(theme::text_dim())
-        },
-    ));
-    res_spans.push(Span::styled("[", if is_focused(form, 17) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    res_spans.push(Span::styled(&cfg.researcher.model, if is_focused(form, 17) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
-    res_spans.push(Span::styled("\u{25BC}", if is_focused(form, 17) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
-    res_spans.push(Span::styled("] Provider: [", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    res_spans.push(Span::styled(&cfg.researcher.provider, if is_focused(form, 18) { Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD) } else { Style::new().fg(theme::accent()) }));
-    res_spans.push(Span::styled("\u{25BC}", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::accent()) }));
-    res_spans.push(Span::styled("]", if is_focused(form, 18) { Style::new().fg(theme::border_focus()) } else { Style::new().fg(theme::text_dim()) }));
-    let res_line = Line::from(res_spans);
-    f.render_widget(Paragraph::new(res_line), grid[2]);
-
-    // Iterations (19)
-    let iter_str = cfg.iterations.to_string();
-    let iter_line = input_line("Iterations", &iter_str, is_focused(form, 19), is_focused(form, 19) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(grid[3], form.mouse_col, form.mouse_row) && !is_focused(form, 19));
-    f.render_widget(Paragraph::new(iter_line), grid[3]);
-
-    // Citation Verify (20)
-    let cit_line = checkbox_line("Citation Verify", cfg.citation_verify, is_focused(form, 20), crate::presentation::click::is_hovering(grid[4], form.mouse_col, form.mouse_row) && !is_focused(form, 20));
-    f.render_widget(Paragraph::new(cit_line), grid[4]);
+    let footer = pair(rows[6]);
+    hit_registry.push(ClickTarget {
+        rect: footer[0],
+        action: ClickAction::ActivateField(20),
+    });
+    hit_registry.push(ClickTarget {
+        rect: footer[1],
+        action: ClickAction::ActivateField(26),
+    });
+    let retries = cfg.max_retries.to_string();
+    f.render_widget(
+        Paragraph::new(deep_num_cell(
+            "Max retries",
+            &retries,
+            20,
+            form,
+            footer[0],
+        )),
+        footer[0],
+    );
+    f.render_widget(
+        Paragraph::new(checkbox_line(
+            "Citation Verify",
+            cfg.citation_verify,
+            is_focused(form, 26),
+            crate::presentation::click::is_hovering(footer[1], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 26),
+        )),
+        footer[1],
+    );
 
     if form.dropdown_open && (13..=18).contains(&form.focus) {
         let grid_idx = match form.focus {
@@ -620,7 +800,7 @@ fn render_deep_researcher(
         };
         let field_label = fields()[form.focus].label;
         *pending_dropdown = Some(PendingDropdown {
-            below: grid[grid_idx],
+            below: rows[grid_idx],
             field_label: field_label.to_string(),
             options: options_for(form.focus, config),
         });

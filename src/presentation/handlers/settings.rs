@@ -156,10 +156,13 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
         let n = app.config.providers.len();
         if focus < 5 * n {
             let provider_idx = focus / 5;
-            app.config.providers.swap_remove(provider_idx);
+            app.config.providers.remove(provider_idx);
             app.forms[0].dirty = true;
-            if app.forms[0].focus >= 5 * app.config.providers.len() && !app.config.providers.is_empty() {
-                app.forms[0].focus = 5 * app.config.providers.len() - 5;
+            let n = app.config.providers.len();
+            if n == 0 {
+                app.forms[0].focus = 0;
+            } else if app.forms[0].focus >= 5 * n {
+                app.forms[0].focus = 5 * n - 5;
             }
         }
         return true;

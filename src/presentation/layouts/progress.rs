@@ -58,19 +58,13 @@ pub fn render(
                 .fg(theme::accent())
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled(
-            progress_bar,
-            Style::default().fg(theme::text_main()),
-        ),
+        Span::styled(progress_bar, Style::default().fg(theme::text_main())),
         Span::styled(
             format!(" {}/{}", pipeline.current_step, pipeline.total_steps),
             Style::default().fg(theme::text_dim()),
         ),
     ]);
-    f.render_widget(
-        Paragraph::new(status_line),
-        chunks[1],
-    );
+    f.render_widget(Paragraph::new(status_line), chunks[1]);
 
     let body_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -78,7 +72,14 @@ pub fn render(
         .split(chunks[2]);
 
     pipeline_graph::render(f, body_chunks[0], pipeline);
-    live_feed::render(f, body_chunks[1], live_feed, live_feed_scroll);
+    live_feed::render(
+        f,
+        body_chunks[1],
+        live_feed,
+        live_feed_scroll,
+        mouse_col,
+        mouse_row,
+    );
     resource_monitor::render(f, chunks[3]);
     footer::render(f, chunks[4], View::Progress, hit_registry, mouse_col, mouse_row);
 }

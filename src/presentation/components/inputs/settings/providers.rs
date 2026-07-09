@@ -321,6 +321,10 @@ fn render_provider_row(
     let fetch_btn_rect = Rect::new(fetch_btn_x, rows[4].y, 14, 1);
     let fetch_hover = is_hovering(fetch_btn_rect, mouse_col, mouse_row);
 
+    let remove_btn_x = fetch_btn_x + 14 + 2;
+    let remove_btn_rect = Rect::new(remove_btn_x, rows[4].y, 8, 1);
+    let remove_hover = is_hovering(remove_btn_rect, mouse_col, mouse_row);
+
     let edit_style = if edit_hover {
         Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
     } else if models_focused {
@@ -337,13 +341,24 @@ fn render_provider_row(
         Style::new().fg(theme::accent())
     };
 
+    let remove_style = if remove_hover || models_focused {
+        Style::new().fg(theme::error()).add_modifier(Modifier::BOLD)
+    } else {
+        Style::new().fg(theme::error())
+    };
+
     let btn_prefix = if models_focused { "> " } else { "  " };
     let models_line = Line::from(vec![
         Span::styled(btn_prefix, Style::new().fg(theme::border_focus())),
-        Span::styled(format!("{:<10}  {:<12}  ", "Models", model_summary), Style::new().fg(theme::text_dim())),
+        Span::styled(
+            format!("{:<10}  {:<12}  ", "Models", model_summary),
+            Style::new().fg(theme::text_dim()),
+        ),
         Span::styled("[Edit Models]", edit_style),
         Span::styled("  ", Style::new().fg(theme::text_dim())),
         Span::styled("[Fetch Models]", fetch_style),
+        Span::styled("  ", Style::new().fg(theme::text_dim())),
+        Span::styled("[Remove]", remove_style),
     ]);
     f.render_widget(Paragraph::new(models_line), rows[4]);
 
@@ -355,6 +370,11 @@ fn render_provider_row(
     hit_registry.push(ClickTarget {
         rect: fetch_btn_rect,
         action: ClickAction::FetchProviderModels(idx),
+    });
+
+    hit_registry.push(ClickTarget {
+        rect: remove_btn_rect,
+        action: ClickAction::RemoveProvider(idx),
     });
 
     // Set Pending dropdown overlay if open
