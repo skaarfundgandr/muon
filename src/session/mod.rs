@@ -24,27 +24,45 @@ impl SessionService {
         &self.sessions
     }
 
-    pub fn create(&mut self, query: &str) -> &SessionSummary {
-        let title = derive_title(query);
-        let session = SessionSummary {
-            id: Uuid::new_v4(),
-            title,
+    pub fn create(&mut self, query: &str) -> Uuid {
+        let id = Uuid::new_v4();
+        self.insert_front(SessionSummary {
+            id,
+            title: derive_title(query),
             query: query.to_string(),
             created_at: Utc::now(),
             is_active: true,
-        };
+        });
+        id
+    }
+
+    pub fn insert_front(&mut self, mut session: SessionSummary) {
         for s in &mut self.sessions {
             s.is_active = false;
         }
+        session.is_active = true;
+        self.sessions.retain(|s| s.id != session.id);
         self.sessions.insert(0, session);
-        &self.sessions[0]
+    }
+
+    pub fn replace_all(&mut self, mut sessions: Vec<SessionSummary>) {
+        for s in &mut sessions {
+            s.is_active = false;
+        }
+        if let Some(first) = sessions.first_mut() {
+            first.is_active = true;
+        }
+        self.sessions = sessions;
     }
 
     pub fn active(&self) -> Option<&SessionSummary> {
         self.sessions.iter().find(|s| s.is_active)
     }
 
-    /// Mark the session at `index` (0-based in `list()` order) as the active one.
+    pub fn get(&self, index: usize) -> Option<&SessionSummary> {
+        self.sessions.get(index)
+    }
+
     pub fn select(&mut self, index: usize) {
         if index >= self.sessions.len() {
             return;
@@ -53,6 +71,22 @@ impl SessionService {
             s.is_active = false;
         }
         self.sessions[index].is_active = true;
+    }
+}
+
+impl From<crate::domain::traits::session_store::SessionSummary> for SessionSummary {
+    fn from(s: crate::domain::traits::session_store::SessionSummary) -> Self {
+        Self {
+            id: s.id,
+            title: if s.title.is_empty() {
+                derive_title(&s.query)
+            } else {
+                derive_title(&s.title)
+            },
+            query: s.query,
+            created_at: s.created_at,
+            is_active: s.is_active,
+        }
     }
 }
 

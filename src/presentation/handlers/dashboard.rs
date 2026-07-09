@@ -15,7 +15,8 @@ pub fn handle(app: &mut AppState, key: KeyEvent) {
             KeyCode::Enter => {
                 let query = app.query_input.submit();
                 if !query.is_empty() {
-                    let _ = app.sessions.create(&query);
+                    let id = app.sessions.create(&query);
+                    app.export_session_id = Some(id);
                     app.spawn_pipeline(&query);
                 }
             }

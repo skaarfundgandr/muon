@@ -17,10 +17,15 @@ pub enum AgentEvent {
         plan: ClarifierResult,
         responder: tokio::sync::oneshot::Sender<PlanDecision>,
     },
-    /// Pipeline finished successfully with report and collected sources.
     Completed {
         report: crate::domain::models::report::ResearchReport,
         sources: Vec<crate::domain::models::source::Source>,
+        session_id: uuid::Uuid,
+    },
+    SessionRestored {
+        report: Option<crate::domain::models::report::ResearchReport>,
+        sources: Vec<crate::domain::models::source::Source>,
+        session_id: uuid::Uuid,
     },
     Final(String),
     Error(String),

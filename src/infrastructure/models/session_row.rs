@@ -69,11 +69,23 @@ impl TryFrom<SessionRow> for Session {
 
 impl From<SessionRow> for SessionSummary {
     fn from(row: SessionRow) -> Self {
+        let query = row.query;
+        let title: String = {
+            let words: Vec<&str> = query.split_whitespace().take(5).collect();
+            let t = words.join(" ");
+            if t.is_empty() {
+                "Untitled Session".to_string()
+            } else if t.len() > 40 {
+                format!("{}...", &t[..37])
+            } else {
+                t
+            }
+        };
         Self {
             id: uuid::Uuid::parse_str(&row.id).unwrap_or_default(),
             created_at: row.created_at.and_utc(),
-            title: row.query.clone(),
-            query: row.query,
+            title,
+            query,
             is_active: false,
         }
     }

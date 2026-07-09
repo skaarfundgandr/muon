@@ -5,6 +5,7 @@ use crate::config::MuonConfig;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::query::Intent;
 use crate::domain::models::report::ResearchReport;
+use crate::domain::models::session::SessionId;
 use crate::domain::models::source::SourceType;
 use crate::domain::traits::agent::MuonAgent;
 use crate::error::MuonError;
@@ -19,12 +20,19 @@ pub async fn run_pipeline(
     cfg: &MuonConfig,
     infra: &InfrastructureContext,
     bridge: &BridgeChannels,
+    session_id: Option<SessionId>,
 ) -> Result<ResearchReport, MuonError> {
     state.start();
     if let Ok(mut sink) = infra.source_sink.lock() {
         sink.clear();
     }
-    let session_id = infra.session_store.create(query).await?;
+    let session_id = match session_id {
+        Some(id) => {
+            infra.session_store.create_with_id(id, query).await?;
+            id
+        }
+        None => infra.session_store.create(query).await?,
+    };
 
     bridge.stage(PipelineStage::IntentClassification);
     bridge.log(AgentTag::Intent, LogLevel::Info, "classifying query");

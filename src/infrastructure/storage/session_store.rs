@@ -54,6 +54,42 @@ impl SessionStore for DieselSessionStore {
         Ok(id)
     }
 
+    async fn create_with_id(&self, id: SessionId, query: &str) -> Result<(), MuonError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let exists: Option<String> = sessions::table
+            .find(id.to_string())
+            .select(sessions::id)
+            .first(&mut *conn)
+            .await
+            .optional()
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        if exists.is_some() {
+            return Ok(());
+        }
+        let now = Utc::now().naive_utc();
+        let new_row = NewSessionRow {
+            id: id.to_string(),
+            query: query.to_string(),
+            status: "Pending".to_string(),
+            pipeline_stage: "Idle".to_string(),
+            plan_json: None,
+            clarifier_result: None,
+            telemetry_json: None,
+            created_at: now,
+            updated_at: now,
+        };
+        diesel::insert_into(sessions::table)
+            .values(&new_row)
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        Ok(())
+    }
+
     async fn get(&self, id: SessionId) -> Result<Option<SessionSummary>, MuonError> {
         let mut conn = self
             .pool
@@ -112,6 +148,12 @@ impl SessionStore for DieselSessionStore {
         let stats_json = serde_json::to_string(&report.stats)
             .map_err(|e| MuonError::Database(e.to_string()))?;
         let now = Utc::now().naive_utc();
+        diesel::delete(
+            research_reports::table.filter(research_reports::session_id.eq(id.to_string())),
+        )
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| MuonError::Database(e.to_string()))?;
         let report_row = crate::infrastructure::models::report_row::NewReportRow {
             session_id: id.to_string(),
             title: report.title.clone(),
@@ -124,7 +166,33 @@ impl SessionStore for DieselSessionStore {
             .execute(&mut *conn)
             .await
             .map_err(|e| MuonError::Database(e.to_string()))?;
+        diesel::update(sessions::table.find(id.to_string()))
+            .set((
+                sessions::status.eq("Complete"),
+                sessions::pipeline_stage.eq("Complete"),
+                sessions::updated_at.eq(now),
+            ))
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
         Ok(())
+    }
+
+    async fn get_report(&self, id: SessionId) -> Result<Option<ResearchReport>, MuonError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let row: Option<crate::infrastructure::models::report_row::ReportRow> =
+            research_reports::table
+                .filter(research_reports::session_id.eq(id.to_string()))
+                .order(research_reports::created_at.desc())
+                .first(&mut *conn)
+                .await
+                .optional()
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+        row.map(ResearchReport::try_from).transpose()
     }
 
     async fn append_log(&self, id: SessionId, log: &LogEntry) -> Result<(), MuonError> {
@@ -154,6 +222,10 @@ impl SessionStore for DieselSessionStore {
             .get()
             .await
             .map_err(|e| MuonError::Database(e.to_string()))?;
+        diesel::delete(sources::table.filter(sources::session_id.eq(id.to_string())))
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
         for source in sources {
             let row = NewSourceRow::from_with_session(id.to_string(), source);
             diesel::insert_into(sources::table)
@@ -163,5 +235,21 @@ impl SessionStore for DieselSessionStore {
                 .map_err(|e| MuonError::Database(e.to_string()))?;
         }
         Ok(())
+    }
+
+    async fn get_sources(&self, id: SessionId) -> Result<Vec<Source>, MuonError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let rows: Vec<crate::infrastructure::models::source_row::SourceRow> = sources::table
+            .filter(sources::session_id.eq(id.to_string()))
+            .load(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        rows.into_iter()
+            .map(Source::try_from)
+            .collect::<Result<Vec<_>, _>>()
     }
 }

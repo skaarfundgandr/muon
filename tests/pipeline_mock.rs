@@ -26,6 +26,7 @@ async fn pipeline_completes_for_shallow_intent() -> Result<(), Box<dyn std::erro
         &cfg,
         &infra,
         &bridge,
+        None,
     )
     .await?;
     assert!(!report.summary.is_empty());
@@ -71,6 +72,7 @@ async fn pipeline_meta_intent_returns_direct() -> Result<(), Box<dyn std::error:
         &cfg,
         &infra,
         &bridge,
+        None,
     )
     .await?;
     assert_eq!(report.title, "Direct Answer");

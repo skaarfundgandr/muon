@@ -41,23 +41,31 @@ impl InMemorySessionStore {
 impl SessionStore for InMemorySessionStore {
     async fn create(&self, query: &str) -> Result<SessionId, MuonError> {
         let id = SessionId::new_v4();
+        self.create_with_id(id, query).await?;
+        Ok(id)
+    }
+
+    async fn create_with_id(&self, id: SessionId, query: &str) -> Result<(), MuonError> {
+        let mut guard = self
+            .summaries
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?;
+        if guard.iter().any(|s| s.id == id) {
+            return Ok(());
+        }
         let title = query
             .split_whitespace()
             .take(5)
             .collect::<Vec<_>>()
             .join(" ");
-        let summary = SessionSummary {
+        guard.push(SessionSummary {
             id,
             query: query.to_string(),
             created_at: chrono::Utc::now(),
             title,
             is_active: true,
-        };
-        self.summaries
-            .lock()
-            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
-            .push(summary);
-        Ok(id)
+        });
+        Ok(())
     }
 
     async fn get(&self, id: SessionId) -> Result<Option<SessionSummary>, MuonError> {
@@ -92,6 +100,14 @@ impl SessionStore for InMemorySessionStore {
         Ok(())
     }
 
+    async fn get_report(&self, id: SessionId) -> Result<Option<ResearchReport>, MuonError> {
+        let guard = self
+            .reports
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?;
+        Ok(guard.get(&id).cloned())
+    }
+
     async fn append_log(&self, id: SessionId, log: &LogEntry) -> Result<(), MuonError> {
         let mut guard = self
             .logs
@@ -107,5 +123,13 @@ impl SessionStore for InMemorySessionStore {
             .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
             .insert(id, sources.to_vec());
         Ok(())
+    }
+
+    async fn get_sources(&self, id: SessionId) -> Result<Vec<Source>, MuonError> {
+        let guard = self
+            .sources
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?;
+        Ok(guard.get(&id).cloned().unwrap_or_default())
     }
 }
