@@ -17,6 +17,9 @@ pub struct InMemorySessionStore {
     reports: std::sync::Mutex<std::collections::HashMap<SessionId, ResearchReport>>,
     logs: std::sync::Mutex<std::collections::HashMap<SessionId, Vec<LogEntry>>>,
     sources: std::sync::Mutex<std::collections::HashMap<SessionId, Vec<Source>>>,
+    #[allow(clippy::type_complexity)]
+    clarifier_outcomes:
+        std::sync::Mutex<std::collections::HashMap<SessionId, (Option<String>, Option<String>)>>,
 }
 
 impl Default for InMemorySessionStore {
@@ -27,6 +30,7 @@ impl Default for InMemorySessionStore {
             reports: std::sync::Mutex::new(std::collections::HashMap::new()),
             logs: std::sync::Mutex::new(std::collections::HashMap::new()),
             sources: std::sync::Mutex::new(std::collections::HashMap::new()),
+            clarifier_outcomes: std::sync::Mutex::new(std::collections::HashMap::new()),
         }
     }
 }
@@ -154,6 +158,29 @@ impl SessionStore for InMemorySessionStore {
             .lock()
             .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
             .remove(&id);
+        self.clarifier_outcomes
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
+            .remove(&id);
+        Ok(())
+    }
+
+    async fn save_clarifier_outcome(
+        &self,
+        id: SessionId,
+        plan_json: Option<&str>,
+        clarifier_result_json: Option<&str>,
+    ) -> Result<(), MuonError> {
+        self.clarifier_outcomes
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
+            .insert(
+                id,
+                (
+                    plan_json.map(String::from),
+                    clarifier_result_json.map(String::from),
+                ),
+            );
         Ok(())
     }
 }

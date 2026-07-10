@@ -213,6 +213,18 @@ async fn run_deep_path(
     bridge.stage(PipelineStage::Clarification);
     let clarifier_result =
         super::clarifier::run_clarifier(query, cfg, deps.clarifier.as_ref(), bridge).await?;
+
+    if let Some(plan) = clarifier_result.to_plan() {
+        let plan_json = serde_json::to_string(&plan)
+            .map_err(|e| MuonError::Database(format!("serialize plan: {e}")))?;
+        let clarifier_json = serde_json::to_string(&clarifier_result)
+            .map_err(|e| MuonError::Database(format!("serialize clarifier result: {e}")))?;
+        let _ = deps
+            .session_store
+            .save_clarifier_outcome(session_id, Some(&plan_json), Some(&clarifier_json))
+            .await;
+    }
+
     let researcher = crate::application::deep_researcher::DeepResearcher::new(cfg, deps, bridge);
     let report = researcher.run(query, &clarifier_result).await?;
     let sources = snapshot_sources(deps);

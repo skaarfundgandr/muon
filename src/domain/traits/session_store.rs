@@ -29,4 +29,10 @@ pub trait SessionStore: Send + Sync {
     async fn save_sources(&self, id: SessionId, sources: &[Source]) -> Result<(), MuonError>;
     async fn get_sources(&self, id: SessionId) -> Result<Vec<Source>, MuonError>;
     async fn delete(&self, id: SessionId) -> Result<(), MuonError>;
+    async fn save_clarifier_outcome(
+        &self,
+        id: SessionId,
+        plan_json: Option<&str>,
+        clarifier_result_json: Option<&str>,
+    ) -> Result<(), MuonError>;
 }

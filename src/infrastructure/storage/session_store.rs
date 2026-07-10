@@ -305,4 +305,28 @@ impl SessionStore for DieselSessionStore {
             .map_err(|e| MuonError::Database(e.to_string()))?;
         Ok(())
     }
+
+    async fn save_clarifier_outcome(
+        &self,
+        id: SessionId,
+        plan_json: Option<&str>,
+        clarifier_result_json: Option<&str>,
+    ) -> Result<(), MuonError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let now = Utc::now().naive_utc();
+        diesel::update(sessions::table.find(id.to_string()))
+            .set((
+                sessions::plan_json.eq(plan_json),
+                sessions::clarifier_result.eq(clarifier_result_json),
+                sessions::updated_at.eq(now),
+            ))
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        Ok(())
+    }
 }

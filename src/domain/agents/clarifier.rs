@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::domain::models::research_plan::ResearchPlan;
+
 #[derive(Debug, Clone, Default)]
 pub struct ClarifierState {
     pub max_turns: u32,
@@ -31,4 +33,18 @@ pub struct ClarifierResult {
     pub plan_title: Option<String>,
     pub plan_sections: Vec<String>,
     pub plan_approved: bool,
+}
+
+impl ClarifierResult {
+    pub fn to_plan(&self) -> Option<ResearchPlan> {
+        let title = self.plan_title.clone()?;
+        if title.is_empty() {
+            return None;
+        }
+        Some(ResearchPlan {
+            title,
+            sections: self.plan_sections.clone(),
+            approved: self.plan_approved,
+        })
+    }
 }

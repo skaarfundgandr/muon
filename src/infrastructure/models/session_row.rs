@@ -57,6 +57,12 @@ impl TryFrom<SessionRow> for Session {
             query: row.query,
             status,
             pipeline_stage,
+            intent: None,
+            plan: row
+                .plan_json
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok()),
+            clarifier_result: row.clarifier_result.clone(),
             sources: Vec::new(),
             report: None,
             logs: Vec::new(),
@@ -98,8 +104,11 @@ impl From<&Session> for NewSessionRow {
             query: session.query.clone(),
             status: session.status.as_str().to_string(),
             pipeline_stage: session.pipeline_stage.as_str().to_string(),
-            plan_json: None,
-            clarifier_result: None,
+            plan_json: session
+                .plan
+                .as_ref()
+                .and_then(|p| serde_json::to_string(p).ok()),
+            clarifier_result: session.clarifier_result.clone(),
             telemetry_json: serde_json::to_string(&session.stats).ok(),
             created_at: session.created_at.naive_utc(),
             updated_at: session.updated_at.naive_utc(),
