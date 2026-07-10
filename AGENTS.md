@@ -6,18 +6,18 @@ Terminal-based deep research agent TUI. Rust, ratatui, crossterm, tokio.
 
 CLEAN layered architecture. Presentation → Application → Domain → Infrastructure.
 
-- **Presentation** (`src/presentation/`): ratatui rendering. Components in 5 categories: chrome, inputs, panels, cards, graphs. 5 views (Welcome, Dashboard, Progress, Results, Settings) with handlers, layouts, form system, click-target registry.
-- **Application** (`src/application/`): pipeline state machine (`PipelineStage` idle → intent → clarify → shallow → deep → complete/cancelled).
+- **Presentation** (`src/presentation/`): TUI shell + ratatui rendering. Terminal setup, event loop (`run`), `AppState`, handlers (key/mouse/scroll/settings), components (chrome, inputs, panels, cards, graphs), 5 views (Welcome, Dashboard, Progress, Results, Settings), form system, click-target registry.
+- **Application** (`src/application/`): pipeline state machine (`PipelineStage` idle → intent → clarify → shallow → deep → complete/cancelled), use cases, export services, agent bridge.
 - **Domain** (`src/domain/`): pure models and port traits (MuonAgent, SearchProvider, VectorStore, SessionStore).
-- **Infrastructure** (`src/infrastructure/`): agent_rs ReAct wrappers, Diesel storage (SQLite), RAG (TurboVec + FastEmbed), search providers (Brave/SearXNG/SemanticScholar/arXiv), export (Markdown/Obsidian).
+- **Infrastructure** (`src/infrastructure/`): agent_rs ReAct wrappers, Diesel storage (SQLite), RAG (TurboVec + FastEmbed), search providers (Brave/SearXNG/SemanticScholar/arXiv).
 
-**Bootstrap:** `src/main.rs` calls `app::run()` which sets up terminal (raw mode, alternate screen, mouse capture), spawns tokio event task (250ms poll on mpsc channel), runs main loop.
+**Bootstrap:** `src/main.rs` calls `presentation::run()` (TUI) or `cli::` helpers (headless/export). Presentation owns terminal setup (`presentation/terminal.rs`) and the main event loop.
 
 **Headless CLI:** `muon run --headless --mock "query"` prints report to stdout without TUI (requires building with the `mock` feature). `muon export <session> <format> -o path` exports completed sessions. The mock backend is opt-in via `--features mock` or `cargo test`; the live backend is used by default.
 
 ## Module Conventions
 
-- `src/lib.rs` flatly re-exports top-level modules: `app`, `application`, `config`, `error`, `presentation`, `session`.
+- `src/lib.rs` flatly re-exports top-level modules: `application`, `presentation`, `cli`, `config`, `domain`, `infrastructure`.
 - Each directory has a `mod.rs` that re-exports its children — no implementation in `mod.rs`.
 - `thiserror` for errors: `MuonError` enum in `src/error.rs`, type alias `Result<T>`.
 - TOML config (serde): `MuonConfig` loads from `~/.config/muon/config.toml` with `Default` fallback. Sub-configs: Agents, Tools, DataSources, Display, Advanced.
