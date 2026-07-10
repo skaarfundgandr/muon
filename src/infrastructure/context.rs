@@ -85,6 +85,41 @@ impl InfrastructureContext {
         let source_sink = Arc::new(Mutex::new(SourceRegistry::new()));
 
         let providers = &cfg.providers;
+        if providers.is_empty() {
+            bridge.log(
+                crate::domain::models::log_entry::AgentTag::Sys,
+                crate::domain::models::log_entry::LogLevel::Warn,
+                "no [[providers]] configured — starting with degraded stub agents",
+            );
+            let pool = crate::infrastructure::storage::init_pool(&cfg.advanced.session_db_path)
+                .await?;
+            let session_store: Arc<dyn SessionStore> =
+                Arc::new(crate::infrastructure::storage::DieselSessionStore::new(pool));
+            let stub_sink = Arc::new(Mutex::new(SourceRegistry::new()));
+            return Ok(Self::with_sink(
+                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                    AgentTag::Intent,
+                )),
+                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                    AgentTag::Search,
+                )),
+                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                    AgentTag::Clarify,
+                )),
+                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                    AgentTag::Orchestrate,
+                )),
+                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                    AgentTag::Plan,
+                )),
+                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                    AgentTag::Search,
+                )),
+                session_store,
+                stub_sink,
+                None,
+            ));
+        }
         fn resolve_model_id(
             providers: &[crate::config::ProviderConfig],
             provider_name: &str,

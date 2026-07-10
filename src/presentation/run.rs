@@ -158,6 +158,13 @@ async fn run_loop(
     }
     app.infra = Some(Arc::new(infra));
     app.agent_tx = Some(agent_tx);
+    if config.providers.is_empty() {
+        app.status_flash = Some((
+            std::time::Instant::now(),
+            "No providers configured — open Settings → Providers (F4)".to_string(),
+            crate::presentation::components::chrome::toast::ToastKind::Info,
+        ));
+    }
 
     while app.running {
         terminal.draw(|f| render(f, &mut app))?;

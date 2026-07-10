@@ -1,4 +1,5 @@
 pub mod agent_rs;
+pub mod agent_stubs;
 pub mod context;
 pub mod providers;
 #[cfg(any(test, feature = "mock"))]
