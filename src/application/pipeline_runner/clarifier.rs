@@ -119,9 +119,9 @@ pub async fn run_clarifier(
     bridge: &BridgeChannels,
 ) -> Result<ClarifierResult, MuonError> {
     let mut state = ClarifierState::new(
-        cfg.advanced.max_clarifier_turns as u32,
-        cfg.advanced.plan_approval,
-        cfg.advanced.max_plan_iterations as u32,
+        cfg.agents.clarifier.max_turns as u32,
+        cfg.agents.clarifier.plan_approval,
+        cfg.agents.clarifier.max_iterations as u32,
     );
 
     bridge.stage(crate::application::pipeline::PipelineStage::Clarification);

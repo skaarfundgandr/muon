@@ -54,6 +54,7 @@ impl MuonConfig {
             Err(_) => return Self::default(),
         };
         cfg.backfill_legacy_providers();
+        cfg.migrate_clarifier_config();
         cfg
     }
 
@@ -128,7 +129,9 @@ impl MuonConfig {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let content = toml::to_string_pretty(self)
+        let mut copy = self.clone();
+        copy.mirror_clarifier_to_advanced();
+        let content = toml::to_string_pretty(&copy)
             .map_err(|e| MuonError::Config(format!("serialize config: {e}")))?;
         std::fs::write(&path, &content)?;
         #[cfg(unix)]
@@ -175,6 +178,30 @@ impl MuonConfig {
                 self.tools.clinepass_api_key.clone(),
             ));
         }
+    }
+
+    pub fn migrate_clarifier_config(&mut self) {
+        let clar_defaults = ClarifierConfig::default();
+        let agents_at_defaults = self.agents.clarifier.max_turns == clar_defaults.max_turns
+            && self.agents.clarifier.plan_approval == clar_defaults.plan_approval
+            && self.agents.clarifier.max_iterations == clar_defaults.max_iterations;
+
+        let adv_defaults = AdvancedConfig::default();
+        let adv_customized = self.advanced.max_clarifier_turns != adv_defaults.max_clarifier_turns
+            || self.advanced.plan_approval != adv_defaults.plan_approval
+            || self.advanced.max_plan_iterations != adv_defaults.max_plan_iterations;
+
+        if agents_at_defaults && adv_customized {
+            self.agents.clarifier.max_turns = self.advanced.max_clarifier_turns;
+            self.agents.clarifier.plan_approval = self.advanced.plan_approval;
+            self.agents.clarifier.max_iterations = self.advanced.max_plan_iterations;
+        }
+    }
+
+    pub fn mirror_clarifier_to_advanced(&mut self) {
+        self.advanced.max_clarifier_turns = self.agents.clarifier.max_turns;
+        self.advanced.plan_approval = self.agents.clarifier.plan_approval;
+        self.advanced.max_plan_iterations = self.agents.clarifier.max_iterations;
     }
 }
 
@@ -408,7 +435,7 @@ impl Default for ClarifierConfig {
             model: String::new(),
             provider: String::new(),
             max_turns: 3,
-            plan_approval: false,
+            plan_approval: true,
             max_iterations: 10,
         }
     }

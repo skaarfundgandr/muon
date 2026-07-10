@@ -114,6 +114,9 @@ visual_theme = "Tokyo Night"
 font_size = "Medium 14px"
 
 # Advanced pipeline and storage settings.
+# NOTE: max_clarifier_turns, max_plan_iterations, and plan_approval below are
+# mirrored from [agents.clarifier] on save for backwards compatibility. Edit
+# [agents.clarifier] for runtime configuration.
 [advanced]
 max_researcher_loops = 2
 max_clarifier_turns = 3
