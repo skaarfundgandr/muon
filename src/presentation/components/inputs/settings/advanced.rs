@@ -16,30 +16,28 @@ const EMBEDDING_MODELS: &[&str] = &[
     "text-embedding-3-large",
 ];
 
+const FIELDS: &[FieldDef] = &[
+    FieldDef::number("Max Researcher Loops"),
+    FieldDef::number("Max Clarifier Turns"),
+    FieldDef::number("Max Plan Iterations"),
+    FieldDef::number("Max Shallow Turns"),
+    FieldDef::number("Max Deep Turns"),
+    FieldDef::checkbox("Escalate Agent"),
+    FieldDef::checkbox("Plan Approval"),
+    FieldDef::number("Compaction Threshold"),
+    FieldDef::number("Max tool calls per turn"),
+    FieldDef::text("Agent Preamble"),
+    FieldDef::text("Session DB Path"),
+    FieldDef::text("RAG DB Path"),
+    FieldDef::number("Max search items"),
+    FieldDef::dropdown("Embedding Model", EMBEDDING_MODELS),
+    FieldDef::number("RAG Top-K"),
+    FieldDef::number("Similarity Threshold"),
+    FieldDef::button("Rebuild Index"),
+];
+
 pub fn fields() -> &'static [FieldDef] {
-    Box::leak(Box::new([
-        // Pipeline Knobs (0-6)
-        FieldDef::number("Max Researcher Loops"),
-        FieldDef::number("Max Clarifier Turns"),
-        FieldDef::number("Max Plan Iterations"),
-        FieldDef::number("Max Shallow Turns"),
-        FieldDef::number("Max Deep Turns"),
-        FieldDef::checkbox("Escalate Agent"),
-        FieldDef::checkbox("Plan Approval"),
-        // Compaction & Preamble (7-9)
-        FieldDef::number("Compaction Threshold"),
-        FieldDef::number("Max tool calls per turn"),
-        FieldDef::text("Agent Preamble"),
-        // Storage (10-12)
-        FieldDef::text("Session DB Path"),
-        FieldDef::text("RAG DB Path"),
-        FieldDef::number("Max search items"),
-        // Embedding & RAG (13-15)
-        FieldDef::dropdown("Embedding Model", EMBEDDING_MODELS),
-        FieldDef::number("RAG Top-K"),
-        FieldDef::number("Similarity Threshold"),
-        FieldDef::button("Rebuild Index"),
-    ])) as &'static [FieldDef]
+    FIELDS
 }
 
 pub fn get_field(config: &AdvancedConfig, index: usize) -> String {

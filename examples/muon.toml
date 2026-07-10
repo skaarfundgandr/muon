@@ -72,7 +72,6 @@ max_tool_iters = 5
 iterations = 8
 max_retries = 3
 planner_max_cycles = 3
-researcher_max_cycles = 3
 orchestrator_max_tool_calls = 8
 planner_max_tool_calls = 4
 researcher_max_tool_calls = 10

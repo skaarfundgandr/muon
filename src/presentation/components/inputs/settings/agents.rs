@@ -8,40 +8,37 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
+const FIELDS: &[FieldDef] = &[
+    FieldDef::dropdown("IC Model", &[]),
+    FieldDef::dropdown("IC Provider", &[]),
+    FieldDef::number("IC Timeout"),
+    FieldDef::checkbox("IC Verbose"),
+    FieldDef::dropdown("Cl Model", &[]),
+    FieldDef::dropdown("Cl Provider", &[]),
+    FieldDef::number("Cl Max turns"),
+    FieldDef::checkbox("Cl Plan approval"),
+    FieldDef::number("Cl Max iterations"),
+    FieldDef::dropdown("Sh Model", &[]),
+    FieldDef::dropdown("Sh Provider", &[]),
+    FieldDef::number("Sh Max LLM turns"),
+    FieldDef::number("Sh Max tool iters"),
+    FieldDef::dropdown("Deep Orchestrator Model", &[]),
+    FieldDef::dropdown("Deep Orchestrator Provider", &[]),
+    FieldDef::dropdown("Deep Planner Model", &[]),
+    FieldDef::dropdown("Deep Planner Provider", &[]),
+    FieldDef::dropdown("Deep Researcher Model", &[]),
+    FieldDef::dropdown("Deep Researcher Provider", &[]),
+    FieldDef::number("Deep Orchestrator Cycles"),
+    FieldDef::number("Deep Max Retries"),
+    FieldDef::number("Deep Planner Cycles"),
+    FieldDef::number("Deep Orchestrator Tool Calls"),
+    FieldDef::number("Deep Planner Tool Calls"),
+    FieldDef::number("Deep Researcher Tool Calls"),
+    FieldDef::checkbox("Deep Citation Verify"),
+];
+
 pub fn fields() -> &'static [FieldDef] {
-    Box::leak(Box::new([
-        // Intent Classifier (0-3)
-        FieldDef::dropdown("IC Model", &[]),
-        FieldDef::dropdown("IC Provider", &[]),
-        FieldDef::number("IC Timeout"),
-        FieldDef::checkbox("IC Verbose"),
-        // Clarifier (4-8)
-        FieldDef::dropdown("Cl Model", &[]),
-        FieldDef::dropdown("Cl Provider", &[]),
-        FieldDef::number("Cl Max turns"),
-        FieldDef::checkbox("Cl Plan approval"),
-        FieldDef::number("Cl Max iterations"),
-        // Shallow (9-12)
-        FieldDef::dropdown("Sh Model", &[]),
-        FieldDef::dropdown("Sh Provider", &[]),
-        FieldDef::number("Sh Max LLM turns"),
-        FieldDef::number("Sh Max tool iters"),
-        // Deep (13-26)
-        FieldDef::dropdown("Deep Orchestrator Model", &[]),
-        FieldDef::dropdown("Deep Orchestrator Provider", &[]),
-        FieldDef::dropdown("Deep Planner Model", &[]),
-        FieldDef::dropdown("Deep Planner Provider", &[]),
-        FieldDef::dropdown("Deep Researcher Model", &[]),
-        FieldDef::dropdown("Deep Researcher Provider", &[]),
-        FieldDef::number("Deep Orchestrator Cycles"),
-        FieldDef::number("Deep Max Retries"),
-        FieldDef::number("Deep Planner Cycles"),
-        FieldDef::number("Deep Researcher Cycles"),
-        FieldDef::number("Deep Orchestrator Tool Calls"),
-        FieldDef::number("Deep Planner Tool Calls"),
-        FieldDef::number("Deep Researcher Tool Calls"),
-        FieldDef::checkbox("Deep Citation Verify"),
-    ])) as &'static [FieldDef]
+    FIELDS
 }
 
 pub fn get_field(config: &AgentsConfig, index: usize) -> String {
@@ -68,11 +65,10 @@ pub fn get_field(config: &AgentsConfig, index: usize) -> String {
         19 => config.deep_researcher.iterations.to_string(),
         20 => config.deep_researcher.max_retries.to_string(),
         21 => config.deep_researcher.planner_max_cycles.to_string(),
-        22 => config.deep_researcher.researcher_max_cycles.to_string(),
-        23 => config.deep_researcher.orchestrator_max_tool_calls.to_string(),
-        24 => config.deep_researcher.planner_max_tool_calls.to_string(),
-        25 => config.deep_researcher.researcher_max_tool_calls.to_string(),
-        26 => config.deep_researcher.citation_verify.to_string(),
+        22 => config.deep_researcher.orchestrator_max_tool_calls.to_string(),
+        23 => config.deep_researcher.planner_max_tool_calls.to_string(),
+        24 => config.deep_researcher.researcher_max_tool_calls.to_string(),
+        25 => config.deep_researcher.citation_verify.to_string(),
         _ => String::new(),
     }
 }
@@ -108,20 +104,17 @@ pub fn set_field(config: &mut AgentsConfig, index: usize, value: &str) {
             config.deep_researcher.planner_max_cycles = value.parse().unwrap_or(3).max(1);
         }
         22 => {
-            config.deep_researcher.researcher_max_cycles = value.parse().unwrap_or(3).max(1);
-        }
-        23 => {
             config.deep_researcher.orchestrator_max_tool_calls =
                 value.parse().unwrap_or(8).max(1);
         }
-        24 => {
+        23 => {
             config.deep_researcher.planner_max_tool_calls = value.parse().unwrap_or(4).max(1);
         }
-        25 => {
+        24 => {
             config.deep_researcher.researcher_max_tool_calls =
                 value.parse().unwrap_or(10).max(1);
         }
-        26 => config.deep_researcher.citation_verify = value == "true",
+        25 => config.deep_researcher.citation_verify = value == "true",
         _ => {}
     }
 }
@@ -130,7 +123,7 @@ pub fn toggle_field(config: &mut AgentsConfig, index: usize) {
     match index {
         3 => config.intent_classifier.verbose = !config.intent_classifier.verbose,
         7 => config.clarifier.plan_approval = !config.clarifier.plan_approval,
-        26 => config.deep_researcher.citation_verify = !config.deep_researcher.citation_verify,
+        25 => config.deep_researcher.citation_verify = !config.deep_researcher.citation_verify,
         _ => {}
     }
 }
@@ -627,7 +620,7 @@ fn render_deep_researcher(
     config: &MuonConfig,
     pending_dropdown: &mut Option<PendingDropdown>,
 ) {
-    let focused = section_has_focus(form, 13, 26);
+    let focused = section_has_focus(form, 13, 25);
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let block = agent_block("DEEP RESEARCHER", focused, hovered && !focused);
     let inner = block.inner(area);
@@ -705,12 +698,12 @@ fn render_deep_researcher(
     };
 
     #[allow(clippy::type_complexity)]
-    let limit_pairs: [((usize, usize, &str, String), (usize, usize, &str, String)); 3] = [
+    let limit_pairs: [((usize, usize, &str, String), (usize, usize, &str, String)); 2] = [
         (
             (3, 19, "Orchestrator cycles", cfg.iterations.to_string()),
             (
                 3,
-                23,
+                22,
                 "Orchestrator tool calls",
                 cfg.orchestrator_max_tool_calls.to_string(),
             ),
@@ -719,23 +712,9 @@ fn render_deep_researcher(
             (4, 21, "Planner cycles", cfg.planner_max_cycles.to_string()),
             (
                 4,
-                24,
+                23,
                 "Planner tool calls",
                 cfg.planner_max_tool_calls.to_string(),
-            ),
-        ),
-        (
-            (
-                5,
-                22,
-                "Researcher cycles",
-                cfg.researcher_max_cycles.to_string(),
-            ),
-            (
-                5,
-                25,
-                "Researcher tool calls",
-                cfg.researcher_max_tool_calls.to_string(),
             ),
         ),
     ];
@@ -760,6 +739,16 @@ fn render_deep_researcher(
         );
     }
 
+    let researcher_tool_calls = cfg.researcher_max_tool_calls.to_string();
+    hit_registry.push(ClickTarget {
+        rect: rows[5],
+        action: ClickAction::ActivateField(24),
+    });
+    f.render_widget(
+        Paragraph::new(deep_num_cell("Researcher tool calls", &researcher_tool_calls, 24, form, rows[5])),
+        rows[5],
+    );
+
     let footer = pair(rows[6]);
     hit_registry.push(ClickTarget {
         rect: footer[0],
@@ -767,7 +756,7 @@ fn render_deep_researcher(
     });
     hit_registry.push(ClickTarget {
         rect: footer[1],
-        action: ClickAction::ActivateField(26),
+        action: ClickAction::ActivateField(25),
     });
     let retries = cfg.max_retries.to_string();
     f.render_widget(
@@ -784,9 +773,9 @@ fn render_deep_researcher(
         Paragraph::new(checkbox_line(
             "Citation Verify",
             cfg.citation_verify,
-            is_focused(form, 26),
+            is_focused(form, 25),
             crate::presentation::click::is_hovering(footer[1], form.mouse_col, form.mouse_row)
-                && !is_focused(form, 26),
+                && !is_focused(form, 25),
         )),
         footer[1],
     );

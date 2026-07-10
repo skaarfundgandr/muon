@@ -8,14 +8,16 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
+const FIELDS: &[FieldDef] = &[
+    FieldDef::dropdown(
+        "Visual Theme",
+        &["Tokyo Night", "Gruvbox", "Catppuccin", "Nord"],
+    ),
+    FieldDef::dropdown("Font Size", &["Small 12px", "Medium 14px", "Large 16px"]),
+];
+
 pub fn fields() -> &'static [FieldDef] {
-    Box::leak(Box::new([
-        FieldDef::dropdown(
-            "Visual Theme",
-            &["Tokyo Night", "Gruvbox", "Catppuccin", "Nord"],
-        ),
-        FieldDef::dropdown("Font Size", &["Small 12px", "Medium 14px", "Large 16px"]),
-    ])) as &'static [FieldDef]
+    FIELDS
 }
 
 pub fn get_field(config: &DisplayConfig, index: usize) -> String {
