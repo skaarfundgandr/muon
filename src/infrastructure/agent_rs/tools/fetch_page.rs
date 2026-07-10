@@ -1,12 +1,60 @@
 use std::future::Future;
+use std::net::IpAddr;
 
 use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 const NAME: &str = "fetch_page";
+const MAX_BODY_BYTES: usize = 2_000_000;
+
+pub fn is_public_http_url(raw: &str) -> Result<(), String> {
+    let url = Url::parse(raw).map_err(|e| format!("invalid url: {e}"))?;
+    match url.scheme() {
+        "http" | "https" => {}
+        other => return Err(format!("scheme not allowed: {other}")),
+    }
+    let host = url.host_str().ok_or_else(|| "missing host".to_string())?;
+    if host.eq_ignore_ascii_case("localhost") || host.ends_with(".localhost") {
+        return Err("localhost blocked".into());
+    }
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        if is_blocked_ip(ip) {
+            return Err("private or link-local address blocked".into());
+        }
+    } else if looks_like_ip_literal(host) {
+        return Err("ip literal host blocked".into());
+    }
+    Ok(())
+}
+
+fn looks_like_ip_literal(host: &str) -> bool {
+    host.chars()
+        .all(|c| c.is_ascii_digit() || c == '.' || c == ':')
+        && host.contains(['.', ':'])
+}
+
+fn is_blocked_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            v4.is_loopback()
+                || v4.is_private()
+                || v4.is_link_local()
+                || v4.is_broadcast()
+                || v4.is_unspecified()
+                || v4.octets()[0] == 169 && v4.octets()[1] == 254
+        }
+        IpAddr::V6(v6) => {
+            v6.is_loopback()
+                || v6.is_unique_local()
+                || v6.is_unicast_link_local()
+                || v6.is_unspecified()
+        }
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct FetchPageArgs {
@@ -62,6 +110,13 @@ impl Tool for FetchPageTool {
         let http = self.http.clone();
         let max_chars = self.max_chars;
         async move {
+            if let Err(reason) = is_public_http_url(&args.url) {
+                return Err(MuonError::Search {
+                    provider: "fetch".into(),
+                    message: format!("url blocked: {reason}"),
+                });
+            }
+
             let resp = http
                 .get(&args.url)
                 .send()
@@ -79,10 +134,19 @@ impl Tool for FetchPageTool {
                 });
             }
 
-            let html = resp.text().await.map_err(|e| MuonError::Search {
-                provider: "fetch".into(),
-                message: format!("failed to read body from {}: {e}", args.url),
-            })?;
+            let bytes = resp
+                .bytes()
+                .await
+                .map_err(|e| MuonError::Search {
+                    provider: "fetch".into(),
+                    message: format!("failed to read body from {}: {e}", args.url),
+                })?;
+            let capped = if bytes.len() > MAX_BODY_BYTES {
+                &bytes[..MAX_BODY_BYTES]
+            } else {
+                &bytes
+            };
+            let html = String::from_utf8_lossy(capped).into_owned();
 
             let (text, title) = html_to_text(&html, max_chars);
             Ok(FetchPageOutput { text, title })
