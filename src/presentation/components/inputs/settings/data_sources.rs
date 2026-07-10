@@ -13,7 +13,7 @@ pub fn fields(config: &MuonConfig) -> Vec<FieldDef> {
     vec![
         FieldDef::checkbox("Web Search"),
         FieldDef::checkbox("Paper Search"),
-        FieldDef::checkbox("Enterprise Systems"),
+        FieldDef::checkbox("Enterprise Systems (reserved)"),
         FieldDef::checkbox("Knowledge Layer (RAG)"),
         FieldDef::text("Source Path"),
         FieldDef::dropdown("Source Type", &["Directory", "File", "Glob"]),
