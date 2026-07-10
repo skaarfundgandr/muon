@@ -40,6 +40,7 @@ pub struct RenderParams<'a> {
     pub clarifier_focused: bool,
     pub report_scroll: usize,
     pub source_scroll: usize,
+    pub session_scroll: usize,
     pub full_report_mode: bool,
     pub term_cols: u16,
     pub term_rows: u16,
@@ -103,6 +104,7 @@ impl View {
                     params.clarifier_focused,
                     tokens_in,
                     tokens_out,
+                    params.session_scroll,
                 );
             }
             View::Progress => {

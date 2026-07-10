@@ -132,4 +132,28 @@ impl SessionStore for InMemorySessionStore {
             .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?;
         Ok(guard.get(&id).cloned().unwrap_or_default())
     }
+
+    async fn delete(&self, id: SessionId) -> Result<(), MuonError> {
+        self.summaries
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
+            .retain(|s| s.id != id);
+        self.stages
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
+            .remove(&id);
+        self.reports
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
+            .remove(&id);
+        self.logs
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
+            .remove(&id);
+        self.sources
+            .lock()
+            .map_err(|e| MuonError::Session(format!("poisoned: {e}")))?
+            .remove(&id);
+        Ok(())
+    }
 }

@@ -29,6 +29,7 @@ pub fn render(
     clarifier_focused: bool,
     tokens_in: u64,
     tokens_out: u64,
+    session_scroll: usize,
 ) {
     f.render_widget(
         Block::default().style(Style::default().bg(theme::bg_main())),
@@ -75,6 +76,7 @@ pub fn render(
         f,
         sidebar_split[0],
         sessions,
+        session_scroll,
         hit_registry,
         mouse_col,
         mouse_row,

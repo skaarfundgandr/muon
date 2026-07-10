@@ -9,7 +9,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], scroll: usize, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
     let block = Block::default()
         .title(" RECENT SESSIONS ")
         .borders(Borders::ALL)
@@ -34,12 +34,19 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
     }
 
     let now = Utc::now();
-    // Each session occupies a 3-line slot: title, query, blank separator
-    // (the last session omits the blank line but still claims the slot
-    // height for click-target purposes).
     let slot_h: u16 = 3;
+    let visible_count = ((inner.height / slot_h) as usize).max(1);
+    let max_scroll = sessions.len().saturating_sub(visible_count);
+    let scroll = scroll.min(max_scroll);
 
-    for (i, session) in sessions.iter().enumerate() {
+    let window: Vec<(usize, &SessionSummary)> = sessions
+        .iter()
+        .enumerate()
+        .skip(scroll)
+        .take(visible_count)
+        .collect();
+
+    for (local_i, (abs_i, session)) in window.iter().enumerate() {
         let dot_style = if session.is_active {
             Style::new().fg(theme::success()).add_modifier(Modifier::BOLD)
         } else {
@@ -48,7 +55,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
 
         let time_str = format_relative_time(now, session.created_at);
 
-        let slot_y = inner.y + (i as u16).saturating_mul(slot_h);
+        let slot_y = inner.y + (local_i as u16).saturating_mul(slot_h);
         let slot_rect = Rect { x: inner.x, y: slot_y, width: inner.width, height: slot_h.min(inner.height.saturating_sub(slot_y)) };
         let hovered = is_hovering(slot_rect, mouse_col, mouse_row);
 
@@ -77,8 +84,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
             )])
         };
 
-        // Render these two lines at the correct vertical offset.
-        let offset = (i as u16).saturating_mul(slot_h);
+        let offset = (local_i as u16).saturating_mul(slot_h);
         if offset < inner.height {
             let row_rect = Rect { x: inner.x, y: inner.y + offset, width: inner.width, height: 1 };
             if hovered {
@@ -96,7 +102,6 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
             }
         }
 
-        // Register a click target spanning this session's slot.
         let target_h = slot_h.min(inner.height.saturating_sub(offset));
         if target_h > 0 {
             hit_registry.push(ClickTarget {
@@ -106,7 +111,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, sessions: &[SessionSummary], h
                     width: inner.width,
                     height: target_h,
                 },
-                action: ClickAction::SelectSession(i),
+                action: ClickAction::SelectSession(*abs_i),
             });
         }
     }

@@ -61,6 +61,7 @@ pub struct AppState {
     pub live_feed_scroll: usize,
     pub report_scroll: usize,
     pub source_scroll: usize,
+    pub session_scroll: usize,
     pub full_report_mode: bool,
     pub status_flash: Option<(
         Instant,
@@ -195,6 +196,35 @@ impl AppState {
                 .map_err(|e| e.to_string());
             let _ = tx.send(Event::InfraRebuilt(result));
         });
+    }
+
+    pub fn delete_active_session(&mut self) {
+        use crate::presentation::components::chrome::toast::ToastKind;
+        if self.is_pipeline_busy() {
+            self.abort_pipeline();
+        }
+        let Some(index) = self.sessions.list().iter().position(|s| s.is_active) else {
+            self.set_status_flash("No active session to delete", ToastKind::Error);
+            return;
+        };
+        let Some(id) = self.sessions.remove(index) else {
+            return;
+        };
+        if self.export_session_id == Some(id) {
+            self.export_session_id = None;
+            self.last_report = None;
+            self.last_sources.clear();
+        }
+        let max = self.sessions.list().len().saturating_sub(1);
+        if self.session_scroll > max {
+            self.session_scroll = max;
+        }
+        if let Some(infra) = self.infra.as_ref().map(Arc::clone) {
+            tokio::spawn(async move {
+                let _ = infra.session_store.delete(id).await;
+            });
+        }
+        self.set_status_flash("Session deleted", ToastKind::Info);
     }
 
     pub fn restore_session(&mut self, index: usize) {

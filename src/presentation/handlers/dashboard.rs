@@ -52,6 +52,9 @@ pub fn handle(app: &mut AppState, key: KeyEvent) {
             KeyCode::Enter | KeyCode::Char('i') => {
                 app.query_input.active = true;
             }
+            KeyCode::Delete | KeyCode::Char('d') | KeyCode::Char('D') => {
+                app.delete_active_session();
+            }
             KeyCode::Esc => {
                 app.running = false;
             }

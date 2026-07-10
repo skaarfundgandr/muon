@@ -28,4 +28,5 @@ pub trait SessionStore: Send + Sync {
     async fn append_log(&self, id: SessionId, log: &LogEntry) -> Result<(), MuonError>;
     async fn save_sources(&self, id: SessionId, sources: &[Source]) -> Result<(), MuonError>;
     async fn get_sources(&self, id: SessionId) -> Result<Vec<Source>, MuonError>;
+    async fn delete(&self, id: SessionId) -> Result<(), MuonError>;
 }

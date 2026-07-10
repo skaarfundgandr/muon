@@ -72,6 +72,21 @@ impl SessionService {
         }
         self.sessions[index].is_active = true;
     }
+
+    pub fn remove(&mut self, index: usize) -> Option<Uuid> {
+        if index >= self.sessions.len() {
+            return None;
+        }
+        let removed = self.sessions.remove(index);
+        let was_active = removed.is_active;
+        let id = removed.id;
+        if was_active
+            && let Some(first) = self.sessions.first_mut()
+        {
+            first.is_active = true;
+        }
+        Some(id)
+    }
 }
 
 impl From<crate::domain::traits::session_store::SessionSummary> for SessionSummary {

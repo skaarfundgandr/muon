@@ -91,6 +91,7 @@ async fn run_loop(
         status_flash: None,
         clipboard: None,
         export_session_id: None,
+        session_scroll: 0,
         pipeline_handle: None,
         event_tx: None,
         pending_config: None,

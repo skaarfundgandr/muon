@@ -92,6 +92,25 @@ pub(crate) fn handle_scroll(app: &mut AppState, delta: i32) {
         return;
     }
 
+    if view == View::Dashboard {
+        let sidebar_end = app.term_cols.saturating_mul(25) / 100;
+        if app.mouse_col < sidebar_end {
+            let len = app.sessions.list().len();
+            if len == 0 {
+                return;
+            }
+            let slot_h: u16 = 3;
+            let visible = ((app.term_rows / slot_h) as usize).max(1);
+            let max_scroll = len.saturating_sub(visible);
+            if delta > 0 {
+                app.session_scroll = app.session_scroll.saturating_add(1).min(max_scroll);
+            } else {
+                app.session_scroll = app.session_scroll.saturating_sub(1);
+            }
+        }
+        return;
+    }
+
     if view == View::Progress && app.clarifier_pending.is_none() {
         if delta > 0 {
             app.live_feed_scroll = app.live_feed_scroll.saturating_sub(1);

@@ -13,7 +13,7 @@ use crate::domain::error::MuonError;
 use crate::infrastructure::models::session_row::{NewSessionRow, SessionRow};
 use crate::infrastructure::models::source_row::NewSourceRow;
 use crate::infrastructure::storage::pool::DbPool;
-use crate::infrastructure::storage::schema::{log_entries, research_reports, sessions, sources};
+use crate::infrastructure::storage::schema::{citations, log_entries, research_reports, sessions, sources};
 
 pub struct DieselSessionStore {
     pool: DbPool,
@@ -251,5 +251,48 @@ impl SessionStore for DieselSessionStore {
         rows.into_iter()
             .map(Source::try_from)
             .collect::<Result<Vec<_>, _>>()
+    }
+
+    async fn delete(&self, id: SessionId) -> Result<(), MuonError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let sid = id.to_string();
+
+        let report_ids: Vec<i32> = research_reports::table
+            .filter(research_reports::session_id.eq(&sid))
+            .select(research_reports::id)
+            .load(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+
+        if !report_ids.is_empty() {
+            diesel::delete(
+                citations::table.filter(citations::report_id.eq_any(&report_ids)),
+            )
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        }
+
+        diesel::delete(research_reports::table.filter(research_reports::session_id.eq(&sid)))
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        diesel::delete(sources::table.filter(sources::session_id.eq(&sid)))
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        diesel::delete(log_entries::table.filter(log_entries::session_id.eq(&sid)))
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        diesel::delete(sessions::table.find(&sid))
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        Ok(())
     }
 }

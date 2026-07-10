@@ -35,6 +35,7 @@ pub(crate) fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
         clarifier_focused: app.clarifier_focused,
         report_scroll: app.report_scroll,
         source_scroll: app.source_scroll,
+        session_scroll: app.session_scroll,
         full_report_mode: app.full_report_mode,
         term_cols: app.term_cols,
         term_rows: app.term_rows,
