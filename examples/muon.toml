@@ -53,6 +53,8 @@ timeout_sec = 90
 verbose = false
 
 # Clarifier — interactive HITL disambiguation before research.
+# This is the single source of truth for plan_approval, max_turns, and
+# max_iterations. The [advanced] section mirrors these for back-compat.
 [agents.clarifier]
 model = "glm-5.2"
 provider = "opencode-go"

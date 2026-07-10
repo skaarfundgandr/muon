@@ -87,13 +87,24 @@ pub struct InfrastructureContext {
 
 **Two constructors:**
 - `InfrastructureContext::mock()` — returns deterministic `MockAgent`s for testing and dev.
-- `InfrastructureContext::new_live(cfg, bridge)` — builds real OpenAI-backed ReAct agents, a Diesel connection pool, and a `DieselSessionStore`. Requires `OPENAI_API_KEY` env var.
+- `InfrastructureContext::new_live(cfg, bridge)` — builds real provider-backed ReAct agents, a Diesel session pool, and a `DieselSessionStore`. Requires at least one `[[providers]]` entry.
+
+When `cfg.providers` is empty, `new_live` degrades gracefully: it initializes the session store (so existing sessions load), installs `ConfigRequiredAgent` stubs for all six agent roles that return `MuonError::Config` on every `prompt_raw`, and returns `Ok`. The TUI starts with an Info toast directing the user to Settings → Providers. No fake API keys are generated.
 
 Set `MUON_LIVE=1` to gate real adapters. The default (mock) bypasses LLM calls and returns canned responses.
 
 ## 5. Storage Schema
 
-SQLite via Diesel with a deadpool connection pool. Two logical databases:
+SQLite via Diesel with a single process-wide deadpool connection pool (`OnceLock<DbPool>`). The pool is initialized once via `init_pool(path)` and all subsequent calls (infra rebuild, CLI export) return a clone of the same singleton. A hot-swap of `session_db_path` after first init errors with a "restart muon" message.
+
+Every pooled connection runs SQLITE_PRAGMAs via a `post_create` Hook:
+- `foreign_keys = ON`
+- `journal_mode = WAL`
+- `synchronous = NORMAL`
+- `busy_timeout = 5000`
+- `mmap_size = 30000000000`
+
+This eliminates `database is locked` errors under concurrent `append_log` writes. `create_pool(path)` is the test-friendly factory (no singleton, no migrations); `global_pool()` clones the singleton or errors. Two logical databases:
 - `sessions.db` — sessions, sources, log entries, research reports, citations.
 - `rag.db` — chunk vectors + embedding cache (TurboVec/FastEmbed).
 
@@ -256,3 +267,54 @@ The Settings view has 6 tabs (in order): `Providers`, `Agents`, `Tools`, `Data S
 - `SemanticScholarProvider` — removed; arXiv is the only paper source.
 - The old hardcoded `match provider { "openai" | "opencode-go" | ... }` dispatch in `providers.rs` was replaced by `for_named_provider` / `for_default_provider`.
 - `FetchPageTool` is reqwest-only; the SPEC-mandated Firecrawl/Tavily fallback chain is a follow-up.
+
+## 11. Intentional SPEC Drift
+
+This section documents design decisions that intentionally diverge from SPEC Draft 2, so future agents don't "fix" them.
+
+### 11.1 Clarifier config single source of truth
+
+`[agents.clarifier]` is the runtime SSoT for `plan_approval`, `max_turns`, and `max_iterations`. The `[advanced]` section retains `max_clarifier_turns`, `max_plan_iterations`, and `plan_approval` for backward compatibility only.
+
+- On load: `migrate_clarifier_config()` copies `advanced → agents` when `agents.clarifier` is at defaults and `[advanced]` was customized.
+- On save: `mirror_clarifier_to_advanced()` writes back so older binaries still see the values.
+- Default `plan_approval = true` (fresh configs get the plan-approval gate).
+- The Advanced settings UI no longer shows these three controls; they live exclusively in the Agents tab.
+
+### 11.2 Pipeline stages
+
+The full stage list is: `Idle, IntentClassification, Clarification, ShallowResearch, DeepResearch, CitationVerify, Report, Complete, Cancelled, Failed`. The `CitationVerify` and `Report` stages are emitted by both shallow and deep paths before terminal `Complete`. On pipeline `Err`, `mark_session_terminal` persists `Cancelled` (for `MuonError::Cancelled`) or `Failed` to the DB best-effort.
+
+`SessionStatus` gains `Cancelled` alongside `Pending, Clarifying, Researching, Complete, Failed`. `DieselSessionStore::update_stage` derives the status column from the stage string so they stay in sync.
+
+### 11.3 Deep researcher design
+
+- Deep orchestrator uses `max_retries` (not `iterations`) as the retry loop count. Each iteration produces a full draft; the quality gate (`is_report_complete`) checks length, section count, source coverage, and "gave up" signal patterns.
+- The orchestrator uses `SubagentTool` (`PlannerKind`, `ResearcherKind`) to delegate planning and research. The planner uses the `think` tool; the researcher is a `ManagedAgent` (no `think` tool — it runs search/fetch then answers).
+- Researcher soft-fails: on `MaxCycles` or partial-draft errors, it produces a stub report from the source registry rather than aborting.
+
+### 11.4 Process-wide SQLite pool
+
+A single `OnceLock<DbPool>` per process. `init_pool` is idempotent — multiple calls (infra rebuild, CLI export) return clones of the same pool. No second pool is ever created for the same path. PRAGMAs are applied per-connection via `post_create` Hook, not URI strings.
+
+### 11.5 Escalation text scope
+
+`should_escalate` checks the **full report text** (summary + all section body markdown joined by `\n`), not just the summary. It takes the last **800 Unicode scalars** and checks against the keyword list: `unable to find`, `need more research`, `i don't have enough information`.
+
+### 11.6 Empty config behavior
+
+Missing or empty `config.toml` (no `[[providers]]`) does NOT crash the TUI. `new_live` degrades: it initializes the session store, installs `ConfigRequiredAgent` stubs, and returns `Ok`. The TUI shows an Info toast directing to Settings → Providers. Research attempts fail with `MuonError::Config` until providers are configured.
+
+### 11.7 Session plan persistence
+
+`SessionStore::save_clarifier_outcome(id, plan_json, clarifier_result_json)` writes the `plan_json` and `clarifier_result` columns. Called best-effort after a successful deep clarifier run. `ClarifierResult::to_plan()` converts to `ResearchPlan` for serialization. The domain `Session` model has `intent: Option<String>`, `plan: Option<ResearchPlan>`, `clarifier_result: Option<String>` fields. No schema migration was needed — the columns pre-existed.
+
+### 11.8 Non-goals (explicitly out of scope)
+
+- Enterprise search implementation (the `enterprise_systems` config field is reserved/unimplemented).
+- Researcher BuiltReAct + `think` tool.
+- Truncation `VerificationLevel` variant.
+- Full CLEAN DI rewrite / removing `InfrastructureContext`.
+- Top-level TOML rename to `[pipeline]`/`[storage]` (documented mapping only).
+- Auto-provision API keys / silent mock in live mode.
+- App-level SQLite retries as replacement for WAL + busy_timeout + single pool.
