@@ -2,7 +2,7 @@ use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 
 use crate::domain::models::source::Source;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::models::source_row::{NewSourceRow, SourceRow};
 use crate::infrastructure::storage::pool::DbPool;
 use crate::infrastructure::storage::schema::sources;

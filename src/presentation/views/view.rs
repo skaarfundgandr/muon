@@ -6,7 +6,7 @@ use crate::config::MuonConfig;
 use crate::presentation::click::ClickTarget;
 use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::form::FormState;
-use crate::session::SessionSummary;
+use crate::application::session::SessionSummary;
 
 use super::SettingsTab;
 

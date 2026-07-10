@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{log_entry::LogEntry, report::ResearchReport, source::Source};
-use crate::application::pipeline::PipelineStage;
+use super::pipeline::PipelineStage;
 
 pub type SessionId = Uuid;
 

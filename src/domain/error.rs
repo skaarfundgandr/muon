@@ -34,6 +34,9 @@ pub enum MuonError {
 
     #[error("pipeline error: {0}")]
     Pipeline(String),
+
+    #[error("agent {agent} exceeded max cycles ({cycles})")]
+    MaxCycles { agent: String, cycles: usize },
 }
 
 pub type Result<T> = std::result::Result<T, MuonError>;
@@ -46,9 +49,15 @@ impl<T> From<tokio::sync::mpsc::error::SendError<T>> for MuonError {
 
 impl From<agent_rs::domain::errors::ReActError> for MuonError {
     fn from(e: agent_rs::domain::errors::ReActError) -> Self {
-        Self::Agent {
-            agent: "unknown".to_string(),
-            message: e.to_string(),
+        match e {
+            agent_rs::domain::errors::ReActError::MaxCyclesExceeded { cycles } => Self::MaxCycles {
+                agent: "unknown".to_string(),
+                cycles,
+            },
+            other => Self::Agent {
+                agent: "unknown".to_string(),
+                message: other.to_string(),
+            },
         }
     }
 }

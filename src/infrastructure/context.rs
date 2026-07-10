@@ -1,20 +1,20 @@
 use crate::domain::models::log_entry::AgentTag;
 use crate::domain::traits::agent::MuonAgent;
 use crate::domain::traits::session_store::SessionStore;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::source_registry::SourceRegistry;
 use std::sync::{Arc, Mutex};
 
 pub struct InfrastructureContext {
-    pub intent_classifier: Box<dyn MuonAgent>,
-    pub shallow: Box<dyn MuonAgent>,
-    pub clarifier: Box<dyn MuonAgent>,
-    pub deep_orchestrator: Box<dyn MuonAgent>,
+    pub intent_classifier: Arc<dyn MuonAgent>,
+    pub shallow: Arc<dyn MuonAgent>,
+    pub clarifier: Arc<dyn MuonAgent>,
+    pub deep_orchestrator: Arc<dyn MuonAgent>,
     pub planner: Arc<dyn MuonAgent>,
     pub researcher: Arc<dyn MuonAgent>,
-    pub session_store: Box<dyn SessionStore>,
+    pub session_store: Arc<dyn SessionStore>,
     pub source_sink: Arc<Mutex<SourceRegistry>>,
-    pub vector_store: Option<Box<dyn crate::domain::traits::vector_store::VectorStore>>,
+    pub vector_store: Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>>,
 }
 
 impl std::fmt::Debug for InfrastructureContext {
@@ -26,13 +26,13 @@ impl std::fmt::Debug for InfrastructureContext {
 
 impl InfrastructureContext {
     pub fn new(
-        intent_classifier: Box<dyn MuonAgent>,
-        shallow: Box<dyn MuonAgent>,
-        clarifier: Box<dyn MuonAgent>,
-        deep_orchestrator: Box<dyn MuonAgent>,
+        intent_classifier: Arc<dyn MuonAgent>,
+        shallow: Arc<dyn MuonAgent>,
+        clarifier: Arc<dyn MuonAgent>,
+        deep_orchestrator: Arc<dyn MuonAgent>,
         planner: Arc<dyn MuonAgent>,
         researcher: Arc<dyn MuonAgent>,
-        session_store: Box<dyn SessionStore>,
+        session_store: Arc<dyn SessionStore>,
     ) -> Self {
         Self::with_sink(
             intent_classifier,
@@ -49,15 +49,15 @@ impl InfrastructureContext {
 
     #[allow(clippy::too_many_arguments)]
     pub fn with_sink(
-        intent_classifier: Box<dyn MuonAgent>,
-        shallow: Box<dyn MuonAgent>,
-        clarifier: Box<dyn MuonAgent>,
-        deep_orchestrator: Box<dyn MuonAgent>,
+        intent_classifier: Arc<dyn MuonAgent>,
+        shallow: Arc<dyn MuonAgent>,
+        clarifier: Arc<dyn MuonAgent>,
+        deep_orchestrator: Arc<dyn MuonAgent>,
         planner: Arc<dyn MuonAgent>,
         researcher: Arc<dyn MuonAgent>,
-        session_store: Box<dyn SessionStore>,
+        session_store: Arc<dyn SessionStore>,
         source_sink: Arc<Mutex<SourceRegistry>>,
-        vector_store: Option<Box<dyn crate::domain::traits::vector_store::VectorStore>>,
+        vector_store: Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>>,
     ) -> Self {
         Self {
             intent_classifier,
@@ -173,8 +173,8 @@ impl InfrastructureContext {
         let shallow_preamble = load_preamble("shallow-researcher", preamble);
 
         // Intent Classifier — no tools.
-        let intent_classifier: Box<dyn MuonAgent> =
-            Box::new(crate::infrastructure::agent_rs::ReActAgent::new(
+        let intent_classifier: Arc<dyn MuonAgent> =
+            Arc::new(crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Intent,
                 build_agent!(
                     &intent_client.client,
@@ -199,6 +199,7 @@ impl InfrastructureContext {
                             5,
                             cfg.agents.intent_classifier.timeout_sec,
                             source_sink.clone(),
+                            Some(crate::infrastructure::agent_rs::react_agents::REMINDER_FINALIZE),
                         )
                     }
                 ),
@@ -206,8 +207,8 @@ impl InfrastructureContext {
             ));
 
         // Shallow Researcher — fetch_page (always), web_search (if configured).
-        let shallow: Box<dyn MuonAgent> =
-            Box::new(crate::infrastructure::agent_rs::ReActAgent::new(
+        let shallow: Arc<dyn MuonAgent> =
+            Arc::new(crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Search,
                 build_agent!(
                     &shallow_client.client,
@@ -245,6 +246,7 @@ impl InfrastructureContext {
                             cfg.agents.shallow_researcher.max_tool_iters as usize,
                             60,
                             source_sink.clone(),
+                            Some(crate::infrastructure::agent_rs::react_agents::REMINDER_FINALIZE),
                         )
                     }
                 ),
@@ -253,8 +255,8 @@ impl InfrastructureContext {
 
         // Clarifier — web_search (if configured).
         let compaction_threshold = (cfg.advanced.compaction_threshold * 100.0) as usize;
-        let clarifier: Box<dyn MuonAgent> =
-            Box::new(crate::infrastructure::agent_rs::ReActAgent::new(
+        let clarifier: Arc<dyn MuonAgent> =
+            Arc::new(crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Clarify,
                 build_agent!(
                     &clarifier_client.client,
@@ -418,8 +420,8 @@ impl InfrastructureContext {
             ));
 
         // Deep Orchestrator — think (always), web_search + paper_search (if configured).
-        let deep_orchestrator: Box<dyn MuonAgent> =
-            Box::new(crate::infrastructure::agent_rs::ReActAgent::new(
+        let deep_orchestrator: Arc<dyn MuonAgent> =
+            Arc::new(crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Orchestrate,
                 build_agent!(
                     &deep_client.client,
@@ -478,6 +480,9 @@ impl InfrastructureContext {
                             cfg.agents.deep_researcher.iterations.max(1) as usize,
                             600,
                             source_sink.clone(),
+                            Some(
+                                crate::infrastructure::agent_rs::react_agents::REMINDER_ORCHESTRATOR,
+                            ),
                         )
                     }
                 ),
@@ -485,17 +490,17 @@ impl InfrastructureContext {
             ));
 
         let pool = crate::infrastructure::storage::init_pool(&cfg.advanced.session_db_path).await?;
-        let session_store: Box<dyn SessionStore> = Box::new(
+        let session_store: Arc<dyn SessionStore> = Arc::new(
             crate::infrastructure::storage::DieselSessionStore::new(pool),
         );
 
         // RAG — optional, fails open (no RAG) if the model/index can't init.
-        let vector_store: Option<Box<dyn crate::domain::traits::vector_store::VectorStore>> =
+        let vector_store: Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>> =
             match crate::infrastructure::rag::RagContext::open(cfg).await {
                 Ok(rag) => {
                     use crate::domain::models::log_entry::{AgentTag, LogLevel};
                     bridge.log(AgentTag::Sys, LogLevel::Info, "RAG context initialized");
-                    Some(Box::new(rag))
+                    Some(Arc::new(rag))
                 }
                 Err(e) => {
                     use crate::domain::models::log_entry::{AgentTag, LogLevel};

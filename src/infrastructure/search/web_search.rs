@@ -5,7 +5,7 @@ use serde_json::json;
 use crate::config::{FirecrawlOptions, SerperOptions, TavilyOptions};
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::search_provider::SearchProvider;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 pub struct BraveProvider {
     api_key: String,

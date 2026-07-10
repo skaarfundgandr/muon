@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::domain::models::log_entry::AgentTag;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 #[async_trait]
 pub trait MuonAgent: Send + Sync {

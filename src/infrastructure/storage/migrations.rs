@@ -1,6 +1,6 @@
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 

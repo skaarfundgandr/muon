@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::search_provider::SearchProvider;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 pub struct ArxivProvider {
     http: reqwest::Client,

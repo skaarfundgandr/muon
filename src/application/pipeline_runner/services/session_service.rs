@@ -5,7 +5,7 @@ use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::SessionId;
 use crate::domain::models::source::Source;
 use crate::domain::traits::session_store::{SessionStore, SessionSummary};
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 /// In-memory `SessionStore` retained exclusively for tests. The real
 /// production implementation is `DieselSessionStore` in

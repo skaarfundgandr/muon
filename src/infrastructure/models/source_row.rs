@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::storage::schema::sources;
 
 #[derive(Debug, Clone, Queryable, Selectable)]

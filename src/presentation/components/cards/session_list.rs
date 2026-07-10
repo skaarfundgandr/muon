@@ -1,7 +1,7 @@
 use chrono::Utc;
 
 use crate::presentation::click::{ClickAction, ClickTarget};
-use crate::session::{SessionSummary, format_relative_time};
+use crate::application::session::{SessionSummary, format_relative_time};
 use crate::presentation::click::is_hovering;
 use crate::presentation::theme;
 use ratatui::layout::Rect;

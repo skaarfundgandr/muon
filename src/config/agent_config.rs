@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use noyalib::compat::serde_yaml;
 use serde::Deserialize;
 
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AgentDef {

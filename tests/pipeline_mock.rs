@@ -1,6 +1,8 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use muon::application::bridge::{AgentEvent, BridgeChannels};
+use muon::application::deps::PipelineDeps;
 use muon::application::pipeline::{PipelineStage, PipelineState};
 use muon::application::pipeline_runner::run_pipeline;
 use muon::config::MuonConfig;
@@ -19,19 +21,19 @@ async fn pipeline_completes_for_shallow_intent() -> Result<(), Box<dyn std::erro
     let mut state = PipelineState::default();
     let cfg = MuonConfig::default();
     let infra = InfrastructureContext::mock();
+    let deps = PipelineDeps::from_infra(&infra);
 
     let report = run_pipeline(
         "what is rust?",
         &mut state,
         &cfg,
-        &infra,
+        &deps,
         &bridge,
         None,
     )
     .await?;
     assert!(!report.summary.is_empty());
 
-    // Drain events; assert at least the final stage event is Complete.
     let mut saw_complete = false;
     let mut saw_shallow = false;
     let timeout = std::time::Instant::now() + Duration::from_secs(2);
@@ -59,18 +61,18 @@ async fn pipeline_meta_intent_returns_direct() -> Result<(), Box<dyn std::error:
     let (bridge, _rx) = collect_events();
     let mut state = PipelineState::default();
     let cfg = MuonConfig::default();
-    // Build infra with a meta-intent classifier
     let mut infra = InfrastructureContext::mock();
-    infra.intent_classifier = Box::new(MockAgent::new(
+    infra.intent_classifier = Arc::new(MockAgent::new(
         AgentTag::Intent,
         r#"{"intent":"meta","response":"hi there"}"#,
     ));
+    let deps = PipelineDeps::from_infra(&infra);
 
     let report = run_pipeline(
         "hello",
         &mut state,
         &cfg,
-        &infra,
+        &deps,
         &bridge,
         None,
     )

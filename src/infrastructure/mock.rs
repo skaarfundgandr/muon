@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::application::pipeline_runner::services::session_service::InMemorySessionStore;
 use crate::domain::models::log_entry::AgentTag;
 use crate::domain::traits::agent::MuonAgent;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::context::InfrastructureContext;
 
 /// Trivial in-process mock agent. Returns a configured answer for every
@@ -52,19 +52,19 @@ impl InfrastructureContext {
     #[cfg(any(test, feature = "mock"))]
     pub fn mock() -> Self {
         Self::new(
-            Box::new(MockAgent::new(
+            Arc::new(MockAgent::new(
                 AgentTag::Intent,
                 r#"{"intent":"research","depth":"shallow"}"#,
             )),
-            Box::new(MockAgent::new(AgentTag::Search, "Mock shallow answer.")),
-            Box::new(MockAgent::new(
+            Arc::new(MockAgent::new(AgentTag::Search, "Mock shallow answer.")),
+            Arc::new(MockAgent::new(
                 AgentTag::Clarify,
                 r#"{"needs_clarification":false,"clarification_question":""}"#,
             )),
-            Box::new(MockAgent::new(AgentTag::Orchestrate, "Mock deep report.")),
+            Arc::new(MockAgent::new(AgentTag::Orchestrate, "Mock deep report.")),
             Arc::new(MockAgent::new(AgentTag::Plan, "Mock plan.")),
             Arc::new(MockAgent::new(AgentTag::Search, "Mock researcher answer.")),
-            Box::new(InMemorySessionStore::new()),
+            Arc::new(InMemorySessionStore::new()),
         )
     }
 }

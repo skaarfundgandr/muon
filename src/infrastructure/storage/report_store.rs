@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 
 use crate::domain::models::report::ResearchReport;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::models::report_row::{NewReportRow, ReportRow};
 use crate::infrastructure::storage::pool::DbPool;
 use crate::infrastructure::storage::schema::research_reports;

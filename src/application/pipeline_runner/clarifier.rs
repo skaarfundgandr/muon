@@ -5,7 +5,7 @@ use crate::config::MuonConfig;
 use crate::domain::agents::clarifier::{ClarifierResult, ClarifierState};
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::traits::agent::MuonAgent;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ClarifyDecision {
@@ -34,7 +34,7 @@ fn parse_clarify_json(text: &str) -> Result<ClarifyDecision, MuonError> {
     if trimmed.is_empty() {
         return Err(MuonError::Pipeline("clarifier returned empty".into()));
     }
-    let json_str = crate::infrastructure::util::extract_json(text).unwrap_or(text);
+    let json_str = crate::domain::extract_json(text).unwrap_or(text);
     let value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
         MuonError::Pipeline(format!("clarifier returned non-JSON: {e}; raw={trimmed}"))
     })?;
@@ -85,7 +85,7 @@ fn parse_plan_json(text: &str) -> Result<PlanProposal, MuonError> {
     if trimmed.is_empty() {
         return Err(MuonError::Pipeline("planner returned empty".into()));
     }
-    let json_str = crate::infrastructure::util::extract_json(text).unwrap_or(text);
+    let json_str = crate::domain::extract_json(text).unwrap_or(text);
     let value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
         MuonError::Pipeline(format!("planner returned non-JSON: {e}; raw={trimmed}"))
     })?;
@@ -183,7 +183,12 @@ pub async fn run_clarifier(
                 }
                 PlanDecision::Reject => {
                     state.plan_rejected = true;
-                    break;
+                    bridge.log(
+                        AgentTag::Plan,
+                        LogLevel::Info,
+                        "plan rejected by user; terminating pipeline",
+                    );
+                    return Err(MuonError::Cancelled);
                 }
                 PlanDecision::Feedback(f) => state.plan_feedback_history.push(f),
             }

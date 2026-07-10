@@ -6,7 +6,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 fn config_dir() -> Option<PathBuf> {
     let home = std::env::var("HOME").ok()?;
@@ -121,19 +121,23 @@ impl MuonConfig {
         futures::stream::poll_fn(move |cx| inner_rx.poll_recv(cx))
     }
 
-    pub fn save(&self) {
-        let path = match config_path() {
-            Some(p) => p,
-            None => return,
-        };
+    pub fn save(&self) -> Result<(), MuonError> {
+        let path = config_path().ok_or_else(|| {
+            MuonError::Config("cannot resolve config path (HOME unset?)".into())
+        })?;
         if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            std::fs::create_dir_all(parent)?;
         }
-        let content = match toml::to_string_pretty(self) {
-            Ok(c) => c,
-            Err(_) => return,
-        };
-        let _ = std::fs::write(&path, content);
+        let content = toml::to_string_pretty(self)
+            .map_err(|e| MuonError::Config(format!("serialize config: {e}")))?;
+        std::fs::write(&path, &content)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = std::fs::Permissions::from_mode(0o600);
+            std::fs::set_permissions(&path, perms)?;
+        }
+        Ok(())
     }
 
     pub fn backfill_legacy_providers(&mut self) {
@@ -445,9 +449,6 @@ fn default_max_retries() -> u64 {
 fn default_planner_max_cycles() -> u64 {
     3
 }
-fn default_researcher_max_cycles() -> u64 {
-    3
-}
 fn default_orch_max_tool_calls() -> u64 {
     8
 }
@@ -469,8 +470,6 @@ pub struct DeepResearcherConfig {
     pub max_retries: u64,
     #[serde(default = "default_planner_max_cycles")]
     pub planner_max_cycles: u64,
-    #[serde(default = "default_researcher_max_cycles")]
-    pub researcher_max_cycles: u64,
     #[serde(default = "default_orch_max_tool_calls")]
     pub orchestrator_max_tool_calls: u64,
     #[serde(default = "default_planner_max_tool_calls")]
@@ -502,7 +501,6 @@ impl Default for DeepResearcherConfig {
             iterations: 8,
             max_retries: default_max_retries(),
             planner_max_cycles: default_planner_max_cycles(),
-            researcher_max_cycles: default_researcher_max_cycles(),
             orchestrator_max_tool_calls: default_orch_max_tool_calls(),
             planner_max_tool_calls: default_planner_max_tool_calls(),
             researcher_max_tool_calls: default_researcher_max_tool_calls(),
@@ -555,38 +553,7 @@ pub struct RagIndexConfig {
 }
 
 fn default_rag_indexes() -> Vec<RagIndexConfig> {
-    vec![
-        RagIndexConfig {
-            path: "~/Documents/research/".to_string(),
-            kind: "DIR".to_string(),
-            status: "✓ indexed".to_string(),
-            chunks: "2,841".to_string(),
-        },
-        RagIndexConfig {
-            path: "~/.muon/notes/".to_string(),
-            kind: "DIR".to_string(),
-            status: "✓ indexed".to_string(),
-            chunks: "412".to_string(),
-        },
-        RagIndexConfig {
-            path: "papers/*.pdf".to_string(),
-            kind: "GLOB".to_string(),
-            status: "◉ indexing".to_string(),
-            chunks: "1,209".to_string(),
-        },
-        RagIndexConfig {
-            path: "README.md".to_string(),
-            kind: "FILE".to_string(),
-            status: "○ pending".to_string(),
-            chunks: "0".to_string(),
-        },
-        RagIndexConfig {
-            path: "~/.muon/sources.csv".to_string(),
-            kind: "FILE".to_string(),
-            status: "✓ indexed".to_string(),
-            chunks: "89".to_string(),
-        },
-    ]
+    Vec::new()
 }
 
 fn default_source_path() -> String {

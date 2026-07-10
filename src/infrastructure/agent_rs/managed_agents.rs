@@ -7,7 +7,7 @@ use rig_core::wasm_compat::{WasmCompatSend, WasmCompatSync};
 use crate::application::bridge::BridgeChannels;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::traits::agent::MuonAgent;
-use crate::error::{MuonError, Result};
+use crate::domain::error::{MuonError, Result};
 use crate::infrastructure::agent_rs::react_agents::{feed_snippet, record_observation_sources};
 use crate::infrastructure::source_registry::SourceRegistry;
 

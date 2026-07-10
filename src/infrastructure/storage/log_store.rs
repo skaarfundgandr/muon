@@ -2,7 +2,7 @@ use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 
 use crate::domain::models::log_entry::LogEntry;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::models::log_entry_row::{LogEntryRow, NewLogEntryRow};
 use crate::infrastructure::storage::pool::DbPool;
 use crate::infrastructure::storage::schema::log_entries;

@@ -71,6 +71,7 @@ pub fn render_horizontal(
         PipelineStage::DeepResearch => ("◉ Deep researching", theme::accent()),
         PipelineStage::Complete => ("\u{2713} Complete", theme::success()),
         PipelineStage::Cancelled => ("\u{2717} Cancelled", theme::error()),
+        PipelineStage::Failed => ("\u{2717} Failed", theme::error()),
         _ => ("○ Pending", theme::text_dim()),
     };
 
@@ -84,6 +85,7 @@ pub fn render_horizontal(
             | PipelineStage::DeepResearch
             | PipelineStage::Complete
             | PipelineStage::Cancelled
+            | PipelineStage::Failed
     );
 
     render_horizontal_node(f, nodes_row[0], "Intent Classifier", ic_status, ic_color);
@@ -296,6 +298,9 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
         }
         PipelineStage::Cancelled => {
             ("✗", "Cancelled", theme::error())
+        }
+        PipelineStage::Failed => {
+            ("✗", "Failed", theme::error())
         }
     };
 

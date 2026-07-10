@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::models::query::{Depth, Intent, QueryIntent};
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntentClassifierSpec {
@@ -27,7 +27,7 @@ pub fn parse_intent(text: &str) -> Result<QueryIntent, MuonError> {
             "intent classifier returned empty text".to_string(),
         ));
     }
-    let json_str = crate::infrastructure::util::extract_json(text).unwrap_or(text);
+    let json_str = crate::domain::extract_json(text).unwrap_or(text);
     let value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
         MuonError::Pipeline(format!(
             "intent classifier returned non-JSON: {e}; raw={trimmed}"

@@ -1,6 +1,6 @@
 use agent_rs::observability::{TracerHandle, init_tracing, shutdown_tracing};
 
-use crate::error::{MuonError, Result};
+use crate::domain::error::{MuonError, Result};
 
 /// Manages OpenTelemetry tracing lifecycle for LangSmith export.
 pub struct Observability {

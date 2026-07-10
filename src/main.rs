@@ -42,10 +42,10 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> muon::error::Result<()> {
+async fn main() -> muon::domain::error::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Some(Commands::Tui) | None => muon::app::run().await,
+        Some(Commands::Tui) | None => muon::presentation::run().await,
         Some(Commands::Run {
             query,
             headless,
@@ -55,7 +55,7 @@ async fn main() -> muon::error::Result<()> {
             if headless {
                 muon::cli::run_headless(&query, mock, output.as_deref()).await
             } else {
-                muon::app::run().await
+                muon::presentation::run().await
             }
         }
         Some(Commands::Export {

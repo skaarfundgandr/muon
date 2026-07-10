@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::domain::models::report::ResearchReport;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 pub use crate::domain::models::report::VerificationLevel;
 pub use normalize_url as normalize;
@@ -81,7 +81,8 @@ pub fn verify(
         }
     }
 
-    let verified_report = report_reflow(&report_to_markdown(report), &valid)?;
+    let verified_report =
+        report_reflow(&report_to_markdown(report), &valid, &report.citations)?;
 
     Ok(VerificationOutput {
         verified_report,
@@ -243,27 +244,45 @@ fn area(url: &str) -> Option<String> {
     Some(result)
 }
 
-fn child_path_match(normalized: &str, registry: &[String]) -> bool {
-    if let Some(path_start) = normalized.find("://") {
-        let rest = &normalized[path_start + 3..];
-        if let Some(slash_idx) = rest.find('/') {
-            let path = &rest[slash_idx..];
-            let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-            if segments.len() >= 2 {
-                let tail = segments.last().unwrap_or(&"");
-                return registry.iter().any(|r| {
-                    let pattern = format!("/{tail}/");
-                    if r.contains(&pattern) || r.ends_with(&format!("/{tail}")) {
-                        return true;
-                    }
-                    r.split('/')
-                        .filter(|s| !s.is_empty())
-                        .any(|seg| seg.ends_with(tail))
-                });
-            }
-        }
+fn host_and_path(normalized: &str) -> Option<(&str, &str)> {
+    let rest = normalized.split_once("://")?.1;
+    let (host, path) = match rest.find('/') {
+        Some(i) => (&rest[..i], &rest[i..]),
+        None => (rest, "/"),
+    };
+    Some((host, path))
+}
+
+fn path_is_under(child: &str, parent: &str) -> bool {
+    let parent = parent.trim_end_matches('/');
+    let child = child.trim_end_matches('/');
+    if parent.is_empty() {
+        return false;
     }
-    false
+    child == parent || child.starts_with(&format!("{parent}/"))
+}
+
+fn child_path_match(normalized: &str, registry: &[String]) -> bool {
+    let Some((host, path)) = host_and_path(normalized) else {
+        return false;
+    };
+    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    if segments.len() < 2 {
+        return false;
+    }
+    registry.iter().any(|r| {
+        let Some((rh, rp)) = host_and_path(r) else {
+            return false;
+        };
+        if rh != host {
+            return false;
+        }
+        let r_segments: Vec<&str> = rp.split('/').filter(|s| !s.is_empty()).collect();
+        if r_segments.len() < 2 {
+            return false;
+        }
+        path_is_under(path, rp)
+    })
 }
 
 fn query_subset_match(normalized: &str, registry: &[String]) -> bool {
@@ -323,12 +342,22 @@ fn report_to_markdown(report: &ResearchReport) -> String {
     parts.join("\n\n")
 }
 
-/// Rebuilds report markdown with renumbered citation references.
-pub fn report_reflow(markdown: &str, valid_citations: &[ValidCitation]) -> Result<String, MuonError> {
+pub fn report_reflow(
+    markdown: &str,
+    valid_citations: &[ValidCitation],
+    original_citations: &[crate::domain::models::report::Citation],
+) -> Result<String, MuonError> {
     let mut url_to_new_num: HashMap<String, u32> = HashMap::new();
     for (i, cite) in valid_citations.iter().enumerate() {
         if !cite.url.is_empty() {
             url_to_new_num.insert(cite.url.clone(), (i + 1) as u32);
+        }
+    }
+
+    let mut old_num_to_url: HashMap<u32, String> = HashMap::new();
+    for c in original_citations {
+        if !c.url.is_empty() {
+            old_num_to_url.insert(c.reference_number, c.url.clone());
         }
     }
 
@@ -337,20 +366,19 @@ pub fn report_reflow(markdown: &str, valid_citations: &[ValidCitation]) -> Resul
     let url_re = Regex::new(r"\[(https?://[^\]]+)\]")
         .map_err(|e| MuonError::Database(e.to_string()))?;
 
-    let mut new_num = 1u32;
     let mut old_to_new: HashMap<String, String> = HashMap::new();
-    let valid_count = valid_citations.len();
 
     for cap in numbered_re.captures_iter(markdown) {
         if let Some(old) = cap.get(1) {
             let key = format!("[{}]", old.as_str());
             if let std::collections::hash_map::Entry::Vacant(e) = old_to_new.entry(key) {
-                if (new_num as usize) <= valid_count {
-                    e.insert(format!("[{}]", new_num));
-                    new_num += 1;
-                } else {
-                    e.insert(String::new());
-                }
+                let n: u32 = old.as_str().parse().unwrap_or(0u32);
+                let replacement = old_num_to_url
+                    .get(&n)
+                    .and_then(|url| url_to_new_num.get(url))
+                    .map(|nn| format!("[{nn}]"))
+                    .unwrap_or_default();
+                e.insert(replacement);
             }
         }
     }
@@ -359,7 +387,7 @@ pub fn report_reflow(markdown: &str, valid_citations: &[ValidCitation]) -> Resul
         if let (Some(url_m), Some(full_m)) = (cap.get(1), cap.get(0)) {
             let url = url_m.as_str();
             if let Some(&n) = url_to_new_num.get(url) {
-                old_to_new.insert(full_m.as_str().to_string(), format!("[{}]", n));
+                old_to_new.insert(full_m.as_str().to_string(), format!("[{n}]"));
             } else {
                 old_to_new.insert(full_m.as_str().to_string(), String::new());
             }
@@ -367,8 +395,14 @@ pub fn report_reflow(markdown: &str, valid_citations: &[ValidCitation]) -> Resul
     }
 
     let mut result = markdown.to_string();
-    for (old, new) in &old_to_new {
-        result = result.replace(old, new);
+    let mut placeholders: Vec<(String, String)> = Vec::new();
+    for (i, (old, new)) in old_to_new.iter().enumerate() {
+        let ph = format!("\u{E000}CITE{i}\u{E001}");
+        result = result.replace(old, &ph);
+        placeholders.push((ph, new.clone()));
+    }
+    for (ph, new) in placeholders {
+        result = result.replace(&ph, &new);
     }
     Ok(result)
 }

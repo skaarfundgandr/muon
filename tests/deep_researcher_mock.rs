@@ -2,6 +2,7 @@
 
 use muon::application::bridge::{AgentEvent, BridgeChannels};
 use muon::application::deep_researcher::DeepResearcher;
+use muon::application::deps::PipelineDeps;
 use muon::config::MuonConfig;
 use muon::domain::agents::clarifier::ClarifierResult;
 use muon::infrastructure::context::InfrastructureContext;
@@ -11,10 +12,11 @@ use tokio::sync::mpsc;
 async fn deep_researcher_runs_max_loops_with_mock() {
     let cfg = MuonConfig::default();
     let infra = InfrastructureContext::mock();
+    let deps = PipelineDeps::from_infra(&infra);
     let (tx, mut rx) = mpsc::unbounded_channel::<AgentEvent>();
     let bridge = BridgeChannels::new(tx);
     let plan = ClarifierResult::default();
-    let researcher = DeepResearcher::new(&cfg, &infra, &bridge);
+    let researcher = DeepResearcher::new(&cfg, &deps, &bridge);
     let report = researcher
         .run("What is async Rust?", &plan)
         .await
@@ -38,10 +40,11 @@ async fn deep_researcher_exits_early_when_quality_passes() {
     cfg.agents.deep_researcher.min_report_length = 1;
     cfg.agents.deep_researcher.min_report_sections = 0;
     let infra = InfrastructureContext::mock();
+    let deps = PipelineDeps::from_infra(&infra);
     let (tx, mut rx) = mpsc::unbounded_channel::<AgentEvent>();
     let bridge = BridgeChannels::new(tx);
     let plan = ClarifierResult::default();
-    let researcher = DeepResearcher::new(&cfg, &infra, &bridge);
+    let researcher = DeepResearcher::new(&cfg, &deps, &bridge);
     let report = researcher.run("query", &plan).await.unwrap();
     assert!(!report.title.is_empty());
 

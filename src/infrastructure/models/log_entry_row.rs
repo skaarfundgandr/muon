@@ -2,7 +2,7 @@ use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
 use crate::domain::models::log_entry::{AgentTag, LogEntry, LogLevel};
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::storage::schema::log_entries;
 
 #[derive(Debug, Clone, Queryable, Selectable)]

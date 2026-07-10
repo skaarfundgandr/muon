@@ -3,7 +3,7 @@ use diesel_async::pooled_connection::deadpool::Pool;
 use diesel_async::pooled_connection::AsyncDieselConnectionManager;
 use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::storage::migrations::run_migrations;
 
 pub type DbPool = Pool<SyncConnectionWrapper<SqliteConnection>>;

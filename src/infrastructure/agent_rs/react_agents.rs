@@ -5,12 +5,32 @@ use crate::application::bridge::BridgeChannels;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::source::SourceType;
 use crate::domain::traits::agent::MuonAgent;
-use crate::error::{MuonError, Result};
+use crate::domain::error::{MuonError, Result};
 use crate::infrastructure::source_registry::SourceRegistry;
 
 type SourceSink = std::sync::Arc<std::sync::Mutex<SourceRegistry>>;
 
 const FEED_SNIPPET_MAX: usize = 160;
+
+pub const REMINDER_FINALIZE: &str = "\
+<system-reminder>\n\
+You are approaching the cycle limit.\n\
+Finalize your answer now.\n\
+</system-reminder>";
+
+pub const REMINDER_ORCHESTRATOR: &str = "\
+<system-reminder>\n\
+You are approaching the ReAct cycle limit. Stop delegating.\n\
+Synthesize a complete markdown research report now from tool\n\
+findings already gathered.\n\
+</system-reminder>";
+
+pub const REMINDER_CLARIFIER: &str = "\
+<system-reminder>\n\
+You are approaching the ReAct cycle limit.\n\
+Respond with your final strict JSON decision now\n\
+(clarification or plan fields only — no markdown report).\n\
+</system-reminder>";
 
 pub(crate) fn feed_snippet(s: &str) -> String {
     let count = s.chars().count();
@@ -48,14 +68,20 @@ pub(crate) fn record_observation_sources(sink: &SourceSink, tool_name: &str, res
         return;
     }
 
-    if let Ok(urls) =
-        crate::application::pipeline_runner::citation_verifier::extract_urls(result)
+    if let Ok(urls) = crate::application::pipeline_runner::citation_verifier::extract_urls(result)
         && let Ok(mut g) = sink.lock()
     {
         for url in &urls {
             g.record(url.as_str(), SourceType::Web);
         }
     }
+}
+
+fn is_cycle_limit_error(e: &agent_rs::domain::errors::ReActError) -> bool {
+    matches!(
+        e,
+        agent_rs::domain::errors::ReActError::MaxCyclesExceeded { .. }
+    )
 }
 
 #[async_trait]
@@ -75,10 +101,13 @@ pub trait ReActRunner: Send + Sync {
     ) -> std::result::Result<String, agent_rs::domain::errors::ReActError>;
 }
 
-struct NoCompactionRunner<M, P>(agent_rs::agent::react::BuiltReAct<M, P, ()>)
+struct NoCompactionRunner<M, P>
 where
     M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-    P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static;
+    P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
+{
+    inner: agent_rs::agent::react::BuiltReAct<M, P, ()>,
+}
 
 #[async_trait]
 impl<M, P> ReActRunner for NoCompactionRunner<M, P>
@@ -93,7 +122,7 @@ where
         agent_rs::domain::agent::ReActTrace,
         agent_rs::domain::errors::ReActError,
     > {
-        self.0.prompt(msg).await
+        self.inner.prompt(msg).await
     }
 
     async fn chat_prompt(
@@ -101,15 +130,18 @@ where
         msg: String,
         history: &mut Vec<rig_core::message::Message>,
     ) -> std::result::Result<String, agent_rs::domain::errors::ReActError> {
-        self.0.chat(msg, history).await
+        self.inner.chat(msg, history).await
     }
 }
 
-struct CompactionRunner<M, P, C>(agent_rs::agent::react::BuiltReAct<M, P, C>)
+struct CompactionRunner<M, P, C>
 where
     M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
     P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
-    C: rig_core::completion::Prompt + WasmCompatSend + WasmCompatSync + 'static;
+    C: rig_core::completion::Prompt + WasmCompatSend + WasmCompatSync + 'static,
+{
+    inner: agent_rs::agent::react::BuiltReAct<M, P, C>,
+}
 
 #[async_trait]
 impl<M, P, C> ReActRunner for CompactionRunner<M, P, C>
@@ -125,7 +157,7 @@ where
         agent_rs::domain::agent::ReActTrace,
         agent_rs::domain::errors::ReActError,
     > {
-        self.0.prompt_compact(msg).await
+        self.inner.prompt_compact(msg).await
     }
 
     async fn chat_prompt(
@@ -133,11 +165,10 @@ where
         msg: String,
         history: &mut Vec<rig_core::message::Message>,
     ) -> std::result::Result<String, agent_rs::domain::errors::ReActError> {
-        self.0.chat_compact(msg, history).await
+        self.inner.chat_compact(msg, history).await
     }
 }
 
-/// Type-erased ReAct agent implementing `MuonAgent` via `agent_rs`.
 pub struct ReActAgent {
     tag: AgentTag,
     runner: Box<dyn ReActRunner>,
@@ -162,6 +193,7 @@ impl MuonAgent for ReActAgent {
     }
 
     async fn prompt_raw(&self, prompt: &str) -> Result<String> {
+        use agent_rs::domain::errors::ReActError;
         use agent_rs::observability::conventions::KIND_AGENT;
         use tracing::Instrument;
 
@@ -174,14 +206,9 @@ impl MuonAgent for ReActAgent {
             "agent.tag" = self.tag.as_str(),
         );
 
-        let result = async {
-            self.runner
-                .prompt_trace(prompt.to_string())
-                .await
-                .map_err(MuonError::from)
-        }
-        .instrument(span.clone())
-        .await;
+        let result = async { self.runner.prompt_trace(prompt.to_string()).await }
+            .instrument(span.clone())
+            .await;
 
         match result {
             Ok(trace) => {
@@ -189,12 +216,18 @@ impl MuonAgent for ReActAgent {
                 span.record("output.value", text.as_str());
                 Ok(text)
             }
-            Err(e) => Err(e),
+            Err(ReActError::MaxCyclesExceeded { cycles }) => Err(MuonError::MaxCycles {
+                agent: self.tag.as_str().to_string(),
+                cycles,
+            }),
+            Err(e) => Err(MuonError::Agent {
+                agent: self.tag.as_str().to_string(),
+                message: e.to_string(),
+            }),
         }
     }
 }
 
-/// Builds `ReActAgent` instances from pre-constructed rig `Agent<M, P>` objects.
 pub struct ReActFactory<'a> {
     pub cfg: &'a crate::config::MuonConfig,
     pub bridge: BridgeChannels,
@@ -205,7 +238,6 @@ impl<'a> ReActFactory<'a> {
         Self { cfg, bridge }
     }
 
-    /// Build a standard ReAct runner (no compaction) from a pre-built rig Agent.
     pub fn build_runner<M, P>(
         &self,
         agent: rig_core::agent::Agent<M, P>,
@@ -213,6 +245,7 @@ impl<'a> ReActFactory<'a> {
         max_cycles: usize,
         tool_timeout_secs: u64,
         source_sink: SourceSink,
+        cycle_reminder: Option<&str>,
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
@@ -221,10 +254,12 @@ impl<'a> ReActFactory<'a> {
     {
         use agent_rs::agent::ReActExt;
 
+        let reminder = cycle_reminder.map(str::to_string);
         let built = agent
             .react()
             .max_cycles(max_cycles)
             .tool_timeout_secs(tool_timeout_secs)
+            .set_cycle_limit_reminder_msg(reminder)
             .on_thought({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |t: &agent_rs::domain::agent::Thought| {
@@ -241,11 +276,7 @@ impl<'a> ReActFactory<'a> {
                     b.log(
                         tag,
                         LogLevel::Info,
-                        format!(
-                            "action: {} args={}",
-                            a.tool_name,
-                            feed_snippet(&a.args)
-                        ),
+                        format!("action: {} args={}", a.tool_name, feed_snippet(&a.args)),
                     );
                 }
             })
@@ -277,15 +308,17 @@ impl<'a> ReActFactory<'a> {
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |e: &agent_rs::domain::errors::ReActError| {
                     let msg = format!("error: {e}");
-                    let is_turn_limit = msg.to_lowercase().contains("max_turns")
-                        || msg.to_lowercase().contains("max turns");
-                    let level = if is_turn_limit { LogLevel::Warn } else { LogLevel::Error };
+                    let level = if is_cycle_limit_error(e) {
+                        LogLevel::Warn
+                    } else {
+                        LogLevel::Error
+                    };
                     b.log(tag, level, msg);
                 }
             })
             .with_span_emitter(crate::infrastructure::observability::Observability::span_emitter())
             .build();
-        Box::new(NoCompactionRunner(built))
+        Box::new(NoCompactionRunner { inner: built })
     }
 
     pub fn build_planner_runner<M, P>(
@@ -301,7 +334,14 @@ impl<'a> ReActFactory<'a> {
         P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
         rig_core::agent::Agent<M, P>: Clone,
     {
-        self.build_runner(agent, tag, max_cycles, tool_timeout_secs, source_sink)
+        self.build_runner(
+            agent,
+            tag,
+            max_cycles,
+            tool_timeout_secs,
+            source_sink,
+            Some(REMINDER_FINALIZE),
+        )
     }
 
     pub fn build_researcher_runner<M, P>(
@@ -317,10 +357,16 @@ impl<'a> ReActFactory<'a> {
         P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
         rig_core::agent::Agent<M, P>: Clone,
     {
-        self.build_runner(agent, tag, max_cycles, tool_timeout_secs, source_sink)
+        self.build_runner(
+            agent,
+            tag,
+            max_cycles,
+            tool_timeout_secs,
+            source_sink,
+            Some(REMINDER_FINALIZE),
+        )
     }
 
-    /// Build a clarifier runner with automatic context compaction for multi-turn history.
     pub fn build_clarifier_runner<M, P>(
         &self,
         agent: rig_core::agent::Agent<M, P>,
@@ -341,6 +387,7 @@ impl<'a> ReActFactory<'a> {
             .react()
             .max_cycles(max_cycles)
             .tool_timeout_secs(tool_timeout_secs)
+            .set_cycle_limit_reminder_msg(Some(REMINDER_CLARIFIER.to_string()))
             .with_compaction()
             .threshold(threshold)
             .on_thought({
@@ -359,11 +406,7 @@ impl<'a> ReActFactory<'a> {
                     b.log(
                         tag,
                         LogLevel::Info,
-                        format!(
-                            "action: {} args={}",
-                            a.tool_name,
-                            feed_snippet(&a.args)
-                        ),
+                        format!("action: {} args={}", a.tool_name, feed_snippet(&a.args)),
                     );
                 }
             })
@@ -395,14 +438,16 @@ impl<'a> ReActFactory<'a> {
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |e: &agent_rs::domain::errors::ReActError| {
                     let msg = format!("error: {e}");
-                    let is_turn_limit = msg.to_lowercase().contains("max_turns")
-                        || msg.to_lowercase().contains("max turns");
-                    let level = if is_turn_limit { LogLevel::Warn } else { LogLevel::Error };
+                    let level = if is_cycle_limit_error(e) {
+                        LogLevel::Warn
+                    } else {
+                        LogLevel::Error
+                    };
                     b.log(tag, level, msg);
                 }
             })
             .with_span_emitter(crate::infrastructure::observability::Observability::span_emitter())
             .build();
-        Box::new(CompactionRunner(built))
+        Box::new(CompactionRunner { inner: built })
     }
 }

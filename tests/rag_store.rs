@@ -2,7 +2,7 @@
 use muon::config::MuonConfig;
 use muon::domain::models::source::{Source, SourceType, VerificationStatus};
 use muon::domain::traits::vector_store::VectorStore;
-use muon::error::MuonError;
+use muon::domain::error::MuonError;
 use muon::infrastructure::rag::rag_store::RagContext;
 
 #[tokio::test]

@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 use super::markdown_exporter::MarkdownExporter;
 use super::obsidian_exporter::ObsidianExporter;

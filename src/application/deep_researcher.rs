@@ -9,8 +9,8 @@ use crate::domain::agents::clarifier::ClarifierResult;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::report::{ResearchReport, VerificationLevel};
 use crate::domain::models::session::ReportStats;
-use crate::error::MuonError;
-use crate::infrastructure::context::InfrastructureContext;
+use crate::domain::error::MuonError;
+use crate::application::deps::PipelineDeps;
 use crate::infrastructure::source_registry::SourceRegistry;
 
 const GAVE_UP_PATTERNS: &[&str] = &[
@@ -24,17 +24,17 @@ const GAVE_UP_PATTERNS: &[&str] = &[
 
 pub struct DeepResearcher<'a> {
     cfg: &'a MuonConfig,
-    infra: &'a InfrastructureContext,
+    deps: &'a PipelineDeps,
     bridge: &'a BridgeChannels,
 }
 
 impl<'a> DeepResearcher<'a> {
     pub fn new(
         cfg: &'a MuonConfig,
-        infra: &'a InfrastructureContext,
+        deps: &'a PipelineDeps,
         bridge: &'a BridgeChannels,
     ) -> Self {
-        Self { cfg, infra, bridge }
+        Self { cfg, deps, bridge }
     }
 
     pub async fn run(
@@ -45,7 +45,7 @@ impl<'a> DeepResearcher<'a> {
         let max_retries = self.cfg.agents.deep_researcher.max_retries.max(1);
         let mut draft = String::new();
         let mut registry = SourceRegistry::new();
-        if let Ok(sink) = self.infra.source_sink.lock() {
+        if let Ok(sink) = self.deps.source_sink.lock() {
             for src in sink.sources() {
                 registry.record(&src.url, src.source_type);
             }
@@ -69,7 +69,7 @@ impl<'a> DeepResearcher<'a> {
                 invoke_idx,
                 last_reason.as_deref(),
             );
-            match self.infra.deep_orchestrator.prompt_raw(&prompt).await {
+            match self.deps.deep_orchestrator.prompt_raw(&prompt).await {
                 Ok(text) => {
                     draft = text;
                     self.bridge.log(
@@ -79,23 +79,14 @@ impl<'a> DeepResearcher<'a> {
                     );
                 }
                 Err(e) => {
-                    let msg = e.to_string().to_lowercase();
-                    let is_cycle_limit = msg.contains("max_cycles")
-                        || msg.contains("max cycles")
-                        || msg.contains("max_turns")
-                        || msg.contains("max turns");
-                    if is_cycle_limit {
+                    if matches!(e, MuonError::MaxCycles { .. }) {
                         self.bridge.log(
                             AgentTag::Orchestrate,
                             LogLevel::Warn,
                             format!("orchestrator hit iteration limit (soft-fail): {e}"),
                         );
                         if draft.is_empty() {
-                            draft = "# Research Report\n\n\
-                                     The research orchestrator reached its iteration limit \
-                                     before producing a complete draft. Findings may be \
-                                     incomplete.\n"
-                                .to_string();
+                            draft = incomplete_orchestrator_stub(&registry);
                         }
                         break;
                     } else if !draft.is_empty() {
@@ -146,7 +137,7 @@ impl<'a> DeepResearcher<'a> {
 
         // Fold URLs discovered by tool calls during the loop (planner/researcher/orchestrator)
         // into the local registry so they appear in citations, embedding, and verification.
-        if let Ok(sink) = self.infra.source_sink.lock() {
+        if let Ok(sink) = self.deps.source_sink.lock() {
             for src in sink.sources() {
                 registry.record(&src.url, src.source_type);
             }
@@ -155,7 +146,7 @@ impl<'a> DeepResearcher<'a> {
         let unverified_report = self.to_report(&draft, &registry);
 
         // Embed sources into the vector store (non-fatal on error).
-        if let Some(ref vs) = self.infra.vector_store {
+        if let Some(ref vs) = self.deps.vector_store {
             for source in registry.sources_mut() {
                 if source.embedding_id.is_none() && !source.snippet.is_empty() {
                     match vs.add(source, &source.snippet).await {
@@ -311,6 +302,30 @@ impl<'a> DeepResearcher<'a> {
             },
         }
     }
+}
+
+fn incomplete_orchestrator_stub(registry: &SourceRegistry) -> String {
+    let mut out = String::from(
+        "# Research Report\n\n\
+         The research orchestrator reached its iteration limit before producing \
+         a complete draft. Findings may be incomplete.\n",
+    );
+    let sources = registry.sources();
+    if !sources.is_empty() {
+        out.push_str("\n## Sources discovered before limit\n\n");
+        for (i, s) in sources.iter().enumerate() {
+            let title = if s.title.is_empty() {
+                s.url.as_str()
+            } else {
+                s.title.as_str()
+            };
+            out.push_str(&format!("{}. [{}]({})\n", i + 1, title, s.url));
+            if !s.snippet.is_empty() {
+                out.push_str(&format!("   {}\n", s.snippet));
+            }
+        }
+    }
+    out
 }
 
 pub fn is_report_complete(

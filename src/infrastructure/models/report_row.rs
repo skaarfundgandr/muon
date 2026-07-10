@@ -3,7 +3,7 @@ use diesel::prelude::*;
 
 use crate::domain::models::report::{ReportSection, ResearchReport};
 use crate::domain::models::session::ReportStats;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::storage::schema::research_reports;
 
 #[derive(Debug, Clone, Queryable, Selectable)]

@@ -2,7 +2,7 @@ use diesel::prelude::*;
 use diesel_async::RunQueryDsl;
 
 use crate::domain::models::report::Citation;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::models::citation_row::{CitationRow, NewCitationRow};
 use crate::infrastructure::storage::pool::DbPool;
 use crate::infrastructure::storage::schema::citations;

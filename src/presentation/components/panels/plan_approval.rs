@@ -10,7 +10,7 @@ pub fn render(
     f: &mut ratatui::Frame,
     area: Rect,
     plan: &crate::domain::agents::clarifier::ClarifierResult,
-    focus: crate::app::PlanApprovalFocus,
+    focus: crate::presentation::PlanApprovalFocus,
     feedback_buffer: &str,
     feedback_cursor: usize,
     hit_registry: &mut Vec<ClickTarget>,
@@ -127,7 +127,7 @@ pub fn render(
         .split(inner_chunks[4]);
 
     // Approve Button
-    let approve_focused = focus == crate::app::PlanApprovalFocus::Approve;
+    let approve_focused = focus == crate::presentation::PlanApprovalFocus::Approve;
     let approve_hovered = is_hovering(button_chunks[0], mouse_col, mouse_row);
     let approve_style = if approve_focused {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
@@ -146,7 +146,7 @@ pub fn render(
     });
 
     // Reject Button
-    let reject_focused = focus == crate::app::PlanApprovalFocus::Reject;
+    let reject_focused = focus == crate::presentation::PlanApprovalFocus::Reject;
     let reject_hovered = is_hovering(button_chunks[2], mouse_col, mouse_row);
     let reject_style = if reject_focused {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
@@ -165,7 +165,7 @@ pub fn render(
     });
 
     // Send Feedback Button
-    let feedback_focused = focus == crate::app::PlanApprovalFocus::Feedback;
+    let feedback_focused = focus == crate::presentation::PlanApprovalFocus::Feedback;
     let feedback_hovered = is_hovering(button_chunks[4], mouse_col, mouse_row);
     let feedback_style = if feedback_focused {
         Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
@@ -186,7 +186,7 @@ pub fn render(
     // Feedback Text Input Area
     let feedback_area = inner_chunks[6];
     let input_hovered = is_hovering(feedback_area, mouse_col, mouse_row);
-    let input_focused = focus == crate::app::PlanApprovalFocus::Feedback;
+    let input_focused = focus == crate::presentation::PlanApprovalFocus::Feedback;
     let border_color = if input_focused {
         theme::border_focus()
     } else if input_hovered {

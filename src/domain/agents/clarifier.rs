@@ -1,9 +1,7 @@
-use rig_core::message::Message;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default)]
 pub struct ClarifierState {
-    pub messages: Vec<Message>,
     pub max_turns: u32,
     pub clarifier_log: String,
     pub iteration: u32,

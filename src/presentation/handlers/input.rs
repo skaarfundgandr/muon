@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::{ActivePopup, AppState, PlanApprovalFocus};
+use crate::presentation::{ActivePopup, AppState, PlanApprovalFocus};
 use crate::application::bridge::PlanDecision;
 use crate::presentation::handlers::{dashboard, settings, view_events};
 use crate::presentation::views::View;

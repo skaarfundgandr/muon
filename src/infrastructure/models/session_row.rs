@@ -3,7 +3,7 @@ use diesel::prelude::*;
 
 use crate::domain::models::session::{Session, SessionId, SessionStatus};
 use crate::domain::traits::session_store::SessionSummary;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::storage::schema::sessions;
 
 #[derive(Debug, Clone, Queryable, Selectable)]
@@ -44,7 +44,7 @@ impl TryFrom<SessionRow> for Session {
             .map_err(|e: uuid::Error| MuonError::Database(e.to_string()))?;
         let status = SessionStatus::parse_status(&row.status)?;
         let pipeline_stage =
-            crate::application::pipeline::PipelineStage::parse_stage(&row.pipeline_stage)?;
+            crate::domain::models::pipeline::PipelineStage::parse_stage(&row.pipeline_stage)?;
         let stats = row
             .telemetry_json
             .as_deref()
@@ -132,31 +132,4 @@ impl SessionStatus {
     }
 }
 
-impl crate::application::pipeline::PipelineStage {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Idle => "Idle",
-            Self::IntentClassification => "IntentClassification",
-            Self::Clarification => "Clarification",
-            Self::ShallowResearch => "ShallowResearch",
-            Self::DeepResearch => "DeepResearch",
-            Self::Complete => "Complete",
-            Self::Cancelled => "Cancelled",
-        }
-    }
 
-    pub fn parse_stage(s: &str) -> Result<Self, MuonError> {
-        match s {
-            "Idle" => Ok(Self::Idle),
-            "IntentClassification" => Ok(Self::IntentClassification),
-            "Clarification" => Ok(Self::Clarification),
-            "ShallowResearch" => Ok(Self::ShallowResearch),
-            "DeepResearch" => Ok(Self::DeepResearch),
-            "Complete" => Ok(Self::Complete),
-            "Cancelled" => Ok(Self::Cancelled),
-            other => Err(MuonError::Database(format!(
-                "unknown pipeline stage: {other}"
-            ))),
-        }
-    }
-}

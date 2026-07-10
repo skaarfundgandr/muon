@@ -9,7 +9,7 @@ use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::SessionId;
 use crate::domain::models::source::Source;
 use crate::domain::traits::session_store::{SessionStore, SessionSummary};
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::models::session_row::{NewSessionRow, SessionRow};
 use crate::infrastructure::models::source_row::NewSourceRow;
 use crate::infrastructure::storage::pool::DbPool;

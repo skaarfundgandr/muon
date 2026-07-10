@@ -10,7 +10,7 @@ use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::components::*;
 use crate::presentation::theme;
 use crate::presentation::views::View;
-use crate::session::SessionSummary;
+use crate::application::session::SessionSummary;
 
 #[allow(clippy::too_many_arguments)]
 pub fn render(

@@ -1,6 +1,7 @@
 use crate::application::bridge::BridgeChannels;
 use crate::application::pipeline::{PipelineStage, PipelineState};
 use crate::application::pipeline_runner::citation_verifier;
+use crate::application::pipeline_runner::finalize::finalize_session;
 use crate::config::MuonConfig;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::query::Intent;
@@ -8,95 +9,90 @@ use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::SessionId;
 use crate::domain::models::source::SourceType;
 use crate::domain::traits::agent::MuonAgent;
-use crate::error::MuonError;
-use crate::infrastructure::context::InfrastructureContext;
+use crate::application::deps::PipelineDeps;
+use crate::domain::error::MuonError;
 use crate::infrastructure::source_registry::SourceRegistry;
 
 use super::escalation;
+
+fn snapshot_sources(deps: &PipelineDeps) -> Vec<crate::domain::models::source::Source> {
+    if let Ok(sink) = deps.source_sink.lock() {
+        sink.sources().to_vec()
+    } else {
+        Vec::new()
+    }
+}
 
 pub async fn run_pipeline(
     query: &str,
     state: &mut PipelineState,
     cfg: &MuonConfig,
-    infra: &InfrastructureContext,
+    deps: &PipelineDeps,
     bridge: &BridgeChannels,
     session_id: Option<SessionId>,
 ) -> Result<ResearchReport, MuonError> {
     state.start();
-    if let Ok(mut sink) = infra.source_sink.lock() {
+    if let Ok(mut sink) = deps.source_sink.lock() {
         sink.clear();
     }
     let session_id = match session_id {
         Some(id) => {
-            infra.session_store.create_with_id(id, query).await?;
+            deps.session_store.create_with_id(id, query).await?;
             id
         }
-        None => infra.session_store.create(query).await?,
+        None => deps.session_store.create(query).await?,
     };
 
     bridge.stage(PipelineStage::IntentClassification);
     bridge.log(AgentTag::Intent, LogLevel::Info, "classifying query");
-    let intent = classify_intent(infra.intent_classifier.as_ref(), query).await?;
+    let intent = classify_intent(deps.intent_classifier.as_ref(), query).await?;
 
-    match intent.intent {
+    let report = match intent.intent {
         Intent::Meta(resp) => {
-            bridge.stage(PipelineStage::Complete);
-            state.finish();
-            let report = ResearchReport::direct(&resp);
-            let _ = infra
-                .session_store
-                .save_report(session_id, &report)
-                .await;
-            let _ = infra
-                .session_store
-                .update_stage(session_id, PipelineStage::Complete.as_str())
-                .await;
             bridge.log(
                 AgentTag::Intent,
                 LogLevel::Info,
-                format!("meta response, report length {}", report.summary.len()),
+                "meta response".to_string(),
             );
-            Ok(report)
+            ResearchReport::direct(&resp)
         }
         Intent::Research => match intent.depth {
             crate::domain::models::query::Depth::Shallow => {
-                let report = shallow_research(infra.shallow.as_ref(), query, cfg, bridge, infra).await?;
+                let report =
+                    shallow_research(deps.shallow.as_ref(), query, cfg, bridge, deps).await?;
                 if cfg.advanced.escalate_agent && escalation::should_escalate(&report) {
                     bridge.log(
                         AgentTag::Sys,
                         LogLevel::Info,
                         "shallow result triggered escalation",
                     );
-                    run_deep_path(query, state, cfg, infra, bridge, session_id).await
-                } else {
-                    bridge.stage(PipelineStage::Complete);
-                    state.finish();
-                    let _ = infra
-                        .session_store
-                        .save_report(session_id, &report)
-                        .await;
-                    let sink_sources: Vec<crate::domain::models::source::Source> =
-                        if let Ok(sink) = infra.source_sink.lock() {
-                            sink.sources().to_vec()
-                        } else {
-                            Vec::new()
-                        };
-                    let _ = infra
-                        .session_store
-                        .save_sources(session_id, &sink_sources)
-                        .await;
-                    let _ = infra
-                        .session_store
-                        .update_stage(session_id, PipelineStage::Complete.as_str())
-                        .await;
-                    Ok(report)
+                    return run_deep_path(query, state, cfg, deps, bridge, session_id).await;
                 }
+                report
             }
             crate::domain::models::query::Depth::Deep => {
-                run_deep_path(query, state, cfg, infra, bridge, session_id).await
+                return run_deep_path(query, state, cfg, deps, bridge, session_id).await;
             }
         },
-    }
+    };
+
+    let sources = snapshot_sources(deps);
+    finalize_session(
+        deps.session_store.as_ref(),
+        session_id,
+        &report,
+        &sources,
+        PipelineStage::Complete,
+    )
+    .await?;
+    bridge.stage(PipelineStage::Complete);
+    state.finish();
+    bridge.log(
+        AgentTag::Sys,
+        LogLevel::Info,
+        format!("session finalized, report length {}", report.summary.len()),
+    );
+    Ok(report)
 }
 
 async fn classify_intent(
@@ -112,7 +108,7 @@ async fn shallow_research(
     query: &str,
     cfg: &MuonConfig,
     bridge: &BridgeChannels,
-    infra: &InfrastructureContext,
+    deps: &PipelineDeps,
 ) -> Result<ResearchReport, MuonError> {
     bridge.stage(PipelineStage::ShallowResearch);
     bridge.log(AgentTag::Search, LogLevel::Info, "running shallow research");
@@ -124,7 +120,7 @@ async fn shallow_research(
     for url in &urls {
         registry.record(url.as_str(), SourceType::Web);
     }
-    if let Ok(sink) = infra.source_sink.lock() {
+    if let Ok(sink) = deps.source_sink.lock() {
         for src in sink.sources() {
             registry.record(&src.url, src.source_type);
         }
@@ -191,35 +187,25 @@ async fn run_deep_path(
     query: &str,
     state: &mut PipelineState,
     cfg: &MuonConfig,
-    infra: &InfrastructureContext,
+    deps: &PipelineDeps,
     bridge: &BridgeChannels,
     session_id: crate::domain::models::session::SessionId,
 ) -> Result<ResearchReport, MuonError> {
     bridge.stage(PipelineStage::Clarification);
     let clarifier_result =
-        super::clarifier::run_clarifier(query, cfg, infra.clarifier.as_ref(), bridge).await?;
-    let researcher =
-        crate::application::deep_researcher::DeepResearcher::new(cfg, infra, bridge);
+        super::clarifier::run_clarifier(query, cfg, deps.clarifier.as_ref(), bridge).await?;
+    let researcher = crate::application::deep_researcher::DeepResearcher::new(cfg, deps, bridge);
     let report = researcher.run(query, &clarifier_result).await?;
+    let sources = snapshot_sources(deps);
+    finalize_session(
+        deps.session_store.as_ref(),
+        session_id,
+        &report,
+        &sources,
+        PipelineStage::Complete,
+    )
+    .await?;
     bridge.stage(PipelineStage::Complete);
     state.finish();
-    let _ = infra
-        .session_store
-        .save_report(session_id, &report)
-        .await;
-    let sink_sources: Vec<crate::domain::models::source::Source> =
-        if let Ok(sink) = infra.source_sink.lock() {
-            sink.sources().to_vec()
-        } else {
-            Vec::new()
-        };
-    let _ = infra
-        .session_store
-        .save_sources(session_id, &sink_sources)
-        .await;
-    let _ = infra
-        .session_store
-        .update_stage(session_id, PipelineStage::Complete.as_str())
-        .await;
     Ok(report)
 }

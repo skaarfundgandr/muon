@@ -1,5 +1,5 @@
 use crate::config::MuonConfig;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::util::expand_tilde;
 use agent_rs::agent::embeddings::EmbeddingService;
 use agent_rs::rag::RagPipeline;

@@ -5,7 +5,7 @@ use muon::application::pipeline_runner::citation_verifier::{
 };
 use muon::domain::models::report::{Citation, ReportSection, ResearchReport};
 use muon::domain::models::session::ReportStats;
-use muon::error::MuonError;
+use muon::domain::error::MuonError;
 
 fn make_report(citations: Vec<Citation>, body: &str) -> ResearchReport {
     ResearchReport {
@@ -64,9 +64,21 @@ fn test_truncation_match() {
 
 #[test]
 fn test_child_path_match() {
-    let urls = vec!["https://example.com/archive/other-doc".to_string()];
-    let result = match_url("https://example.com/some/path/doc", &urls);
-    assert_eq!(result, Some(VerificationLevel::ChildPath));
+    let urls = vec!["https://example.com/docs/guide".to_string()];
+    let result = match_url("https://example.com/docs/guide/intro", &urls);
+    assert!(
+        matches!(
+            result,
+            Some(VerificationLevel::Prefix) | Some(VerificationLevel::ChildPath)
+        ),
+        "expected prefix or child-path, got {result:?}"
+    );
+}
+
+#[test]
+fn test_child_path_cross_host_rejected() {
+    let urls = vec!["https://evil.com/foo/bar".to_string()];
+    assert_eq!(match_url("https://example.com/x/y/bar", &urls), None);
 }
 
 #[test]
@@ -130,8 +142,31 @@ fn test_report_reflow_numbered() -> Result<(), MuonError> {
             level: VerificationLevel::Prefix,
         },
     ];
-    let md = "See [1] and [2] and [3]. Also [url1] and [url2].";
-    let result = report_reflow(md, &valid)?;
+    let original = vec![
+        Citation {
+            reference_number: 1,
+            url: "https://a.com".to_string(),
+            title: String::new(),
+            context_snippet: String::new(),
+            verification_level: VerificationLevel::Exact,
+        },
+        Citation {
+            reference_number: 2,
+            url: "https://removed.com".to_string(),
+            title: String::new(),
+            context_snippet: String::new(),
+            verification_level: VerificationLevel::Exact,
+        },
+        Citation {
+            reference_number: 3,
+            url: "https://c.com".to_string(),
+            title: String::new(),
+            context_snippet: String::new(),
+            verification_level: VerificationLevel::Exact,
+        },
+    ];
+    let md = "See [1] and [2] and [3].";
+    let result = report_reflow(md, &valid, &original)?;
     assert!(result.contains("[1]"));
     assert!(result.contains("[2]"));
     assert!(!result.contains("[3]"));
@@ -151,7 +186,7 @@ fn test_report_reflow_url_style() -> Result<(), MuonError> {
         },
     ];
     let md = "Check [https://a.com] and [https://b.com].";
-    let result = report_reflow(md, &valid)?;
+    let result = report_reflow(md, &valid, &[])?;
     assert!(result.contains("[1]"));
     assert!(result.contains("[2]"));
     assert!(!result.contains("https://"));

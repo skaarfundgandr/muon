@@ -2,7 +2,7 @@ use crate::application::pipeline_runner::citation_verifier::VerificationOutput;
 use crate::domain::agents::clarifier::ClarifierResult;
 use crate::domain::models::report::{Citation, ReportSection, ResearchReport};
 use crate::domain::models::session::ReportStats;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 pub fn build(
     verified: VerificationOutput,

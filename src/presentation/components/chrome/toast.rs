@@ -17,7 +17,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, message: &str, kind: ToastKind
         return;
     }
 
-    let max_w = area.width.saturating_sub(2).min(64).max(20);
+    let max_w = area.width.saturating_sub(2).clamp(20, 64);
     let text_w = (message.chars().count() as u16).saturating_add(4).min(max_w);
     let lines_est =
         ((message.chars().count() as u16) / text_w.saturating_sub(2).max(1) + 1).min(4);

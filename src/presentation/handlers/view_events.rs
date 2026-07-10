@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::AppState;
+use crate::presentation::AppState;
 use crate::presentation::views::View;
 
 /// Handle keys for non-settings, non-dashboard views (Welcome, Progress, Results).
@@ -10,7 +10,8 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
 
     if key.code == KeyCode::Esc {
         if view == View::Progress {
-            app.pipeline.cancel();
+            app.abort_pipeline();
+            return true;
         }
         app.running = false;
         return true;

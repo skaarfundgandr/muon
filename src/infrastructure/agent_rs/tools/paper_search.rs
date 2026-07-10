@@ -6,7 +6,7 @@ use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::traits::search_provider::SearchProvider;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 const NAME: &str = "paper_search";
 

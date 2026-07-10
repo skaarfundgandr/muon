@@ -10,7 +10,7 @@ use crate::config::MuonConfig;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::{Session, SessionId, SessionStatus};
 use crate::domain::traits::session_store::{SessionStore, SessionSummary};
-use crate::error::{MuonError, Result};
+use crate::domain::error::{MuonError, Result};
 use crate::infrastructure::context::InfrastructureContext;
 use crate::infrastructure::storage::{init_pool, DieselSessionStore, ReportStore};
 
@@ -76,7 +76,8 @@ pub async fn run_headless(query: &str, mock: bool, output: Option<&Path>) -> Res
         };
 
         let mut state = PipelineState::default();
-        let report = run_pipeline(query, &mut state, &config, &infra, &bridge, None).await?;
+        let deps = crate::application::deps::PipelineDeps::from_infra(&infra);
+        let report = run_pipeline(query, &mut state, &config, &deps, &bridge, None).await?;
 
         let content = render_markdown(&report, query);
 

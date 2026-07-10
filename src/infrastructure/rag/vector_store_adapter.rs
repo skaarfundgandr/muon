@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::vector_store::VectorStore;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use super::rag_store::RagContext;
 
 #[async_trait]

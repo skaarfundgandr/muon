@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 
 use crate::domain::models::report::{Citation, VerificationLevel};
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 use crate::infrastructure::storage::schema::citations;
 
 #[derive(Debug, Clone, Queryable, Selectable)]

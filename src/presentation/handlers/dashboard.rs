@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::app::AppState;
+use crate::presentation::AppState;
 
 pub fn handle(app: &mut AppState, key: KeyEvent) {
     if app.query_input.active {

@@ -1,7 +1,7 @@
 use rig_core::providers::{anthropic, gemini, openai};
 
 use crate::config::{ProviderConfig, ProviderType};
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 pub enum ProviderClient {
     OpenAI(openai::CompletionsClient<reqwest::Client>),

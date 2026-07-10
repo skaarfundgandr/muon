@@ -5,7 +5,7 @@ use crate::domain::models::log_entry::LogEntry;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::SessionId;
 use crate::domain::models::source::Source;
-use crate::error::MuonError;
+use crate::domain::error::MuonError;
 
 #[derive(Debug, Clone)]
 pub struct SessionSummary {
