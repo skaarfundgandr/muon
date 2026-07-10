@@ -36,11 +36,15 @@ async fn pipeline_completes_for_shallow_intent() -> Result<(), Box<dyn std::erro
 
     let mut saw_complete = false;
     let mut saw_shallow = false;
+    let mut saw_citation_verify = false;
+    let mut saw_report = false;
     let timeout = std::time::Instant::now() + Duration::from_secs(2);
     while std::time::Instant::now() < timeout {
         match rx.try_recv() {
             Ok(AgentEvent::StageChanged(PipelineStage::Complete)) => saw_complete = true,
             Ok(AgentEvent::StageChanged(PipelineStage::ShallowResearch)) => saw_shallow = true,
+            Ok(AgentEvent::StageChanged(PipelineStage::CitationVerify)) => saw_citation_verify = true,
+            Ok(AgentEvent::StageChanged(PipelineStage::Report)) => saw_report = true,
             Ok(AgentEvent::StageChanged(_)) => {}
             Ok(AgentEvent::Log(_)) => {}
             Ok(_) => {}
@@ -52,6 +56,8 @@ async fn pipeline_completes_for_shallow_intent() -> Result<(), Box<dyn std::erro
     }
     assert!(saw_complete, "expected Complete stage event");
     assert!(saw_shallow, "expected ShallowResearch stage event");
+    assert!(saw_citation_verify, "expected CitationVerify stage event");
+    assert!(saw_report, "expected Report stage event");
     assert_eq!(state.stage, PipelineStage::Complete);
     Ok(())
 }

@@ -126,9 +126,19 @@ impl SessionStore for DieselSessionStore {
             .await
             .map_err(|e| MuonError::Database(e.to_string()))?;
         let now = Utc::now().naive_utc();
+        let status = match stage {
+            "Idle" => "Pending",
+            "IntentClassification" | "Clarification" => "Clarifying",
+            "ShallowResearch" | "DeepResearch" | "CitationVerify" | "Report" => "Researching",
+            "Complete" => "Complete",
+            "Cancelled" => "Cancelled",
+            "Failed" => "Failed",
+            _ => "Researching",
+        };
         diesel::update(sessions::table.find(id.to_string()))
             .set((
                 sessions::pipeline_stage.eq(stage),
+                sessions::status.eq(status),
                 sessions::updated_at.eq(now),
             ))
             .execute(&mut *conn)

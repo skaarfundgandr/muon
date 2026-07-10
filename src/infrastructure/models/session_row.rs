@@ -114,6 +114,7 @@ impl SessionStatus {
             Self::Clarifying => "Clarifying",
             Self::Researching => "Researching",
             Self::Complete => "Complete",
+            Self::Cancelled => "Cancelled",
             Self::Failed => "Failed",
         }
     }
@@ -124,6 +125,7 @@ impl SessionStatus {
             "Clarifying" => Ok(Self::Clarifying),
             "Researching" => Ok(Self::Researching),
             "Complete" => Ok(Self::Complete),
+            "Cancelled" => Ok(Self::Cancelled),
             "Failed" => Ok(Self::Failed),
             other => Err(MuonError::Database(format!(
                 "unknown session status: {other}"

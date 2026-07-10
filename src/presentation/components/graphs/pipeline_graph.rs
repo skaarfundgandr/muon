@@ -293,6 +293,9 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
         PipelineStage::DeepResearch => {
             ("✓", "Coordinated", theme::success())
         }
+        PipelineStage::CitationVerify | PipelineStage::Report => {
+            ("◉", "Finalizing", theme::accent())
+        }
         PipelineStage::Complete => {
             ("✓", "Complete", theme::success())
         }

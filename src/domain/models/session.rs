@@ -14,6 +14,7 @@ pub enum SessionStatus {
     Clarifying,
     Researching,
     Complete,
+    Cancelled,
     Failed,
 }
 

@@ -43,6 +43,23 @@ pub async fn run_pipeline(
         None => deps.session_store.create(query).await?,
     };
 
+    match run_pipeline_inner(query, state, cfg, deps, bridge, session_id).await {
+        Ok(report) => Ok(report),
+        Err(e) => {
+            mark_session_terminal(deps, bridge, session_id, &e).await;
+            Err(e)
+        }
+    }
+}
+
+async fn run_pipeline_inner(
+    query: &str,
+    state: &mut PipelineState,
+    cfg: &MuonConfig,
+    deps: &PipelineDeps,
+    bridge: &BridgeChannels,
+    session_id: SessionId,
+) -> Result<ResearchReport, MuonError> {
     bridge.stage(PipelineStage::IntentClassification);
     bridge.log(AgentTag::Intent, LogLevel::Info, "classifying query");
     let intent = classify_intent(deps.intent_classifier.as_ref(), query).await?;
@@ -152,6 +169,7 @@ async fn shallow_research(
     };
 
     let registry_urls = registry.urls();
+    bridge.stage(PipelineStage::CitationVerify);
     let verified = if cfg.agents.deep_researcher.citation_verify {
         citation_verifier::verify(&unverified, &registry_urls, &[])?
     } else {
@@ -171,6 +189,7 @@ async fn shallow_research(
 
     let elapsed = start.elapsed().as_secs();
     let plan = crate::domain::agents::clarifier::ClarifierResult::default();
+    bridge.stage(PipelineStage::Report);
     let final_report = crate::application::services::report_builder::build(verified, &plan, elapsed)?;
     bridge.log(
         AgentTag::Verify,
@@ -208,4 +227,29 @@ async fn run_deep_path(
     bridge.stage(PipelineStage::Complete);
     state.finish();
     Ok(report)
+}
+
+async fn mark_session_terminal(
+    deps: &PipelineDeps,
+    bridge: &BridgeChannels,
+    session_id: SessionId,
+    err: &MuonError,
+) {
+    let stage = if matches!(err, MuonError::Cancelled) {
+        PipelineStage::Cancelled
+    } else {
+        PipelineStage::Failed
+    };
+    if deps
+        .session_store
+        .update_stage(session_id, stage.as_str())
+        .await
+        .is_err()
+    {
+        bridge.log(
+            AgentTag::Sys,
+            LogLevel::Warn,
+            format!("failed to persist terminal stage for session {session_id}"),
+        );
+    }
 }

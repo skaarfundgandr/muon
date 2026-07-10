@@ -165,6 +165,7 @@ impl<'a> DeepResearcher<'a> {
         }
 
         let registry_urls = registry.urls();
+        self.bridge.stage(PipelineStage::CitationVerify);
         let verified = if self.cfg.agents.deep_researcher.citation_verify {
             citation_verifier::verify(&unverified_report, &registry_urls, &[])?
         } else {
@@ -182,6 +183,7 @@ impl<'a> DeepResearcher<'a> {
             }
         };
         let elapsed = start.elapsed().as_secs();
+        self.bridge.stage(PipelineStage::Report);
         let final_report = report_builder::build(verified, plan, elapsed)?;
         self.bridge.log(
             AgentTag::Verify,
