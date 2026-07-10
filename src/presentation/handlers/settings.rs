@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crate::app::{AppState, ActivePopup};
+use crate::presentation::{AppState, ActivePopup};
 use crate::presentation::components::settings::{advanced, agents, data_sources, display, providers, tools};
 use crate::presentation::form::{FieldKind, FormState};
 use crate::presentation::views::SettingsTab;
@@ -419,9 +419,33 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
             }
         }
         KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            app.config.save();
-            for form in &mut app.forms {
-                form.dirty = false;
+            if app.is_pipeline_busy() {
+                app.status_flash = Some((
+                    std::time::Instant::now(),
+                    "Cancel research before applying settings".into(),
+                    crate::presentation::components::chrome::toast::ToastKind::Info,
+                ));
+            } else {
+                match app.config.save() {
+                    Ok(()) => {
+                        for form in &mut app.forms {
+                            form.dirty = false;
+                        }
+                        app.status_flash = Some((
+                            std::time::Instant::now(),
+                            "Settings saved; reloading agents…".into(),
+                            crate::presentation::components::chrome::toast::ToastKind::Info,
+                        ));
+                        app.request_infra_rebuild();
+                    }
+                    Err(e) => {
+                        app.status_flash = Some((
+                            std::time::Instant::now(),
+                            format!("Save failed: {e}"),
+                            crate::presentation::components::chrome::toast::ToastKind::Error,
+                        ));
+                    }
+                }
             }
         }
         _ => {

@@ -121,14 +121,18 @@ impl Theme {
 
 static THEME: RwLock<Theme> = RwLock::new(Theme::default());
 
-#[allow(clippy::expect_used)]
 pub fn current() -> Theme {
-    *THEME.read().expect("theme lock poisoned")
+    match THEME.read() {
+        Ok(g) => *g,
+        Err(poisoned) => *poisoned.into_inner(),
+    }
 }
 
-#[allow(clippy::expect_used)]
 pub fn replace(theme: Theme) {
-    *THEME.write().expect("theme lock poisoned") = theme;
+    match THEME.write() {
+        Ok(mut g) => *g = theme,
+        Err(poisoned) => *poisoned.into_inner() = theme,
+    }
 }
 
 pub fn for_name(name: &str) -> Option<Theme> {
