@@ -83,6 +83,8 @@ pub fn render_horizontal(
         stage,
         PipelineStage::ShallowResearch
             | PipelineStage::DeepResearch
+            | PipelineStage::CitationVerify
+            | PipelineStage::Report
             | PipelineStage::Complete
             | PipelineStage::Cancelled
             | PipelineStage::Failed
@@ -354,6 +356,9 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
     };
 
     let (ver_icon, ver_desc, ver_color) = match stage {
+        PipelineStage::CitationVerify => {
+            ("◉", "Verifying citations", theme::accent())
+        }
         PipelineStage::DeepResearch => {
             if pipeline.current_step >= 5 {
                 ("◉", "Verifying citations", theme::accent())
@@ -361,13 +366,16 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
                 ("○", "pending", theme::text_dim())
             }
         }
-        PipelineStage::Complete => {
+        PipelineStage::Report | PipelineStage::Complete => {
             ("✓", "Verified", theme::success())
         }
         _ => ("○", "pending", theme::text_dim()),
     };
 
     let (fin_icon, fin_desc, fin_color) = match stage {
+        PipelineStage::Report => {
+            ("◉", "Generating report", theme::accent())
+        }
         PipelineStage::Complete => {
             ("✓", "Report generated", theme::success())
         }

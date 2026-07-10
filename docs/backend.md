@@ -48,8 +48,11 @@ pub enum PipelineStage {
     Clarification,
     ShallowResearch,
     DeepResearch,
+    CitationVerify,
+    Report,
     Complete,
     Cancelled,
+    Failed,
 }
 ```
 
@@ -62,7 +65,9 @@ The pipeline runner (`src/application/pipeline_runner/runner.rs`) sequences thro
 2. **Clarification** (if needed) → interactive Q&A loop, then optional plan generation/approval.
 3. **ShallowResearch** → single-pass synthesis with escalation check.
 4. **DeepResearch** → orchestrator/planner/researcher multi-loop iteration.
-5. **Complete** or **Cancelled**.
+5. **CitationVerify** → verify report citations against the source registry.
+6. **Report** → build the final structured report.
+7. **Complete**, **Cancelled**, or **Failed**.
 
 ## 4. Infrastructure Context
 
@@ -128,13 +133,13 @@ The citation verifier (`src/application/pipeline_runner/citation_verifier.rs`) c
 Normalized report URL equals a normalized registry URL (case-insensitive, trailing slash stripped, `www.` stripped, fragment dropped).
 
 ### Level 2: Prefix Match (Truncation)
-The normalized report URL is an area prefix of exactly one registry URL — e.g., `https://example.com/blog/` matches `https://example.com/blog/2024-01-post-title`.
+A registry URL exists under the report URL's "area" (the path with its last segment stripped). Only counts if exactly one registry URL matches — e.g., the report cites `https://example.com/blog/` and the only matching registry entry is `https://example.com/blog/2024-01-post-title`.
 
 ### Level 3: Prefix Match (Path)
-The normalized report URL is a prefix of a registry URL — e.g., `https://example.com/docs/guide` is a prefix of `https://example.com/docs/guide/intro`.
+The normalized report URL is a prefix of a registry URL — e.g., the report cites `https://example.com/docs/guide` and a registry entry `https://example.com/docs/guide/intro` exists.
 
 ### Level 4: Child Path Match
-The report URL's final path segment appears as a segment in a registry URL. Requires 2+ path segments in the report URL.
+The report URL and a registry URL share the same host, and the report URL's path is a subpath of the registry URL's path (or vice versa). Requires 2+ path segments in both paths. This catches truncated URLs that point to a child of a known source — e.g., the report cites `https://example.com/docs/guide/intro` and the registry has `https://example.com/docs/guide`.
 
 ### Level 5: Query Subset Match
 Same host+path, and the report URL's query parameters are a subset of the registry URL's query parameters.
