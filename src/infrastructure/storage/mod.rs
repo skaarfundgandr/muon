@@ -9,7 +9,7 @@ pub mod source_store;
 
 pub use citation_store::CitationStore;
 pub use log_store::LogStore;
-pub use pool::{init_pool, DbPool};
+pub use pool::{create_pool, global_pool, init_pool, DbPool};
 pub use report_store::ReportStore;
 pub use session_store::DieselSessionStore;
 pub use source_store::SourceStore;
