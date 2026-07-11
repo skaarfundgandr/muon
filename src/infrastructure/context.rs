@@ -95,7 +95,6 @@ impl InfrastructureContext {
                 .await?;
             let session_store: Arc<dyn SessionStore> =
                 Arc::new(crate::infrastructure::storage::DieselSessionStore::new(pool));
-            let stub_sink = Arc::new(Mutex::new(SourceRegistry::new()));
             return Ok(Self::with_sink(
                 Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
                     AgentTag::Intent,
@@ -116,7 +115,7 @@ impl InfrastructureContext {
                     AgentTag::Search,
                 )),
                 session_store,
-                stub_sink,
+                source_sink,
                 None,
             ));
         }

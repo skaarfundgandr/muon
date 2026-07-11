@@ -87,7 +87,7 @@ pub struct InfrastructureContext {
 
 **Two constructors:**
 - `InfrastructureContext::mock()` — returns deterministic `MockAgent`s for testing and dev.
-- `InfrastructureContext::new_live(cfg, bridge)` — builds real provider-backed ReAct agents, a Diesel session pool, and a `DieselSessionStore`. Requires at least one `[[providers]]` entry.
+- `InfrastructureContext::new_live(cfg, bridge)` — builds real provider-backed ReAct agents, a Diesel session pool, and a `DieselSessionStore`. Works with zero or more `[[providers]]` entries; an empty list degrades to stub agents that return `MuonError::Config` on every call.
 
 When `cfg.providers` is empty, `new_live` degrades gracefully: it initializes the session store (so existing sessions load), installs `ConfigRequiredAgent` stubs for all six agent roles that return `MuonError::Config` on every `prompt_raw`, and returns `Ok`. The TUI starts with an Info toast directing the user to Settings → Providers. No fake API keys are generated.
 
@@ -307,7 +307,7 @@ Missing or empty `config.toml` (no `[[providers]]`) does NOT crash the TUI. `new
 
 ### 11.7 Session plan persistence
 
-`SessionStore::save_clarifier_outcome(id, plan_json, clarifier_result_json)` writes the `plan_json` and `clarifier_result` columns. Called best-effort after a successful deep clarifier run. `ClarifierResult::to_plan()` converts to `ResearchPlan` for serialization. The domain `Session` model has `intent: Option<String>`, `plan: Option<ResearchPlan>`, `clarifier_result: Option<String>` fields. No schema migration was needed — the columns pre-existed.
+`SessionStore::save_clarifier_outcome(id, plan_json, clarifier_result_json)` writes the `plan_json` and `clarifier_result` columns. Called best-effort after a successful deep clarifier run. `ClarifierResult::to_plan()` converts to `ResearchPlan` for serialization. The domain `Session` model has `intent: Option<String>`, `plan: Option<ResearchPlan>`, `clarifier_result: Option<String>` fields. `Session.intent` is a reserved field for future intent-classifier wiring; it is currently left unset. (Tracked as review finding #35.) No schema migration was needed — the columns pre-existed.
 
 ### 11.8 Non-goals (explicitly out of scope)
 
