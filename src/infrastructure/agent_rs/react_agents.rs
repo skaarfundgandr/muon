@@ -62,7 +62,12 @@ pub(crate) fn record_observation_sources(sink: &SourceSink, tool_name: &str, res
                 }
                 let title = item.get("title").and_then(|t| t.as_str()).unwrap_or("");
                 let snippet = item.get("snippet").and_then(|s| s.as_str()).unwrap_or("");
-                g.record_with_meta(url, source_type, title, snippet);
+                let score = item
+                    .get("score")
+                    .or_else(|| item.get("relevance"))
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0);
+                g.record_with_meta(url, source_type, title, snippet, score);
             }
         }
         return;

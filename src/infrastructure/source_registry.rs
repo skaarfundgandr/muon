@@ -12,7 +12,7 @@ impl SourceRegistry {
     }
 
     pub fn record(&mut self, url: impl Into<String>, source_type: SourceType) {
-        self.record_with_meta(url, source_type, String::new(), String::new());
+        self.record_with_meta(url, source_type, String::new(), String::new(), 0.0);
     }
 
     pub fn record_with_meta(
@@ -21,6 +21,7 @@ impl SourceRegistry {
         source_type: SourceType,
         title: impl Into<String>,
         snippet: impl Into<String>,
+        relevance: f64,
     ) {
         let url: String = url.into();
         let title: String = title.into();
@@ -32,18 +33,40 @@ impl SourceRegistry {
             if existing.snippet.is_empty() && !snippet.is_empty() {
                 existing.snippet = snippet;
             }
+            if relevance > existing.relevance {
+                existing.relevance = relevance;
+            }
             return;
         }
         self.entries.push(Source {
             url,
             title,
             snippet,
-            relevance: 0.0,
+            relevance,
             source_type,
             verified: false,
             verification_status: VerificationStatus::Unverified,
             embedding_id: None,
         });
+    }
+
+    pub fn record_source(&mut self, source: &Source) {
+        self.record_with_meta(
+            source.url.clone(),
+            source.source_type,
+            source.title.clone(),
+            source.snippet.clone(),
+            source.relevance,
+        );
+        if let Some(existing) = self.entries.iter_mut().find(|e| e.url == source.url) {
+            if source.verification_status != VerificationStatus::Unverified {
+                existing.verification_status = source.verification_status;
+                existing.verified = source.verified;
+            }
+            if existing.embedding_id.is_none() {
+                existing.embedding_id = source.embedding_id.clone();
+            }
+        }
     }
 
     pub fn urls(&self) -> Vec<String> {

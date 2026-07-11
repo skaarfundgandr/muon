@@ -31,6 +31,7 @@ pub struct PaperSearchResult {
     pub url: String,
     pub title: String,
     pub snippet: String,
+    pub score: f64,
 }
 
 pub struct PaperSearchTool {
@@ -88,6 +89,7 @@ impl Tool for PaperSearchTool {
                                     url: s.url,
                                     title: s.title,
                                     snippet: s.snippet,
+                                    score: s.relevance,
                                 });
                             }
                         }

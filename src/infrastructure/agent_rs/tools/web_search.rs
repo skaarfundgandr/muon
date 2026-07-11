@@ -31,6 +31,7 @@ pub struct WebSearchResult {
     pub url: String,
     pub title: String,
     pub snippet: String,
+    pub score: f64,
 }
 
 pub struct WebSearchTool {
@@ -84,6 +85,7 @@ impl Tool for WebSearchTool {
                         url: s.url,
                         title: s.title,
                         snippet: s.snippet,
+                        score: s.relevance,
                     })
                     .collect(),
             })
