@@ -292,7 +292,7 @@ fn render_add_source_form(
     let path_value: String = if is_focused(form, 4) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
-            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+            format!("{}{}{}", &buf[..cur], "\u{2588}", &buf[cur..])
         } else {
             String::new()
         }

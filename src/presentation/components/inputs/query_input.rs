@@ -106,7 +106,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, query: &QueryInput) {
             Span::styled("> ", Style::default().fg(theme::accent()).add_modifier(Modifier::BOLD)),
             Span::styled(pre.to_string(), Style::default().fg(theme::text_main())),
             Span::styled(
-                "▎",
+                "█",
                 Style::default()
                     .fg(theme::accent())
                     .add_modifier(Modifier::BOLD),

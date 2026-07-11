@@ -31,9 +31,9 @@ const FIELDS: &[FieldDef] = &[
     FieldDef::number("Deep Orchestrator Cycles"),
     FieldDef::number("Deep Max Retries"),
     FieldDef::number("Deep Planner Cycles"),
-    FieldDef::number("Deep Orchestrator Tool Calls"),
+    FieldDef::number("Deep Orch Turns/Cycle"),
     FieldDef::number("Deep Planner Tool Calls"),
-    FieldDef::number("Deep Researcher Tool Calls"),
+    FieldDef::number("Deep Researcher Turns"),
     FieldDef::checkbox("Deep Citation Verify"),
 ];
 
@@ -282,7 +282,7 @@ fn input_line<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, 
             Span::styled(format!("{:<14}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
             Span::styled("[", Style::new().fg(theme::border_focus())),
             Span::styled(pre.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
-            Span::styled("\u{258E}", Style::new().fg(theme::border_focus())),
+            Span::styled("\u{2588}", Style::new().fg(theme::border_focus())),
             Span::styled(post.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
             Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
@@ -600,7 +600,7 @@ fn deep_num_cell(
         let cur = form.edit_cursor.min(buf.len());
         spans.push(Span::styled(buf[..cur].to_string(), val_style));
         spans.push(Span::styled(
-            "\u{258E}",
+            "\u{2588}",
             Style::new().fg(theme::border_focus()),
         ));
         spans.push(Span::styled(buf[cur..].to_string(), val_style));
@@ -670,18 +670,22 @@ fn render_deep_researcher(
     ];
     for &(row, model_f, prov_f, role, model, provider) in &role_rows {
         let rect = rows[row];
-        let half = rect.width / 2;
+        let prefix_w: u16 = 14;
+        let model_w = format!("[{model}\u{25BC}] ").chars().count() as u16;
+        let model_x = rect.x.saturating_add(prefix_w.min(rect.width));
+        let after_prefix = rect.width.saturating_sub(prefix_w);
+        let model_width = model_w.min(after_prefix).max(1);
+        let prov_x = model_x.saturating_add(model_width);
+        let prov_width = rect
+            .width
+            .saturating_sub(prefix_w.saturating_add(model_width))
+            .max(1);
         hit_registry.push(ClickTarget {
-            rect: Rect::new(rect.x, rect.y, half.max(1), rect.height),
+            rect: Rect::new(model_x, rect.y, model_width, rect.height),
             action: ClickAction::ActivateField(model_f),
         });
         hit_registry.push(ClickTarget {
-            rect: Rect::new(
-                rect.x + half,
-                rect.y,
-                rect.width.saturating_sub(half),
-                rect.height,
-            ),
+            rect: Rect::new(prov_x, rect.y, prov_width, rect.height),
             action: ClickAction::ActivateField(prov_f),
         });
         f.render_widget(
@@ -704,7 +708,7 @@ fn render_deep_researcher(
             (
                 3,
                 22,
-                "Orchestrator tool calls",
+                "Orch turns/cycle",
                 cfg.orchestrator_max_tool_calls.to_string(),
             ),
         ),
@@ -745,7 +749,7 @@ fn render_deep_researcher(
         action: ClickAction::ActivateField(24),
     });
     f.render_widget(
-        Paragraph::new(deep_num_cell("Researcher tool calls", &researcher_tool_calls, 24, form, rows[5])),
+        Paragraph::new(deep_num_cell("Researcher turns", &researcher_tool_calls, 24, form, rows[5])),
         rows[5],
     );
 

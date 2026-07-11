@@ -98,7 +98,7 @@ pub fn render(
             Span::styled("> ", Style::new().fg(theme::accent()).add_modifier(ratatui::style::Modifier::BOLD)),
             Span::styled(response.to_string(), Style::new().fg(theme::text_main())),
             Span::styled(
-                "\u{258E}",
+                "\u{2588}",
                 Style::new().fg(theme::accent()).add_modifier(ratatui::style::Modifier::BOLD),
             ),
         ])

@@ -142,7 +142,7 @@ fn numeric_row<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool,
             Span::styled(format!("{:<24}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
             Span::styled("[", Style::new().fg(theme::border_focus())),
             Span::styled(pre.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
-            Span::styled("\u{258E}", Style::new().fg(theme::border_focus())),
+            Span::styled("\u{2588}", Style::new().fg(theme::border_focus())),
             Span::styled(post.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
             Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
@@ -372,7 +372,7 @@ fn render_compaction(
     let preamble_text: String = if preamble_editing {
         if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
-            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+            format!("{}{}{}", &buf[..cur], "\u{2588}", &buf[cur..])
         } else {
             String::new()
         }
@@ -448,7 +448,7 @@ fn render_storage(
     let path1_value: String = if is_focused(form, 7) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
-            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+            format!("{}{}{}", &buf[..cur], "\u{2588}", &buf[cur..])
         } else {
             String::new()
         }
@@ -480,7 +480,7 @@ fn render_storage(
     let path2_value: String = if is_focused(form, 8) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
-            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+            format!("{}{}{}", &buf[..cur], "\u{2588}", &buf[cur..])
         } else {
             String::new()
         }

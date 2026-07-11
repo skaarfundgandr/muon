@@ -129,7 +129,7 @@ fn field_line<'a>(
             Span::styled(format!("{:<10}", label), label_style),
             Span::styled("[", border_style),
             Span::styled(pre.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
-            Span::styled("\u{258E}", Style::new().fg(theme::border_focus())),
+            Span::styled("\u{2588}", Style::new().fg(theme::border_focus())),
             Span::styled(post.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
             Span::styled("]", border_style),
         ])
@@ -693,7 +693,7 @@ pub fn render_models_popup(
         let name_val = if name_editing {
             let buf = edit_buffer.unwrap_or("");
             let cur = edit_cursor.min(buf.len());
-            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+            format!("{}{}{}", &buf[..cur], "\u{2588}", &buf[cur..])
         } else {
             model.name.clone()
         };
@@ -723,7 +723,7 @@ pub fn render_models_popup(
         let id_val = if id_editing {
             let buf = edit_buffer.unwrap_or("");
             let cur = edit_cursor.min(buf.len());
-            format!("{}{}{}", &buf[..cur], "\u{258E}", &buf[cur..])
+            format!("{}{}{}", &buf[..cur], "\u{2588}", &buf[cur..])
         } else {
             model.model_id.clone()
         };

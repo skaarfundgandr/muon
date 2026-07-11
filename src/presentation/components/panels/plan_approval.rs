@@ -209,7 +209,7 @@ pub fn render(
         Line::from(vec![
             Span::styled(before.to_string(), Style::new().fg(theme::text_main())),
             Span::styled(
-                "\u{258E}",
+                "\u{2588}",
                 Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
             ),
             Span::styled(after.to_string(), Style::new().fg(theme::text_main())),
