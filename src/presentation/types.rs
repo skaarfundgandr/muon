@@ -61,5 +61,11 @@ pub enum Event {
         result: Result<Vec<crate::config::ProviderModel>, String>,
     },
     InfraRebuilt(Result<Arc<InfrastructureContext>, String>),
+    SessionDeleteResult {
+        id: uuid::Uuid,
+        ok: bool,
+        error: Option<String>,
+        restored: Option<crate::application::session::SessionSummary>,
+    },
 }
 

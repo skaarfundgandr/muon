@@ -56,6 +56,15 @@ impl FooterConfig {
                     ("[Esc]", "discard"),
                 ],
             },
+            View::Dashboard => Self {
+                tabs: Self::default_tabs(),
+                right_hint: vec![
+                    ("[Del/d]", "Delete"),
+                    ("[Esc]", "Cancel"),
+                    ("[Tab]", "Navigate"),
+                    ("[^C]", "Exit μon"),
+                ],
+            },
             _ => Self {
                 tabs: Self::default_tabs(),
                 right_hint: vec![

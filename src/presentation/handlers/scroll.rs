@@ -94,13 +94,21 @@ pub(crate) fn handle_scroll(app: &mut AppState, delta: i32) {
 
     if view == View::Dashboard {
         let sidebar_end = app.term_cols.saturating_mul(25) / 100;
-        if app.mouse_col < sidebar_end {
+        let body_h = app.term_rows.saturating_sub(2);
+        let sessions_h = body_h / 2;
+        let sessions_top = 1u16;
+        let sessions_bottom = sessions_top.saturating_add(sessions_h);
+        let in_sessions = app.mouse_col < sidebar_end
+            && app.mouse_row >= sessions_top
+            && app.mouse_row < sessions_bottom;
+        if in_sessions {
             let len = app.sessions.list().len();
             if len == 0 {
                 return;
             }
             let slot_h: u16 = 3;
-            let visible = ((app.term_rows / slot_h) as usize).max(1);
+            let inner_h = sessions_h.saturating_sub(2);
+            let visible = ((inner_h / slot_h) as usize).max(1);
             let max_scroll = len.saturating_sub(visible);
             if delta > 0 {
                 app.session_scroll = app.session_scroll.saturating_add(1).min(max_scroll);

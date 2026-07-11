@@ -17,6 +17,7 @@ pub enum ClickAction {
     ActivateQueryInput,
     FocusField(usize),
     SelectSession(usize),
+    DeleteSession(usize),
     SelectDropdownOption(usize),
     ActivateClarifier,
     AddProvider,

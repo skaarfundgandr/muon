@@ -86,6 +86,19 @@ impl AppState {
         }
         self.clarifier_focused = false;
         self.pipeline.cancel();
+
+        // D5: handle.abort() drops the future so run_pipeline's mark_session_terminal
+        // never runs. Best-effort persist Cancelled without blocking the UI.
+        if let Some(id) = self.export_session_id
+            && let Some(infra) = self.infra.as_ref().map(Arc::clone)
+        {
+            tokio::spawn(async move {
+                let _ = infra
+                    .session_store
+                    .update_stage(id, PipelineStage::Cancelled.as_str())
+                    .await;
+            });
+        }
     }
 
     pub fn spawn_pipeline(&mut self, query: &str) {
@@ -200,17 +213,30 @@ impl AppState {
 
     pub fn delete_active_session(&mut self) {
         use crate::presentation::components::chrome::toast::ToastKind;
-        if self.is_pipeline_busy() {
-            self.abort_pipeline();
-        }
         let Some(index) = self.sessions.list().iter().position(|s| s.is_active) else {
             self.set_status_flash("No active session to delete", ToastKind::Error);
             return;
         };
-        let Some(id) = self.sessions.remove(index) else {
+        self.delete_session_at(index);
+    }
+
+    pub fn delete_session_at(&mut self, index: usize) {
+        use crate::presentation::components::chrome::toast::ToastKind;
+        // Resolve summary BEFORE remove (needed for restore-on-failure + id).
+        let Some(summary) = self.sessions.get(index).cloned() else {
+            self.set_status_flash("No session to delete", ToastKind::Error);
             return;
         };
-        if self.export_session_id == Some(id) {
+        let id = summary.id;
+        // Only abort the running pipeline if we're deleting the session it's running.
+        if self.export_session_id == Some(id) && self.is_pipeline_busy() {
+            self.abort_pipeline();
+        }
+        let Some(removed_id) = self.sessions.remove(index) else {
+            self.set_status_flash("No session to delete", ToastKind::Error);
+            return;
+        };
+        if self.export_session_id == Some(removed_id) {
             self.export_session_id = None;
             self.last_report = None;
             self.last_sources.clear();
@@ -219,12 +245,28 @@ impl AppState {
         if self.session_scroll > max {
             self.session_scroll = max;
         }
+        self.set_status_flash("Session deleted", ToastKind::Info);
         if let Some(infra) = self.infra.as_ref().map(Arc::clone) {
+            let event_tx = self.event_tx.clone();
             tokio::spawn(async move {
-                let _ = infra.session_store.delete(id).await;
+                match infra.session_store.delete(id).await {
+                    Ok(()) => { /* Optimistic UI already removed; nothing to do. */ }
+                    Err(e) => {
+                        let err_msg = e.to_string();
+                        if let Some(tx) = event_tx {
+                            let _ = tx.send(Event::SessionDeleteResult {
+                                id,
+                                ok: false,
+                                error: Some(err_msg),
+                                restored: Some(summary),
+                            });
+                        } else {
+                            tracing::error!("session delete failed (no event channel): {err_msg}");
+                        }
+                    }
+                }
             });
         }
-        self.set_status_flash("Session deleted", ToastKind::Info);
     }
 
     pub fn restore_session(&mut self, index: usize) {

@@ -279,6 +279,9 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
             ClickAction::SelectSession(idx) => {
                 app.restore_session(*idx);
             }
+            ClickAction::DeleteSession(idx) => {
+                app.delete_session_at(*idx);
+            }
             ClickAction::SelectDropdownOption(idx) => {
                 let tab = app.router.settings_tab();
                 let tab_idx = tab as usize;

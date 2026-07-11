@@ -183,6 +183,31 @@ pub(crate) fn handle_event(app: &mut AppState, event: Event) {
             ));
             app.drain_pending_config();
         }
+        Event::SessionDeleteResult {
+            id,
+            ok,
+            error,
+            restored,
+        } => {
+            if !ok {
+                if let Some(summary) = restored {
+                    app.sessions.insert_front(summary);
+                }
+                let msg = error.unwrap_or_else(|| "delete failed".to_string());
+                app.status_flash = Some((
+                    Instant::now(),
+                    format!("Delete failed: {msg}"),
+                    crate::presentation::components::chrome::toast::ToastKind::Error,
+                ));
+                app.push_live_feed(LogEntry {
+                    timestamp: chrono::Utc::now(),
+                    agent_tag: AgentTag::Sys,
+                    message: format!("Session {id} delete failed: {msg}"),
+                    level: LogLevel::Error,
+                });
+            }
+            // On Ok: optimistic UI already removed; nothing to do.
+        }
         Event::ConfigReloaded(new_config) => {
             tracing::info!(target: "muon::config", "config reloaded via event");
             let _ = app.try_apply_config(*new_config);
