@@ -139,7 +139,7 @@ async fn shallow_research(
     }
     if let Ok(sink) = deps.source_sink.lock() {
         for src in sink.sources() {
-            registry.record(&src.url, src.source_type);
+            registry.record_source(src);
         }
     }
 
@@ -186,6 +186,9 @@ async fn shallow_research(
                 .collect(),
         }
     };
+    if let Ok(mut sink) = deps.source_sink.lock() {
+        citation_verifier::merge_verified_into_sink(&mut sink, registry.sources_mut(), &verified);
+    }
 
     let elapsed = start.elapsed().as_secs();
     let plan = crate::domain::agents::clarifier::ClarifierResult::default();
@@ -214,16 +217,15 @@ async fn run_deep_path(
     let clarifier_result =
         super::clarifier::run_clarifier(query, cfg, deps.clarifier.as_ref(), bridge).await?;
 
-    if let Some(plan) = clarifier_result.to_plan() {
-        let plan_json = serde_json::to_string(&plan)
-            .map_err(|e| MuonError::Database(format!("serialize plan: {e}")))?;
-        let clarifier_json = serde_json::to_string(&clarifier_result)
-            .map_err(|e| MuonError::Database(format!("serialize clarifier result: {e}")))?;
-        let _ = deps
-            .session_store
-            .save_clarifier_outcome(session_id, Some(&plan_json), Some(&clarifier_json))
-            .await;
-    }
+    let plan_json = clarifier_result
+        .to_plan()
+        .and_then(|p| serde_json::to_string(&p).ok());
+    let clarifier_json = serde_json::to_string(&clarifier_result)
+        .map_err(|e| MuonError::Database(format!("serialize clarifier result: {e}")))?;
+    let _ = deps
+        .session_store
+        .save_clarifier_outcome(session_id, plan_json.as_deref(), Some(&clarifier_json))
+        .await;
 
     let researcher = crate::application::deep_researcher::DeepResearcher::new(cfg, deps, bridge);
     let report = researcher.run(query, &clarifier_result).await?;

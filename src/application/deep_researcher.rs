@@ -135,17 +135,14 @@ impl<'a> DeepResearcher<'a> {
             self.bridge.log(AgentTag::Orchestrate, LogLevel::Info, msg);
         }
 
-        // Fold URLs discovered by tool calls during the loop (planner/researcher/orchestrator)
-        // into the local registry so they appear in citations, embedding, and verification.
         if let Ok(sink) = self.deps.source_sink.lock() {
             for src in sink.sources() {
-                registry.record(&src.url, src.source_type);
+                registry.record_source(src);
             }
         }
 
         let unverified_report = self.to_report(&draft, &registry);
 
-        // Embed sources into the vector store (non-fatal on error).
         if let Some(ref vs) = self.deps.vector_store {
             for source in registry.sources_mut() {
                 if source.embedding_id.is_none() && !source.snippet.is_empty() {
@@ -182,6 +179,9 @@ impl<'a> DeepResearcher<'a> {
                     .collect(),
             }
         };
+        if let Ok(mut sink) = self.deps.source_sink.lock() {
+            citation_verifier::merge_verified_into_sink(&mut sink, registry.sources_mut(), &verified);
+        }
         let elapsed = start.elapsed().as_secs();
         self.bridge.stage(PipelineStage::Report);
         let final_report = report_builder::build(verified, plan, elapsed)?;

@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::domain::models::report::ResearchReport;
+use crate::domain::models::source::Source;
 use crate::domain::error::MuonError;
+use crate::infrastructure::source_registry::SourceRegistry;
 
 pub use crate::domain::models::report::VerificationLevel;
 pub use normalize_url as normalize;
@@ -36,6 +38,92 @@ pub enum RemovalReason {
 pub struct ValidCitation {
     pub url: String,
     pub level: VerificationLevel,
+}
+
+pub fn level_to_status(level: VerificationLevel) -> crate::domain::models::source::VerificationStatus {
+    use crate::domain::models::source::VerificationStatus;
+    match level {
+        VerificationLevel::Exact => VerificationStatus::Exact,
+        VerificationLevel::Prefix => VerificationStatus::Prefix,
+        VerificationLevel::ChildPath => VerificationStatus::ChildPath,
+        VerificationLevel::QuerySubset => VerificationStatus::QuerySubset,
+    }
+}
+
+fn status_rank(s: crate::domain::models::source::VerificationStatus) -> u8 {
+    use crate::domain::models::source::VerificationStatus;
+    match s {
+        VerificationStatus::Exact => 4,
+        VerificationStatus::Prefix => 3,
+        VerificationStatus::ChildPath => 2,
+        VerificationStatus::QuerySubset => 1,
+        VerificationStatus::Unverified | VerificationStatus::Removed => 0,
+    }
+}
+
+pub fn apply_verification_to_sources(
+    sources: &mut [crate::domain::models::source::Source],
+    out: &VerificationOutput,
+) {
+    use crate::domain::models::source::VerificationStatus;
+
+    for source in sources.iter_mut() {
+        let mut status: Option<VerificationStatus> = None;
+        for c in &out.valid_citations {
+            if c.url.is_empty() {
+                continue;
+            }
+            if match_url(&c.url, std::slice::from_ref(&source.url)).is_some() {
+                let new = level_to_status(c.level);
+                if status.is_none_or(|cur| status_rank(new) > status_rank(cur)) {
+                    status = Some(new);
+                }
+            }
+        }
+        if status.is_none() {
+            for c in &out.removed_citations {
+                if c.url.is_empty() {
+                    continue;
+                }
+                if match_url(&c.url, std::slice::from_ref(&source.url)).is_some() {
+                    status = Some(VerificationStatus::Removed);
+                    break;
+                }
+            }
+        }
+        if let Some(s) = status {
+            source.verification_status = s;
+            source.verified = !matches!(
+                s,
+                VerificationStatus::Unverified | VerificationStatus::Removed
+            );
+        }
+    }
+}
+
+pub fn merge_verified_into_sink(
+    sink: &mut SourceRegistry,
+    sources: &mut [Source],
+    out: &VerificationOutput,
+) {
+    apply_verification_to_sources(sources, out);
+    for src in sources.iter() {
+        if let Some(entry) = sink.sources_mut().iter_mut().find(|e| e.url == src.url) {
+            entry.verification_status = src.verification_status;
+            entry.verified = src.verified;
+            if entry.relevance < src.relevance {
+                entry.relevance = src.relevance;
+            }
+            if entry.title.is_empty() && !src.title.is_empty() {
+                entry.title = src.title.clone();
+            }
+            if entry.snippet.is_empty() && !src.snippet.is_empty() {
+                entry.snippet = src.snippet.clone();
+            }
+        } else {
+            sink.record_source(src);
+        }
+    }
 }
 
 /// Verifies all citations in a report against a registry of known URLs and knowledge paths.

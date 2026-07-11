@@ -1,10 +1,12 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use muon::application::pipeline_runner::citation_verifier::{
-    extract_urls, match_url, normalize, normalize_url, report_reflow, sanitize, verify,
-    RemovalReason, ValidCitation, VerificationLevel,
+    apply_verification_to_sources, extract_urls, match_url, normalize, normalize_url,
+    report_reflow, sanitize, verify, RemovedCitation, RemovalReason, ValidCitation,
+    VerificationLevel, VerificationOutput,
 };
 use muon::domain::models::report::{Citation, ReportSection, ResearchReport};
 use muon::domain::models::session::ReportStats;
+use muon::domain::models::source::{Source, VerificationStatus};
 use muon::domain::error::MuonError;
 
 fn make_report(citations: Vec<Citation>, body: &str) -> ResearchReport {
@@ -329,4 +331,86 @@ fn test_unverifiable_citation_no_url() -> Result<(), MuonError> {
         RemovalReason::CitationKeyNotInRegistry
     );
     Ok(())
+}
+
+
+fn make_output(valid: Vec<ValidCitation>, removed: Vec<RemovedCitation>) -> VerificationOutput {
+    VerificationOutput {
+        verified_report: String::new(),
+        removed_citations: removed,
+        valid_citations: valid,
+    }
+}
+
+fn make_source(url: &str) -> Source {
+    Source {
+        url: url.to_string(),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn apply_verification_exact_after_normalize() {
+    let mut sources = vec![make_source("https://example.com/page/")];
+    let out = make_output(
+        vec![ValidCitation {
+            url: "https://Example.com/page".to_string(),
+            level: VerificationLevel::Exact,
+        }],
+        vec![],
+    );
+    apply_verification_to_sources(&mut sources, &out);
+    assert_eq!(sources[0].verification_status, VerificationStatus::Exact);
+    assert!(sources[0].verified);
+}
+
+#[test]
+fn apply_verification_prefix_updates_registry_source() {
+    let mut sources = vec![make_source("https://example.com/page/sub")];
+    let out = make_output(
+        vec![ValidCitation {
+            url: "https://example.com/page".to_string(),
+            level: VerificationLevel::Prefix,
+        }],
+        vec![],
+    );
+    apply_verification_to_sources(&mut sources, &out);
+    assert_eq!(sources[0].verification_status, VerificationStatus::Prefix);
+    assert!(sources[0].verified);
+}
+
+#[test]
+fn apply_verification_best_level_wins() {
+    let mut sources = vec![make_source("https://example.com/doc")];
+    let out = make_output(
+        vec![
+            ValidCitation {
+                url: "https://example.com".to_string(),
+                level: VerificationLevel::Prefix,
+            },
+            ValidCitation {
+                url: "https://example.com/doc".to_string(),
+                level: VerificationLevel::Exact,
+            },
+        ],
+        vec![],
+    );
+    apply_verification_to_sources(&mut sources, &out);
+    assert_eq!(sources[0].verification_status, VerificationStatus::Exact);
+    assert!(sources[0].verified);
+}
+
+#[test]
+fn apply_verification_shallow_identical_urls_still_exact() {
+    let mut sources = vec![make_source("https://example.com/page")];
+    let out = make_output(
+        vec![ValidCitation {
+            url: "https://example.com/page".to_string(),
+            level: VerificationLevel::Exact,
+        }],
+        vec![],
+    );
+    apply_verification_to_sources(&mut sources, &out);
+    assert_eq!(sources[0].verification_status, VerificationStatus::Exact);
+    assert!(sources[0].verified);
 }
