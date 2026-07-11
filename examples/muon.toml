@@ -70,13 +70,16 @@ max_llm_turns = 10
 max_tool_iters = 5
 
 # Deep researcher — orchestrator drives planning + research via delegate tools.
+# iterations = ReAct cycle budget (loop owner).
+# orchestrator_max_tool_calls = per-cycle multi-tool turns (keep low, ~1–2).
+# researcher_max_tool_calls = managed multi-turn for search → fetch → synthesize.
 [agents.deep_researcher]
 iterations = 8
 max_retries = 3
 planner_max_cycles = 3
-orchestrator_max_tool_calls = 8
+orchestrator_max_tool_calls = 2
 planner_max_tool_calls = 4
-researcher_max_tool_calls = 10
+researcher_max_tool_calls = 4
 citation_verify = true
 
 [agents.deep_researcher.orchestrator]

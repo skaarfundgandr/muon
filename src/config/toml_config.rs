@@ -477,13 +477,13 @@ fn default_planner_max_cycles() -> u64 {
     3
 }
 fn default_orch_max_tool_calls() -> u64 {
-    8
+    2
 }
 fn default_planner_max_tool_calls() -> u64 {
     4
 }
 fn default_researcher_max_tool_calls() -> u64 {
-    10
+    4
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
