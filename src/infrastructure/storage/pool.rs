@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use diesel::connection::SimpleConnection;
 use diesel::Connection;
@@ -13,6 +13,7 @@ use crate::infrastructure::storage::migrations::run_migrations;
 
 pub type DbPool = Pool<SyncConnectionWrapper<SqliteConnection>>;
 
+static INIT_LOCK: Mutex<()> = Mutex::new(());
 static SESSION_POOL: OnceLock<DbPool> = OnceLock::new();
 static SESSION_POOL_PATH: OnceLock<String> = OnceLock::new();
 
@@ -54,6 +55,26 @@ pub fn create_pool(path_str: &str) -> Result<DbPool, MuonError> {
 
 pub async fn init_pool(path: &str) -> Result<DbPool, MuonError> {
     let path_str = expand_and_ensure_parent(path)?;
+
+    // Fast path: lock-free check — no mutex contention on the hot path.
+    if let Some(existing) = SESSION_POOL.get() {
+        if let Some(prev) = SESSION_POOL_PATH.get()
+            && prev != &path_str
+        {
+            return Err(MuonError::Config(format!(
+                "session DB path changed from {prev} to {path_str}; restart muon to apply"
+            )));
+        }
+        return Ok(existing.clone());
+    }
+
+    // Slow path: serialize against intra-process TOCTOU races.
+    let _guard = INIT_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+
+    // Double-checked locking: another thread may have finished init while
+    // we waited on the mutex.
     if let Some(existing) = SESSION_POOL.get() {
         if let Some(prev) = SESSION_POOL_PATH.get()
             && prev != &path_str
