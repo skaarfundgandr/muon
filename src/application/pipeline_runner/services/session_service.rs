@@ -39,6 +39,23 @@ impl InMemorySessionStore {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn get_stage(&self, id: SessionId) -> Option<String> {
+        self.stages
+            .lock()
+            .ok()
+            .and_then(|g| g.get(&id).cloned())
+    }
+
+    pub fn get_clarifier_outcome(
+        &self,
+        id: SessionId,
+    ) -> Option<(Option<String>, Option<String>)> {
+        self.clarifier_outcomes
+            .lock()
+            .ok()
+            .and_then(|g| g.get(&id).cloned())
+    }
 }
 
 #[async_trait]

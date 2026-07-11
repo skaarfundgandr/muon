@@ -56,6 +56,30 @@ async fn save_clarifier_outcome_round_trips_through_inmemory_store() {
         .await
         .unwrap();
 
-    store.delete(id).await.unwrap();
-    assert!(store.get(id).await.unwrap().is_none());
+    let (stored_plan, stored_cr) = store.get_clarifier_outcome(id).expect("outcome missing");
+    assert_eq!(stored_plan.as_deref(), Some(plan_json.as_str()));
+    assert_eq!(stored_cr.as_deref(), Some(cr_json.as_str()));
+}
+
+#[tokio::test]
+async fn save_clarifier_outcome_with_plan_none_stores_clarifier_result() {
+    let store = InMemorySessionStore::new();
+    let id = store.create("qa-only").await.unwrap();
+
+    let cr = ClarifierResult {
+        clarifier_log: "qa log".into(),
+        plan_title: None,
+        plan_sections: vec![],
+        plan_approved: false,
+    };
+    let cr_json = serde_json::to_string(&cr).unwrap();
+
+    store
+        .save_clarifier_outcome(id, None, Some(&cr_json))
+        .await
+        .unwrap();
+
+    let (stored_plan, stored_cr) = store.get_clarifier_outcome(id).expect("outcome missing");
+    assert!(stored_plan.is_none());
+    assert_eq!(stored_cr.as_deref(), Some(cr_json.as_str()));
 }
