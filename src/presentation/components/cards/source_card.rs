@@ -15,6 +15,7 @@ enum Verification {
     Prefix,
     ChildPath,
     QuerySubset,
+    Unverified,
     Removed,
 }
 
@@ -25,6 +26,7 @@ impl Verification {
             Verification::Prefix => ("~ PREFIX", theme::cyan()),
             Verification::ChildPath => ("↗ CHILD-PATH", theme::accent()),
             Verification::QuerySubset => ("⊞ QUERY-SUBSET", theme::purple()),
+            Verification::Unverified => ("○ UNVERIFIED", theme::text_dim()),
             Verification::Removed => ("⚠ REMOVED", theme::error()),
         }
     }
@@ -108,7 +110,7 @@ pub fn render(
                 }
                 crate::domain::models::source::VerificationStatus::Removed => Verification::Removed,
                 crate::domain::models::source::VerificationStatus::Unverified => {
-                    Verification::Removed
+                    Verification::Unverified
                 }
             };
             let source_type = match s.source_type {
@@ -160,16 +162,58 @@ pub fn render(
         .constraints([Constraint::Length(1), Constraint::Min(0)])
         .split(outer_inner);
 
-    let total_status = Line::from(vec![
-        Span::styled(
-            "ALL CHECKS PASSED",
-            Style::default()
-                .fg(theme::success())
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::styled(" ✓", Style::default().fg(theme::success())),
-        Span::styled("  (click card to copy URL)", Style::default().fg(theme::text_dim())),
-    ]);
+    let removed_n = items
+        .iter()
+        .filter(|e| matches!(e.verification, Verification::Removed))
+        .count();
+    let unverified_n = items
+        .iter()
+        .filter(|e| matches!(e.verification, Verification::Unverified))
+        .count();
+    let total_status = if items.is_empty() {
+        Line::from(Span::styled(
+            "No sources",
+            Style::default().fg(theme::text_dim()),
+        ))
+    } else if removed_n == 0 && unverified_n == 0 {
+        Line::from(vec![
+            Span::styled(
+                "ALL CHECKS PASSED",
+                Style::default()
+                    .fg(theme::success())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" ✓", Style::default().fg(theme::success())),
+            Span::styled(
+                "  (click card to copy URL)",
+                Style::default().fg(theme::text_dim()),
+            ),
+        ])
+    } else if removed_n > 0 {
+        Line::from(vec![
+            Span::styled(
+                format!("{removed_n} REMOVED"),
+                Style::default()
+                    .fg(theme::error())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "  (click card to copy URL)",
+                Style::default().fg(theme::text_dim()),
+            ),
+        ])
+    } else {
+        Line::from(vec![
+            Span::styled(
+                format!("{unverified_n} UNVERIFIED"),
+                Style::default().fg(theme::text_dim()),
+            ),
+            Span::styled(
+                "  (click card to copy URL)",
+                Style::default().fg(theme::text_dim()),
+            ),
+        ])
+    };
     f.render_widget(
         Paragraph::new(total_status),
         Rect {
