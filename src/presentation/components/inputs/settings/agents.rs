@@ -28,12 +28,12 @@ const FIELDS: &[FieldDef] = &[
     FieldDef::dropdown("Deep Planner Provider", &[]),
     FieldDef::dropdown("Deep Researcher Model", &[]),
     FieldDef::dropdown("Deep Researcher Provider", &[]),
-    FieldDef::number("Deep Orchestrator Cycles"),
+    FieldDef::number("Deep Orch ReAct Cycles"),
     FieldDef::number("Deep Max Retries"),
     FieldDef::number("Deep Planner Cycles"),
-    FieldDef::number("Deep Orch Turns/Cycle"),
+    FieldDef::number("Deep Orch Tool Calls"),
     FieldDef::number("Deep Planner Tool Calls"),
-    FieldDef::number("Deep Researcher Turns"),
+    FieldDef::number("Deep Researcher Tool Calls"),
     FieldDef::checkbox("Deep Citation Verify"),
 ];
 
@@ -704,11 +704,11 @@ fn render_deep_researcher(
     #[allow(clippy::type_complexity)]
     let limit_pairs: [((usize, usize, &str, String), (usize, usize, &str, String)); 2] = [
         (
-            (3, 19, "Orchestrator cycles", cfg.iterations.to_string()),
+            (3, 19, "Orch ReAct cycles", cfg.iterations.to_string()),
             (
                 3,
                 22,
-                "Orch turns/cycle",
+                "Orch tool calls",
                 cfg.orchestrator_max_tool_calls.to_string(),
             ),
         ),
@@ -749,7 +749,13 @@ fn render_deep_researcher(
         action: ClickAction::ActivateField(24),
     });
     f.render_widget(
-        Paragraph::new(deep_num_cell("Researcher turns", &researcher_tool_calls, 24, form, rows[5])),
+        Paragraph::new(deep_num_cell(
+            "Researcher tool calls",
+            &researcher_tool_calls,
+            24,
+            form,
+            rows[5],
+        )),
         rows[5],
     );
 
