@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::config::MuonConfig;
 use crate::domain::error::MuonError;
 use crate::infrastructure::util::expand_tilde;
@@ -8,6 +10,7 @@ pub struct RagContext {
     pub vector_index: agent_rs::rag::TurboVectorIndex,
     pub indexer: agent_rs::rag::RagIndexer,
     pub embedder: EmbeddingService<rig_fastembed::EmbeddingModel>,
+    pub index_path: PathBuf,
 }
 
 impl RagContext {
@@ -31,7 +34,7 @@ impl RagContext {
         let built = RagPipeline::builder()
             .embedder(svc_for_pipeline)
             .db_path(&expanded_db)
-            .index_path(index_path)
+            .index_path(index_path.clone())
             .extensions(["txt", "md"])
             .build()
             .await
@@ -41,6 +44,7 @@ impl RagContext {
             vector_index: built.vector_index,
             indexer: built.indexer,
             embedder: kept_embedder,
+            index_path,
         })
     }
 }

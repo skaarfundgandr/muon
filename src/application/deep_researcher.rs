@@ -159,6 +159,22 @@ impl<'a> DeepResearcher<'a> {
                     }
                 }
             }
+            match vs.save_index().await {
+                Ok(()) => {
+                    self.bridge.log(
+                        AgentTag::Sys,
+                        LogLevel::Info,
+                        "RAG index saved after deep research".to_string(),
+                    );
+                }
+                Err(e) => {
+                    self.bridge.log(
+                        AgentTag::Sys,
+                        LogLevel::Warn,
+                        format!("RAG index save failed: {e}"),
+                    );
+                }
+            }
         }
 
         let registry_urls = registry.urls();

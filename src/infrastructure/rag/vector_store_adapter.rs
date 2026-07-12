@@ -104,4 +104,12 @@ impl VectorStore for RagContext {
 
         Ok(results)
     }
+
+    async fn save_index(&self) -> Result<(), MuonError> {
+        self.indexer
+            .pipeline()
+            .save(&self.index_path)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))
+    }
 }
