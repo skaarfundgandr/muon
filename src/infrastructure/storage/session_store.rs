@@ -329,4 +329,37 @@ impl SessionStore for DieselSessionStore {
             .map_err(|e| MuonError::Database(e.to_string()))?;
         Ok(())
     }
+
+    async fn get_pipeline_stage(&self, id: SessionId) -> Result<Option<String>, MuonError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let row: Option<SessionRow> = sessions::table
+            .find(id.to_string())
+            .first(&mut *conn)
+            .await
+            .optional()
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        Ok(row.map(|r| r.pipeline_stage))
+    }
+
+    async fn get_clarifier_outcome(
+        &self,
+        id: SessionId,
+    ) -> Result<Option<(Option<String>, Option<String>)>, MuonError> {
+        let mut conn = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let row: Option<SessionRow> = sessions::table
+            .find(id.to_string())
+            .first(&mut *conn)
+            .await
+            .optional()
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+        Ok(row.map(|r| (r.plan_json, r.clarifier_result)))
+    }
 }

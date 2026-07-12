@@ -108,3 +108,14 @@ pub fn global_pool() -> Result<DbPool, MuonError> {
         .cloned()
         .ok_or_else(|| MuonError::Database("session pool not initialized".into()))
 }
+
+pub async fn open_pool(path: &str) -> Result<DbPool, MuonError> {
+    let path_str = expand_and_ensure_parent(path)?;
+    let mut sync = SqliteConnection::establish(&path_str)
+        .map_err(|e| MuonError::Database(e.to_string()))?;
+    sync.batch_execute(SQLITE_PRAGMAS)
+        .map_err(|e| MuonError::Database(e.to_string()))?;
+    run_migrations(&mut sync)?;
+    drop(sync);
+    create_pool(&path_str)
+}

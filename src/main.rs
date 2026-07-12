@@ -19,10 +19,6 @@ enum Commands {
         /// Run without TUI; print report to stdout
         #[arg(long)]
         headless: bool,
-        /// Use mock infrastructure (no API calls). Requires a build with the
-        /// `mock` feature enabled; production builds reject this flag.
-        #[arg(long)]
-        mock: bool,
         /// Write report to file instead of stdout (headless only)
         #[arg(short = 'o', long)]
         output: Option<PathBuf>,
@@ -49,11 +45,10 @@ async fn main() -> muon::domain::error::Result<()> {
         Some(Commands::Run {
             query,
             headless,
-            mock,
             output,
         }) => {
             if headless {
-                muon::cli::run_headless(&query, mock, output.as_deref()).await
+                muon::cli::run_headless(&query, output.as_deref()).await
             } else {
                 muon::presentation::run().await
             }

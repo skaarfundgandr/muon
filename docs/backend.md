@@ -85,15 +85,14 @@ pub struct InfrastructureContext {
 }
 ```
 
-**Two constructors:**
-- `InfrastructureContext::mock()` — returns deterministic `MockAgent`s for testing and dev.
+**Constructor:**
 - `InfrastructureContext::new_live(cfg, bridge)` — builds real provider-backed ReAct agents, a Diesel session pool, and a `DieselSessionStore`. Works with zero or more `[[providers]]` entries; an empty list degrades to stub agents that return `MuonError::Config` on every call.
 
 When `cfg.providers` is empty, `new_live` degrades gracefully: it initializes the session store (so existing sessions load), installs `ConfigRequiredAgent` stubs for all six agent roles that return `MuonError::Config` on every `prompt_raw`, and returns `Ok`. The TUI starts with an Info toast directing the user to Settings → Providers. No fake API keys are generated.
 
-Set `MUON_LIVE=1` to gate real adapters. The default (mock) bypasses LLM calls and returns canned responses.
-
 ## 5. Storage Schema
+
+**Never edit `src/infrastructure/storage/schema.rs` by hand** — it is Diesel CLI–generated. Schema changes go through SQL migrations + `diesel migration run` / `diesel print-schema`.
 
 SQLite via Diesel with a single process-wide deadpool connection pool (`OnceLock<DbPool>`). The pool is initialized once via `init_pool(path)` and all subsequent calls (infra rebuild, CLI export) return a clone of the same singleton. A hot-swap of `session_db_path` after first init errors with a "restart muon" message.
 
@@ -185,15 +184,14 @@ muon
 muon tui
 
 # Headless mode — runs pipeline and prints report to stdout
-muon run --headless --mock "What is async Rust?"
-MUON_LIVE=1 muon run --headless "Compare diesel-async and sqlx"
+muon run --headless "What is async Rust?"
 
 # Export a completed session
 muon export <session-id> markdown -o report.md
 muon export <session-id> obsidian --vault ~/my-vault
 ```
 
-`--mock` uses `InfrastructureContext::mock()` for deterministic output without API keys. Without `--mock`, `MUON_LIVE=1` must be set and `OPENAI_API_KEY` must be present.
+Headless mode always uses live infrastructure (`InfrastructureContext::new_live`). Zero `[[providers]]` configured degrades to `ConfigRequiredAgent` stubs (see §Constructor).
 
 Reports are Markdown formatted with frontmatter, section headings, and renumbered citation references.
 
@@ -316,5 +314,5 @@ Missing or empty `config.toml` (no `[[providers]]`) does NOT crash the TUI. `new
 - Truncation `VerificationLevel` variant.
 - Full CLEAN DI rewrite / removing `InfrastructureContext`.
 - Top-level TOML rename to `[pipeline]`/`[storage]` (documented mapping only).
-- Auto-provision API keys / silent mock in live mode.
+- Auto-provision API keys.
 - App-level SQLite retries as replacement for WAL + busy_timeout + single pool.

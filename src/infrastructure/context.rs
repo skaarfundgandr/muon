@@ -6,15 +6,15 @@ use crate::infrastructure::source_registry::SourceRegistry;
 use std::sync::{Arc, Mutex};
 
 pub struct InfrastructureContext {
-    pub intent_classifier: Arc<dyn MuonAgent>,
-    pub shallow: Arc<dyn MuonAgent>,
-    pub clarifier: Arc<dyn MuonAgent>,
-    pub deep_orchestrator: Arc<dyn MuonAgent>,
-    pub planner: Arc<dyn MuonAgent>,
-    pub researcher: Arc<dyn MuonAgent>,
-    pub session_store: Arc<dyn SessionStore>,
-    pub source_sink: Arc<Mutex<SourceRegistry>>,
-    pub vector_store: Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>>,
+    pub(crate) intent_classifier: Arc<dyn MuonAgent>,
+    pub(crate) shallow: Arc<dyn MuonAgent>,
+    pub(crate) clarifier: Arc<dyn MuonAgent>,
+    pub(crate) deep_orchestrator: Arc<dyn MuonAgent>,
+    pub(crate) planner: Arc<dyn MuonAgent>,
+    pub(crate) researcher: Arc<dyn MuonAgent>,
+    pub(crate) session_store: Arc<dyn SessionStore>,
+    pub(crate) source_sink: Arc<Mutex<SourceRegistry>>,
+    pub(crate) vector_store: Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>>,
 }
 
 impl std::fmt::Debug for InfrastructureContext {

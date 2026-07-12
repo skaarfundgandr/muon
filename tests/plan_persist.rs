@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use muon::application::pipeline_runner::services::session_service::InMemorySessionStore;
+mod common;
+
 use muon::domain::agents::clarifier::ClarifierResult;
 use muon::domain::models::research_plan::ResearchPlan;
 use muon::domain::traits::session_store::SessionStore;
@@ -33,8 +34,8 @@ async fn clarifier_result_to_plan_returns_none_when_no_title() {
 }
 
 #[tokio::test]
-async fn save_clarifier_outcome_round_trips_through_inmemory_store() {
-    let store = InMemorySessionStore::new();
+async fn save_clarifier_outcome_round_trips_through_diesel_store() {
+    let (_dir, store) = common::diesel_store().await;
     let id = store.create("test query").await.unwrap();
 
     let plan = ResearchPlan {
@@ -56,14 +57,14 @@ async fn save_clarifier_outcome_round_trips_through_inmemory_store() {
         .await
         .unwrap();
 
-    let (stored_plan, stored_cr) = store.get_clarifier_outcome(id).expect("outcome missing");
+    let (stored_plan, stored_cr) = store.get_clarifier_outcome(id).await.unwrap().expect("outcome missing");
     assert_eq!(stored_plan.as_deref(), Some(plan_json.as_str()));
     assert_eq!(stored_cr.as_deref(), Some(cr_json.as_str()));
 }
 
 #[tokio::test]
 async fn save_clarifier_outcome_with_plan_none_stores_clarifier_result() {
-    let store = InMemorySessionStore::new();
+    let (_dir, store) = common::diesel_store().await;
     let id = store.create("qa-only").await.unwrap();
 
     let cr = ClarifierResult {
@@ -79,7 +80,7 @@ async fn save_clarifier_outcome_with_plan_none_stores_clarifier_result() {
         .await
         .unwrap();
 
-    let (stored_plan, stored_cr) = store.get_clarifier_outcome(id).expect("outcome missing");
+    let (stored_plan, stored_cr) = store.get_clarifier_outcome(id).await.unwrap().expect("outcome missing");
     assert!(stored_plan.is_none());
     assert_eq!(stored_cr.as_deref(), Some(cr_json.as_str()));
 }

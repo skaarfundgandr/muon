@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -8,7 +10,9 @@ use muon::application::pipeline_runner::run_pipeline;
 use muon::config::MuonConfig;
 use muon::domain::models::log_entry::AgentTag;
 use muon::infrastructure::context::InfrastructureContext;
-use muon::infrastructure::mock::MockAgent;
+use muon::infrastructure::storage::open_pool;
+
+mod common;
 
 fn collect_events() -> (BridgeChannels, tokio::sync::mpsc::UnboundedReceiver<AgentEvent>) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<AgentEvent>();
@@ -20,7 +24,7 @@ async fn pipeline_completes_for_shallow_intent() -> Result<(), Box<dyn std::erro
     let (bridge, mut rx) = collect_events();
     let mut state = PipelineState::default();
     let cfg = MuonConfig::default();
-    let infra = InfrastructureContext::mock();
+    let (_dir, infra) = common::stub_infra().await;
     let deps = PipelineDeps::from_infra(&infra);
 
     let report = run_pipeline(
@@ -67,11 +71,36 @@ async fn pipeline_meta_intent_returns_direct() -> Result<(), Box<dyn std::error:
     let (bridge, _rx) = collect_events();
     let mut state = PipelineState::default();
     let cfg = MuonConfig::default();
-    let mut infra = InfrastructureContext::mock();
-    infra.intent_classifier = Arc::new(MockAgent::new(
-        AgentTag::Intent,
-        r#"{"intent":"meta","response":"hi there"}"#,
-    ));
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("test.db");
+    let path_str = path.to_string_lossy().to_string();
+    let pool = open_pool(&path_str).await?;
+    let store: Arc<dyn muon::domain::traits::session_store::SessionStore> =
+        Arc::new(muon::infrastructure::storage::DieselSessionStore::new(pool));
+    let infra = InfrastructureContext::new(
+        Arc::new(common::stub_agent::StubAgent::new(
+            AgentTag::Intent,
+            r#"{"intent":"meta","response":"hi there"}"#,
+        )),
+        Arc::new(common::stub_agent::StubAgent::new(
+            AgentTag::Search,
+            "Mock shallow answer.",
+        )),
+        Arc::new(common::stub_agent::StubAgent::new(
+            AgentTag::Clarify,
+            r#"{"needs_clarification":false,"clarification_question":""}"#,
+        )),
+        Arc::new(common::stub_agent::StubAgent::new(
+            AgentTag::Orchestrate,
+            "Mock deep report.",
+        )),
+        Arc::new(common::stub_agent::StubAgent::new(AgentTag::Plan, "Mock plan.")),
+        Arc::new(common::stub_agent::StubAgent::new(
+            AgentTag::Search,
+            "Mock researcher answer.",
+        )),
+        store,
+    );
     let deps = PipelineDeps::from_infra(&infra);
 
     let report = run_pipeline(

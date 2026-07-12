@@ -35,4 +35,9 @@ pub trait SessionStore: Send + Sync {
         plan_json: Option<&str>,
         clarifier_result_json: Option<&str>,
     ) -> Result<(), MuonError>;
+    async fn get_pipeline_stage(&self, id: SessionId) -> Result<Option<String>, MuonError>;
+    async fn get_clarifier_outcome(
+        &self,
+        id: SessionId,
+    ) -> Result<Option<(Option<String>, Option<String>)>, MuonError>;
 }

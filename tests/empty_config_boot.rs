@@ -1,5 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use muon::application::deps::PipelineDeps;
 use muon::config::MuonConfig;
 use muon::infrastructure::context::InfrastructureContext;
 use muon::application::bridge::BridgeChannels;
@@ -22,7 +23,8 @@ async fn new_live_with_empty_providers_returns_ok_and_stubs_agent_prompts() {
         .await
         .expect("new_live must succeed with empty providers");
 
-    let err = infra.intent_classifier.prompt_raw("test").await.unwrap_err();
+    let deps = PipelineDeps::from_infra(&infra);
+    let err = deps.intent_classifier.prompt_raw("test").await.unwrap_err();
     match err {
         muon::domain::error::MuonError::Config(_) => {}
         other => panic!("expected Config error, got {other:?}"),

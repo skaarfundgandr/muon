@@ -5,7 +5,6 @@ edition = "2024"
 
 [features]
 default = []
-mock = []
 
 [lints.clippy]
 unwrap_used = "deny"
@@ -54,12 +53,4 @@ arboard = { version = "3.6", default-features = true, features = ["wayland-data-
 
 [dev-dependencies]
 tempfile = "3"
-
-[[test]]
-name = "pipeline_mock"
-required-features = ["mock"]
-
-[[test]]
-name = "deep_researcher_mock"
-required-features = ["mock"]
 

@@ -12,7 +12,7 @@ use crate::domain::models::{Session, SessionId, SessionStatus};
 use crate::domain::traits::session_store::{SessionStore, SessionSummary};
 use crate::domain::error::{MuonError, Result};
 use crate::infrastructure::context::InfrastructureContext;
-use crate::infrastructure::storage::{init_pool, DieselSessionStore, ReportStore};
+use crate::infrastructure::storage::{init_pool, DieselSessionStore};
 
 fn render_markdown(report: &ResearchReport, query: &str) -> String {
     let mut out = String::from("---\n");
@@ -52,7 +52,7 @@ fn render_obsidian(report: &ResearchReport) -> String {
     out
 }
 
-pub async fn run_headless(query: &str, mock: bool, output: Option<&Path>) -> Result<()> {
+pub async fn run_headless(query: &str, output: Option<&Path>) -> Result<()> {
     let obs = crate::infrastructure::observability::Observability::init("muon")?;
 
     let result = async {
@@ -60,20 +60,7 @@ pub async fn run_headless(query: &str, mock: bool, output: Option<&Path>) -> Res
         let (tx, _rx) = mpsc::unbounded_channel();
         let bridge = BridgeChannels::new(tx);
 
-        let infra = if mock {
-            #[cfg(any(test, feature = "mock"))]
-            {
-                InfrastructureContext::mock()
-            }
-            #[cfg(not(any(test, feature = "mock")))]
-            {
-                return Err(MuonError::Config(
-                    "mock mode requires building with the 'mock' feature".to_string(),
-                ));
-            }
-        } else {
-            InfrastructureContext::new_live(&config, &bridge).await?
-        };
+        let infra = InfrastructureContext::new_live(&config, &bridge).await?;
 
         let mut state = PipelineState::default();
         let deps = crate::application::deps::PipelineDeps::from_infra(&infra);
@@ -117,7 +104,6 @@ pub async fn export_session(
         .parse()
         .map_err(|e: uuid::Error| MuonError::Session(format!("invalid session ID: {session_id}: {e}")))?;
 
-    let report_store = ReportStore::new(pool.clone());
     let session_store = DieselSessionStore::new(pool);
 
     let summary = session_store
@@ -125,8 +111,8 @@ pub async fn export_session(
         .await?
         .ok_or_else(|| MuonError::Session(format!("session not found: {session_id}")))?;
 
-    let report = report_store
-        .get_for_session(session_id)
+    let report = session_store
+        .get_report(sid)
         .await?
         .ok_or_else(|| MuonError::Session(format!("report not found for session: {session_id}")))?;
 

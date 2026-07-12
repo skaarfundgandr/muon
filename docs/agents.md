@@ -79,9 +79,6 @@ Agent parameters can also be set in `config.toml` under `[agents.*]`. When both 
 
 See `examples/muon.toml` for the full configuration schema.
 
-## 6. Live vs Mock
+## 6. Agent Loading
 
-- **Mock mode** (default): `InfrastructureContext::mock()` returns canned `MockAgent` instances. Agent definition files are not loaded. All LLM calls return deterministic JSON responses.
-- **Live mode** (`MUON_LIVE=1`): `InfrastructureContext::new_live()` builds real `ReActAgent` wrappers using agent_rs. The system prompt from the agent definition file is used as the rig agent's preamble. `OPENAI_API_KEY` must be set.
-
-The `--mock` flag on `muon run --headless` forces mock mode regardless of `MUON_LIVE`.
+`InfrastructureContext::new_live()` builds real `ReActAgent` wrappers using agent_rs. The system prompt from the agent definition file is used as the rig agent's preamble. Providers are configured in `config.toml`; an empty provider list degrades to `ConfigRequiredAgent` stubs that return `MuonError::Config` on every call. Agent definition files are always loaded from `~/.config/muon/agents/` (user) and `examples/agents/` (repo fallback).

@@ -1,12 +1,13 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use muon::application::pipeline_runner::services::session_service::InMemorySessionStore;
+mod common;
+
 use muon::domain::models::session::SessionId;
 use muon::domain::traits::session_store::SessionStore;
 
 #[tokio::test]
-async fn in_memory_store_delete_removes_session_and_associated_data() {
-    let store = InMemorySessionStore::new();
+async fn diesel_store_delete_removes_session_and_associated_data() {
+    let (_dir, store) = common::diesel_store().await;
     let id = store.create("test query").await.unwrap();
     let log = muon::domain::models::log_entry::LogEntry {
         timestamp: chrono::Utc::now(),

@@ -2,8 +2,6 @@ pub mod agent_rs;
 pub mod agent_stubs;
 pub mod context;
 pub mod providers;
-#[cfg(any(test, feature = "mock"))]
-pub mod mock;
 pub mod models;
 pub mod observability;
 pub mod rag;

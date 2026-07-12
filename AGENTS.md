@@ -13,7 +13,7 @@ CLEAN layered architecture. Presentation → Application → Domain → Infrastr
 
 **Bootstrap:** `src/main.rs` calls `presentation::run()` (TUI) or `cli::` helpers (headless/export). Presentation owns terminal setup (`presentation/terminal.rs`) and the main event loop.
 
-**Headless CLI:** `muon run --headless --mock "query"` prints report to stdout without TUI (requires building with the `mock` feature). `muon export <session> <format> -o path` exports completed sessions. The mock backend is opt-in via `--features mock` or `cargo test`; the live backend is used by default.
+**Headless CLI:** `muon run --headless "query"` prints report to stdout without TUI. `muon export <session> <format> -o path` exports completed sessions. The live backend is always used; tests use tests-only stub agents + Diesel temp DBs.
 
 ## Module Conventions
 

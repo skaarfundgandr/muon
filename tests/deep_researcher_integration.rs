@@ -5,13 +5,14 @@ use muon::application::deep_researcher::DeepResearcher;
 use muon::application::deps::PipelineDeps;
 use muon::config::MuonConfig;
 use muon::domain::agents::clarifier::ClarifierResult;
-use muon::infrastructure::context::InfrastructureContext;
 use tokio::sync::mpsc;
 
+mod common;
+
 #[tokio::test]
-async fn deep_researcher_runs_max_loops_with_mock() {
+async fn deep_researcher_runs_max_loops() {
     let cfg = MuonConfig::default();
-    let infra = InfrastructureContext::mock();
+    let (_dir, infra) = common::stub_infra().await;
     let deps = PipelineDeps::from_infra(&infra);
     let (tx, mut rx) = mpsc::unbounded_channel::<AgentEvent>();
     let bridge = BridgeChannels::new(tx);
@@ -39,7 +40,7 @@ async fn deep_researcher_exits_early_when_quality_passes() {
     cfg.agents.deep_researcher.iterations = 5;
     cfg.agents.deep_researcher.min_report_length = 1;
     cfg.agents.deep_researcher.min_report_sections = 0;
-    let infra = InfrastructureContext::mock();
+    let (_dir, infra) = common::stub_infra().await;
     let deps = PipelineDeps::from_infra(&infra);
     let (tx, mut rx) = mpsc::unbounded_channel::<AgentEvent>();
     let bridge = BridgeChannels::new(tx);
