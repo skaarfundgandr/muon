@@ -234,6 +234,7 @@ impl InfrastructureContext {
                             cfg.agents.intent_classifier.timeout_sec,
                             source_sink.clone(),
                             Some(crate::infrastructure::agent_rs::react_agents::REMINDER_FINALIZE),
+                            true,
                         )
                     }
                 ),
@@ -270,17 +271,33 @@ impl InfrastructureContext {
                         } else {
                             b
                         };
+                        let max_turns = cfg
+                            .agents
+                            .shallow_researcher
+                            .max_tool_iters
+                            .max(1) as usize;
+                        let max_cycles = cfg
+                            .agents
+                            .shallow_researcher
+                            .max_llm_turns
+                            .max(1) as usize;
+                        let shallow_hook = crate::infrastructure::agent_rs::researcher_hook(
+                            bridge.clone(),
+                            AgentTag::Search,
+                            source_sink.clone(),
+                        );
                         let agent = b
-                            .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
-                            .hook(agent_rs::observability::LangSmithAgentHook)
+                            .default_max_turns(max_turns)
+                            .hook(shallow_hook)
                             .build();
                         factory.build_runner(
                             agent,
                             AgentTag::Search,
-                            cfg.agents.shallow_researcher.max_tool_iters as usize,
+                            max_cycles,
                             60,
                             source_sink.clone(),
                             Some(crate::infrastructure::agent_rs::react_agents::REMINDER_FINALIZE),
+                            false,
                         )
                     }
                 ),
@@ -517,6 +534,7 @@ impl InfrastructureContext {
                             Some(
                                 crate::infrastructure::agent_rs::react_agents::REMINDER_ORCHESTRATOR,
                             ),
+                            true,
                         )
                     }
                 ),

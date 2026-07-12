@@ -251,6 +251,7 @@ impl<'a> ReActFactory<'a> {
         tool_timeout_secs: u64,
         source_sink: SourceSink,
         cycle_reminder: Option<&str>,
+        react_tool_feed: bool,
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
@@ -260,7 +261,7 @@ impl<'a> ReActFactory<'a> {
         use agent_rs::agent::ReActExt;
 
         let reminder = cycle_reminder.map(str::to_string);
-        let built = agent
+        let mut builder = agent
             .react()
             .max_cycles(max_cycles)
             .tool_timeout_secs(tool_timeout_secs)
@@ -273,34 +274,6 @@ impl<'a> ReActFactory<'a> {
                         LogLevel::Info,
                         format!("thought: {}", feed_snippet(&t.reasoning)),
                     );
-                }
-            })
-            .on_action({
-                let b = BridgeChannels::new(self.bridge.events.clone());
-                move |a: &agent_rs::domain::agent::Action| {
-                    b.log(
-                        tag,
-                        LogLevel::Info,
-                        format!("action: {} args={}", a.tool_name, feed_snippet(&a.args)),
-                    );
-                }
-            })
-            .on_observation({
-                let b = BridgeChannels::new(self.bridge.events.clone());
-                let sink = source_sink.clone();
-                move |o: &agent_rs::domain::agent::Observation| {
-                    b.log(
-                        tag,
-                        if o.is_error {
-                            LogLevel::Warn
-                        } else {
-                            LogLevel::Info
-                        },
-                        format!("obs: {} => {}", o.tool_name, feed_snippet(&o.result)),
-                    );
-                    if !o.is_error {
-                        record_observation_sources(&sink, &o.tool_name, &o.result);
-                    }
                 }
             })
             .on_final({
@@ -321,9 +294,43 @@ impl<'a> ReActFactory<'a> {
                     b.log(tag, level, msg);
                 }
             })
-            .with_span_emitter(crate::infrastructure::observability::Observability::span_emitter())
-            .build();
-        Box::new(NoCompactionRunner { inner: built })
+            .with_span_emitter(crate::infrastructure::observability::Observability::span_emitter());
+
+        if react_tool_feed {
+            builder = builder
+                .on_action({
+                    let b = BridgeChannels::new(self.bridge.events.clone());
+                    move |a: &agent_rs::domain::agent::Action| {
+                        b.log(
+                            tag,
+                            LogLevel::Info,
+                            format!("action: {} args={}", a.tool_name, feed_snippet(&a.args)),
+                        );
+                    }
+                })
+                .on_observation({
+                    let b = BridgeChannels::new(self.bridge.events.clone());
+                    let sink = source_sink.clone();
+                    move |o: &agent_rs::domain::agent::Observation| {
+                        b.log(
+                            tag,
+                            if o.is_error {
+                                LogLevel::Warn
+                            } else {
+                                LogLevel::Info
+                            },
+                            format!("obs: {} => {}", o.tool_name, feed_snippet(&o.result)),
+                        );
+                        if !o.is_error {
+                            record_observation_sources(&sink, &o.tool_name, &o.result);
+                        }
+                    }
+                });
+        }
+
+        Box::new(NoCompactionRunner {
+            inner: builder.build(),
+        })
     }
 
     pub fn build_planner_runner<M, P>(
@@ -346,6 +353,7 @@ impl<'a> ReActFactory<'a> {
             tool_timeout_secs,
             source_sink,
             Some(REMINDER_FINALIZE),
+            true,
         )
     }
 
@@ -369,6 +377,7 @@ impl<'a> ReActFactory<'a> {
             tool_timeout_secs,
             source_sink,
             Some(REMINDER_FINALIZE),
+            true,
         )
     }
 
