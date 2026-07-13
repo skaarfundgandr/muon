@@ -251,9 +251,9 @@ Supported `type` values: `tavily`, `firecrawl`, `brave`, `serper`. Per-provider 
 
 Currently arXiv only (`arxiv_enabled: bool`). Semantic Scholar was removed per the v0.1 spec; SearXNG was also removed.
 
-### 10.5 Legacy `[tools]` backfill
+### 10.5 Provider configuration model
 
-For backward compatibility, `MuonConfig::load_from_path` calls `backfill_legacy_providers()` after parsing. If `cfg.providers` is empty but legacy `[tools]` keys (`opencode_go_api_key`, `neuralwatt_api_key`, `clinepass_api_key`) are set, the loader synthesizes `[[providers]]` entries from them. Search providers are not backfilled — the user must add `[[search.providers]]` explicitly.
+LLM providers are declared via `[[providers]]` entries with `name`, `base_url`, and `api_key`; search providers via `[[search.providers]]` entries with `type` in {tavily, firecrawl, brave, serper}. There is no legacy `[tools]` table or backfill — the `ToolsConfig` struct and `backfill_legacy_providers()` were removed in the config audit.
 
 ### 10.6 TUI
 
@@ -272,12 +272,9 @@ This section documents design decisions that intentionally diverge from SPEC Dra
 
 ### 11.1 Clarifier config single source of truth
 
-`[agents.clarifier]` is the runtime SSoT for `plan_approval`, `max_turns`, and `max_iterations`. The `[advanced]` section retains `max_clarifier_turns`, `max_plan_iterations`, and `plan_approval` for backward compatibility only.
+`[agents.clarifier]` is the sole source for `plan_approval`, `max_turns`, and `max_iterations`. The `migrate_clarifier_config()` and `mirror_clarifier_to_advanced()` dual-write functions were removed in the config audit — there is no migration or mirror code. Default `plan_approval = true` (fresh configs get the plan-approval gate). The Advanced settings UI no longer shows these three controls; they live exclusively in the Agents tab.
 
-- On load: `migrate_clarifier_config()` copies `advanced → agents` when `agents.clarifier` is at defaults and `[advanced]` was customized.
-- On save: `mirror_clarifier_to_advanced()` writes back so older binaries still see the values.
-- Default `plan_approval = true` (fresh configs get the plan-approval gate).
-- The Advanced settings UI no longer shows these three controls; they live exclusively in the Agents tab.
+This is intentional drift from SPEC Draft 2, which described a dual-write scheme between `[advanced]` and `[agents.clarifier]`.
 
 ### 11.2 Pipeline stages
 

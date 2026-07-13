@@ -9,7 +9,7 @@ CLEAN layered architecture. Presentation → Application → Domain → Infrastr
 - **Presentation** (`src/presentation/`): TUI shell + ratatui rendering. Terminal setup, event loop (`run`), `AppState`, handlers (key/mouse/scroll/settings), components (chrome, inputs, panels, cards, graphs), 5 views (Welcome, Dashboard, Progress, Results, Settings), form system, click-target registry.
 - **Application** (`src/application/`): pipeline state machine (`PipelineStage` idle → intent → clarify → shallow → deep → complete/cancelled), use cases, export services, agent bridge.
 - **Domain** (`src/domain/`): pure models and port traits (MuonAgent, SearchProvider, VectorStore, SessionStore).
-- **Infrastructure** (`src/infrastructure/`): agent_rs ReAct wrappers, Diesel storage (SQLite), RAG (TurboVec + FastEmbed), search providers (Brave/SearXNG/SemanticScholar/arXiv).
+- **Infrastructure** (`src/infrastructure/`): agent_rs ReAct wrappers, Diesel storage (SQLite), RAG (TurboVec + FastEmbed), search providers (Tavily/Firecrawl/Brave/Serper web search + arXiv papers).
 
 **Bootstrap:** `src/main.rs` calls `presentation::run()` (TUI) or `cli::` helpers (headless/export). Presentation owns terminal setup (`presentation/terminal.rs`) and the main event loop.
 
@@ -20,7 +20,7 @@ CLEAN layered architecture. Presentation → Application → Domain → Infrastr
 - `src/lib.rs` flatly re-exports top-level modules: `application`, `presentation`, `cli`, `config`, `domain`, `infrastructure`.
 - Each directory has a `mod.rs` that re-exports its children — no implementation in `mod.rs`.
 - `thiserror` for errors: `MuonError` enum in `src/error.rs`, type alias `Result<T>`.
-- TOML config (serde): `MuonConfig` loads from `~/.config/muon/config.toml` with `Default` fallback. Sub-configs: Agents, Tools, DataSources, Display, Advanced.
+- TOML config (serde): `MuonConfig` loads from `~/.config/muon/config.toml` with `Default` fallback. Sub-configs: Agents, DataSources, Display, Advanced.
 - Edition 2024. Clippy denies `unwrap_used`, `expect_used`, `panic`; forbids `todo`, `unimplemented`.
 
 ## Key Patterns
