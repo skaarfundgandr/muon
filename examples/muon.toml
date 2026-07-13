@@ -54,7 +54,7 @@ verbose = false
 
 # Clarifier — interactive HITL disambiguation before research.
 # This is the single source of truth for plan_approval, max_turns, and
-# max_iterations. The [advanced] section mirrors these for back-compat.
+# max_iterations.
 [agents.clarifier]
 model = "glm-5.2"
 provider = "opencode-go"
@@ -94,18 +94,6 @@ provider = "NeuralWatt"
 model = "glm-5.2-flex"
 provider = "NeuralWatt"
 
-# Legacy [tools] keys are auto-migrated into [[providers]] on load.
-# New keys should be added in the Providers tab of the TUI.
-[tools]
-opencode_go_api_key = ""
-neuralwatt_api_key = ""
-clinepass_api_key = ""
-brave_api_key = ""
-searxng_url = "https://searxng.local"
-searxng_api_key = ""
-semantic_scholar_api_key = ""
-arxiv_enabled = true
-
 # Data source toggles.
 [data_sources]
 web_search = true
@@ -119,17 +107,11 @@ visual_theme = "Tokyo Night"
 font_size = "Medium 14px"
 
 # Advanced pipeline and storage settings.
-# NOTE: max_clarifier_turns, max_plan_iterations, and plan_approval below are
-# mirrored from [agents.clarifier] on save for backwards compatibility. Edit
-# [agents.clarifier] for runtime configuration.
 [advanced]
 max_researcher_loops = 2
-max_clarifier_turns = 3
-max_plan_iterations = 10
 max_shallow_turns = 10
 max_deep_turns = 25
 escalate_agent = true
-plan_approval = true
 compaction_threshold = 0.80
 agent_preamble = "You are μon, a deep research agent. Be extremely precise, fact-check everything, compile structured summaries, and cite sources in full formatting."
 agents_dir = "~/.config/muon/agents"

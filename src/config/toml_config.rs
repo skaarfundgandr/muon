@@ -29,7 +29,6 @@ pub struct MuonConfig {
     #[serde(default)]
     pub search: SearchConfig,
     pub agents: AgentsConfig,
-    pub tools: ToolsConfig,
     pub data_sources: DataSourcesConfig,
     pub display: DisplayConfig,
     pub advanced: AdvancedConfig,
@@ -49,12 +48,10 @@ impl MuonConfig {
             Ok(c) => c,
             Err(_) => return Self::default(),
         };
-        let mut cfg: Self = match toml::from_str(&content) {
+        let cfg: Self = match toml::from_str(&content) {
             Ok(c) => c,
             Err(_) => return Self::default(),
         };
-        cfg.backfill_legacy_providers();
-        cfg.migrate_clarifier_config();
         cfg
     }
 
@@ -129,8 +126,7 @@ impl MuonConfig {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        let mut copy = self.clone();
-        copy.mirror_clarifier_to_advanced();
+        let copy = self.clone();
         let content = toml::to_string_pretty(&copy)
             .map_err(|e| MuonError::Config(format!("serialize config: {e}")))?;
         std::fs::write(&path, &content)?;
@@ -141,67 +137,6 @@ impl MuonConfig {
             std::fs::set_permissions(&path, perms)?;
         }
         Ok(())
-    }
-
-    pub fn backfill_legacy_providers(&mut self) {
-        if !self.providers.is_empty() {
-            return;
-        }
-        let mk = |name: &str, base_url: String, key: String| ProviderConfig {
-            name: name.to_string(),
-            base_url,
-            api_key: key,
-            models: Vec::new(),
-            provider_type: ProviderType::OpenAICompatible,
-        };
-        if !self.tools.opencode_go_api_key.is_empty() {
-            self.providers.push(mk(
-                "opencode-go",
-                std::env::var("OPENCODE_GO_BASE_URL")
-                    .unwrap_or_else(|_| "https://api.opencode.dev/v1".into()),
-                self.tools.opencode_go_api_key.clone(),
-            ));
-        }
-        if !self.tools.neuralwatt_api_key.is_empty() {
-            self.providers.push(mk(
-                "NeuralWatt",
-                std::env::var("NEURALWATT_BASE_URL")
-                    .unwrap_or_else(|_| "https://api.neuralwatt.com/v1".into()),
-                self.tools.neuralwatt_api_key.clone(),
-            ));
-        }
-        if !self.tools.clinepass_api_key.is_empty() {
-            self.providers.push(mk(
-                "cline",
-                std::env::var("CLINEPASS_BASE_URL")
-                    .unwrap_or_else(|_| "https://api.cline.bot/v1".into()),
-                self.tools.clinepass_api_key.clone(),
-            ));
-        }
-    }
-
-    pub fn migrate_clarifier_config(&mut self) {
-        let clar_defaults = ClarifierConfig::default();
-        let agents_at_defaults = self.agents.clarifier.max_turns == clar_defaults.max_turns
-            && self.agents.clarifier.plan_approval == clar_defaults.plan_approval
-            && self.agents.clarifier.max_iterations == clar_defaults.max_iterations;
-
-        let adv_defaults = AdvancedConfig::default();
-        let adv_customized = self.advanced.max_clarifier_turns != adv_defaults.max_clarifier_turns
-            || self.advanced.plan_approval != adv_defaults.plan_approval
-            || self.advanced.max_plan_iterations != adv_defaults.max_plan_iterations;
-
-        if agents_at_defaults && adv_customized {
-            self.agents.clarifier.max_turns = self.advanced.max_clarifier_turns;
-            self.agents.clarifier.plan_approval = self.advanced.plan_approval;
-            self.agents.clarifier.max_iterations = self.advanced.max_plan_iterations;
-        }
-    }
-
-    pub fn mirror_clarifier_to_advanced(&mut self) {
-        self.advanced.max_clarifier_turns = self.agents.clarifier.max_turns;
-        self.advanced.plan_approval = self.agents.clarifier.plan_approval;
-        self.advanced.max_plan_iterations = self.agents.clarifier.max_iterations;
     }
 }
 
@@ -544,33 +479,6 @@ pub struct SubagentConfig {
     pub provider: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolsConfig {
-    pub opencode_go_api_key: String,
-    pub neuralwatt_api_key: String,
-    pub clinepass_api_key: String,
-    pub brave_api_key: String,
-    pub searxng_url: String,
-    pub searxng_api_key: String,
-    pub semantic_scholar_api_key: String,
-    pub arxiv_enabled: bool,
-}
-
-impl Default for ToolsConfig {
-    fn default() -> Self {
-        Self {
-            opencode_go_api_key: String::new(),
-            neuralwatt_api_key: String::new(),
-            clinepass_api_key: String::new(),
-            brave_api_key: String::new(),
-            searxng_url: "https://searxng.local".to_string(),
-            searxng_api_key: String::new(),
-            semantic_scholar_api_key: String::new(),
-            arxiv_enabled: true,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RagIndexConfig {
     pub path: String,
@@ -638,12 +546,9 @@ impl Default for DisplayConfig {
 #[serde(default)]
 pub struct AdvancedConfig {
     pub max_researcher_loops: u64,
-    pub max_clarifier_turns: u64,
-    pub max_plan_iterations: u64,
     pub max_shallow_turns: u64,
     pub max_deep_turns: u64,
     pub escalate_agent: bool,
-    pub plan_approval: bool,
     pub compaction_threshold: f64,
     pub max_tool_calls_per_turn: u64,
     pub agent_preamble: String,
@@ -661,12 +566,9 @@ impl Default for AdvancedConfig {
     fn default() -> Self {
         Self {
             max_researcher_loops: 2,
-            max_clarifier_turns: 3,
-            max_plan_iterations: 10,
             max_shallow_turns: 10,
             max_deep_turns: 25,
             escalate_agent: true,
-            plan_approval: false,
             compaction_threshold: 0.80,
             max_tool_calls_per_turn: 50,
             agent_preamble: "You are \u{03BC}on, a deep research agent. Be extremely precise, \
