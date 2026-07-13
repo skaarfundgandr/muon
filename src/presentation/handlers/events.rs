@@ -212,10 +212,6 @@ pub(crate) fn handle_event(app: &mut AppState, event: Event) {
             }
             // On Ok: optimistic UI already removed; nothing to do.
         }
-        Event::ConfigReloaded(new_config) => {
-            tracing::info!(target: "muon::config", "config reloaded via event");
-            let _ = app.try_apply_config(*new_config);
-        }
         Event::ModelsFetched {
             provider_index,
             result,

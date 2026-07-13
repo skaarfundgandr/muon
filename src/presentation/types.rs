@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use crate::application::bridge::{AgentEvent, PlanDecision};
-use crate::config::MuonConfig;
 use crate::infrastructure::context::InfrastructureContext;
 use crossterm::event::MouseEvent;
 
@@ -54,7 +53,6 @@ pub enum Event {
     Mouse(MouseEvent),
     Tick,
     AgentEvent(AgentEvent),
-    ConfigReloaded(Box<MuonConfig>),
     ModelsFetched {
         provider_index: usize,
         result: Result<Vec<crate::config::ProviderModel>, String>,
