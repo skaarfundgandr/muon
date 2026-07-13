@@ -182,19 +182,18 @@ impl InfrastructureContext {
                             }
                             return Ok(def);
                         }
-                        Ok(None) => {} // try next dir
+                        Ok(None) => {}
                         Err(e) => {
-                            bridge.log(
-                                AgentTag::Sys,
-                                crate::domain::models::log_entry::LogLevel::Warn,
-                                format!("agent def '{name}' in {dir:?} parse failed: {e}"),
-                            );
-                            // keep trying next dir; if both fail to load, hard error below.
+                            return Err(MuonError::Config(format!(
+                                "agent definition '{name}' in {dir:?}: {e}"
+                            )));
                         }
                     }
                 }
                 Err(MuonError::Config(format!(
-                    "agent definition '{name}' not found in ~/.config/muon/agents or bundled examples/agents"
+                    "agent definition '{name}' not found in {} or {}",
+                    user_agents_dir.display(),
+                    repo_agents_dir.display()
                 )))
             };
 
