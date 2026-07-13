@@ -16,7 +16,10 @@ async fn diesel_store_delete_removes_session_and_associated_data() {
         level: muon::domain::models::log_entry::LogLevel::Info,
     };
     store.append_log(id, &log).await.unwrap();
-    store.save_sources(id, &[muon::domain::models::source::Source::default()]).await.unwrap();
+    store
+        .save_sources(id, &[muon::domain::models::source::Source::default()])
+        .await
+        .unwrap();
     store
         .save_report(
             id,
@@ -46,8 +49,20 @@ async fn session_service_remove_reactivates_first_session() {
     let mut svc = SessionService::new();
     let now = chrono::Utc::now();
     svc.replace_all(vec![
-        SessionSummary { id: SessionId::new_v4(), title: "a".into(), query: "q1".into(), created_at: now, is_active: false },
-        SessionSummary { id: SessionId::new_v4(), title: "b".into(), query: "q2".into(), created_at: now, is_active: true },
+        SessionSummary {
+            id: SessionId::new_v4(),
+            title: "a".into(),
+            query: "q1".into(),
+            created_at: now,
+            is_active: false,
+        },
+        SessionSummary {
+            id: SessionId::new_v4(),
+            title: "b".into(),
+            query: "q2".into(),
+            created_at: now,
+            is_active: true,
+        },
     ]);
     assert_eq!(svc.list().len(), 2);
 

@@ -3,7 +3,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
-use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
+use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::theme;
 use crate::presentation::views::View;
 
@@ -77,7 +77,14 @@ impl FooterConfig {
     }
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, active: View, hit_registry: &mut Vec<ClickTarget>, mouse_col: u16, mouse_row: u16) {
+pub fn render(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    active: View,
+    hit_registry: &mut Vec<ClickTarget>,
+    mouse_col: u16,
+    mouse_row: u16,
+) {
     let block = Block::default().style(theme::header_style());
     f.render_widget(block, area);
 

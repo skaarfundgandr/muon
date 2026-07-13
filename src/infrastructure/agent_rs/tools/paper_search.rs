@@ -5,8 +5,8 @@ use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::traits::search_provider::SearchProvider;
 use crate::domain::error::MuonError;
+use crate::domain::traits::search_provider::SearchProvider;
 
 const NAME: &str = "paper_search";
 
@@ -53,8 +53,9 @@ impl Tool for PaperSearchTool {
     fn definition(
         &self,
         _prompt: String,
-    ) -> impl Future<Output = ToolDefinition> + rig_core::wasm_compat::WasmCompatSend + rig_core::wasm_compat::WasmCompatSync
-    {
+    ) -> impl Future<Output = ToolDefinition>
+    + rig_core::wasm_compat::WasmCompatSend
+    + rig_core::wasm_compat::WasmCompatSync {
         std::future::ready(ToolDefinition {
             name: NAME.to_string(),
             description: "Search academic papers on arXiv and Semantic Scholar. Returns URLs, titles, and snippets.".to_string(),

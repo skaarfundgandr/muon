@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 
-use crate::domain::models::report::{Citation, VerificationLevel};
 use crate::domain::error::MuonError;
+use crate::domain::models::report::{Citation, VerificationLevel};
 use crate::infrastructure::storage::schema::citations;
 
 #[derive(Debug, Clone, Queryable, Selectable)]
@@ -31,8 +31,7 @@ impl TryFrom<CitationRow> for Citation {
     type Error = MuonError;
 
     fn try_from(row: CitationRow) -> Result<Self, Self::Error> {
-        let verification_level =
-            VerificationLevel::try_from_str(&row.verification_level)?;
+        let verification_level = VerificationLevel::try_from_str(&row.verification_level)?;
         Ok(Self {
             reference_number: row.reference_number as u32,
             url: row.url,

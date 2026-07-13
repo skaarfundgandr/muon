@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use rig_core::wasm_compat::{WasmCompatSend, WasmCompatSync};
 
 use crate::application::bridge::BridgeChannels;
+use crate::domain::error::{MuonError, Result};
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::source::SourceType;
 use crate::domain::traits::agent::MuonAgent;
-use crate::domain::error::{MuonError, Result};
 use crate::infrastructure::source_registry::SourceRegistry;
 
 type SourceSink = std::sync::Arc<std::sync::Mutex<SourceRegistry>>;

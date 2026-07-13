@@ -18,10 +18,7 @@ async fn deep_researcher_runs_max_loops() {
     let bridge = BridgeChannels::new(tx);
     let plan = ClarifierResult::default();
     let researcher = DeepResearcher::new(&cfg, &deps, &bridge);
-    let report = researcher
-        .run("What is async Rust?", &plan)
-        .await
-        .unwrap();
+    let report = researcher.run("What is async Rust?", &plan).await.unwrap();
     assert!(report.title.contains("Research") || !report.title.is_empty());
     let mut loop_count = 0;
     while let Ok(ev) = rx.try_recv() {

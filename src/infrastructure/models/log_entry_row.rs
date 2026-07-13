@@ -1,8 +1,8 @@
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
-use crate::domain::models::log_entry::{AgentTag, LogEntry, LogLevel};
 use crate::domain::error::MuonError;
+use crate::domain::models::log_entry::{AgentTag, LogEntry, LogLevel};
 use crate::infrastructure::storage::schema::log_entries;
 
 #[derive(Debug, Clone, Queryable, Selectable)]
@@ -65,9 +65,7 @@ impl AgentTag {
             "verify" => Ok(Self::Verify),
             "orchestrate" => Ok(Self::Orchestrate),
             "sys" => Ok(Self::Sys),
-            other => Err(MuonError::Database(format!(
-                "unknown agent tag: {other}"
-            ))),
+            other => Err(MuonError::Database(format!("unknown agent tag: {other}"))),
         }
     }
 }
@@ -78,9 +76,7 @@ impl LogLevel {
             "info" => Ok(Self::Info),
             "warn" => Ok(Self::Warn),
             "error" => Ok(Self::Error),
-            other => Err(MuonError::Database(format!(
-                "unknown log level: {other}"
-            ))),
+            other => Err(MuonError::Database(format!("unknown log level: {other}"))),
         }
     }
 }

@@ -1,20 +1,26 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+use muon::application::bridge::BridgeChannels;
 use muon::application::deps::PipelineDeps;
 use muon::config::MuonConfig;
 use muon::infrastructure::context::InfrastructureContext;
-use muon::application::bridge::BridgeChannels;
 
 #[tokio::test]
 async fn new_live_with_empty_providers_returns_ok_and_stubs_agent_prompts() {
     let cfg = MuonConfig::default();
-    assert!(cfg.providers.is_empty(), "default config must have no providers");
+    assert!(
+        cfg.providers.is_empty(),
+        "default config must have no providers"
+    );
 
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
     let bridge = BridgeChannels::new(tx);
 
     let mut temp_dir = std::env::temp_dir();
-    temp_dir.push(format!("muon-empty-config-boot-{}.db", uuid::Uuid::new_v4()));
+    temp_dir.push(format!(
+        "muon-empty-config-boot-{}.db",
+        uuid::Uuid::new_v4()
+    ));
     let _ = std::fs::remove_file(&temp_dir);
 
     let mut cfg = cfg;

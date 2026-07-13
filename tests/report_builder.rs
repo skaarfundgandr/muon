@@ -23,10 +23,7 @@ fn test_split_sections_with_headings() {
 
 #[test]
 fn test_derive_title_from_url() {
-    assert_eq!(
-        derive_title("https://example.com/docs/my-page"),
-        "my page"
-    );
+    assert_eq!(derive_title("https://example.com/docs/my-page"), "my page");
 }
 
 #[test]

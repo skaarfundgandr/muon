@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
 use crate::config::MuonConfig;
-use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
+use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::components::settings::{
@@ -186,7 +186,9 @@ fn render_tab_bar(
             theme::text_dim()
         };
         let label_style = if is_active {
-            Style::default().fg(label_color).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(label_color)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(label_color)
         };

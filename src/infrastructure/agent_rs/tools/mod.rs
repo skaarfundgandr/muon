@@ -3,7 +3,7 @@ pub mod paper_search;
 pub mod think;
 pub mod web_search;
 
-pub use fetch_page::{is_public_http_url, FetchPageTool};
+pub use fetch_page::{FetchPageTool, is_public_http_url};
 pub use paper_search::PaperSearchTool;
 pub use think::ThinkTool;
 pub use web_search::WebSearchTool;

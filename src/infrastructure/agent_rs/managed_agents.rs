@@ -5,9 +5,9 @@ use rig_core::message::{AssistantContent, Message, ToolResultContent, UserConten
 use rig_core::wasm_compat::{WasmCompatSend, WasmCompatSync};
 
 use crate::application::bridge::BridgeChannels;
+use crate::domain::error::{MuonError, Result};
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::traits::agent::MuonAgent;
-use crate::domain::error::{MuonError, Result};
 use crate::infrastructure::agent_rs::react_agents::{feed_snippet, record_observation_sources};
 use crate::infrastructure::source_registry::SourceRegistry;
 
@@ -24,11 +24,7 @@ impl<M> PromptHook<M> for ResearcherHook
 where
     M: CompletionModel,
 {
-    async fn on_completion_call(
-        &self,
-        prompt: &Message,
-        history: &[Message],
-    ) -> HookAction {
+    async fn on_completion_call(&self, prompt: &Message, history: &[Message]) -> HookAction {
         <agent_rs::observability::LangSmithAgentHook as PromptHook<M>>::on_completion_call(
             &agent_rs::observability::LangSmithAgentHook,
             prompt,
@@ -135,7 +131,9 @@ impl ManagedAgent {
         M: CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
         rig_core::agent::Agent<M, ResearcherHook>: Clone,
     {
-        let managed = agent_rs::agent::ManagedExt::managed(&agent).max_retries(2).build();
+        let managed = agent_rs::agent::ManagedExt::managed(&agent)
+            .max_retries(2)
+            .build();
         Self {
             tag,
             runner: Box::new(BuiltManagedRunner(managed)),
@@ -144,16 +142,8 @@ impl ManagedAgent {
     }
 }
 
-pub fn researcher_hook(
-    bridge: BridgeChannels,
-    tag: AgentTag,
-    sink: SourceSink,
-) -> ResearcherHook {
-    ResearcherHook {
-        bridge,
-        tag,
-        sink,
-    }
+pub fn researcher_hook(bridge: BridgeChannels, tag: AgentTag, sink: SourceSink) -> ResearcherHook {
+    ResearcherHook { bridge, tag, sink }
 }
 
 fn extract_text_from_history(history: &[Message]) -> String {
@@ -188,7 +178,11 @@ fn extract_text_from_history(history: &[Message]) -> String {
         }
     }
 
-    if let Some(last) = assistant_texts.into_iter().rev().find(|s| !s.trim().is_empty()) {
+    if let Some(last) = assistant_texts
+        .into_iter()
+        .rev()
+        .find(|s| !s.trim().is_empty())
+    {
         return last;
     }
     if !tool_bits.is_empty() {
@@ -235,11 +229,8 @@ impl MuonAgent for ManagedAgent {
                     text
                 };
                 span.record("output.value", text.as_str());
-                self.bridge.log(
-                    self.tag,
-                    LogLevel::Info,
-                    "final answer".to_string(),
-                );
+                self.bridge
+                    .log(self.tag, LogLevel::Info, "final answer".to_string());
                 Ok(text)
             }
             Err(PromptError::MaxTurnsError {
@@ -259,11 +250,8 @@ impl MuonAgent for ManagedAgent {
                 Ok(salvaged)
             }
             Err(e) => {
-                self.bridge.log(
-                    self.tag,
-                    LogLevel::Error,
-                    format!("error: {e}"),
-                );
+                self.bridge
+                    .log(self.tag, LogLevel::Error, format!("error: {e}"));
                 Err(MuonError::Agent {
                     agent: self.tag.as_str().to_string(),
                     message: e.to_string(),

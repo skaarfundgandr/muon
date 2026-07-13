@@ -5,8 +5,8 @@ use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::traits::search_provider::SearchProvider;
 use crate::domain::error::MuonError;
+use crate::domain::traits::search_provider::SearchProvider;
 
 const NAME: &str = "web_search";
 
@@ -53,11 +53,13 @@ impl Tool for WebSearchTool {
     fn definition(
         &self,
         _prompt: String,
-    ) -> impl Future<Output = ToolDefinition> + rig_core::wasm_compat::WasmCompatSend + rig_core::wasm_compat::WasmCompatSync
-    {
+    ) -> impl Future<Output = ToolDefinition>
+    + rig_core::wasm_compat::WasmCompatSend
+    + rig_core::wasm_compat::WasmCompatSync {
         std::future::ready(ToolDefinition {
             name: NAME.to_string(),
-            description: "Search the web for fresh results. Returns URLs, titles, and snippets.".to_string(),
+            description: "Search the web for fresh results. Returns URLs, titles, and snippets."
+                .to_string(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {

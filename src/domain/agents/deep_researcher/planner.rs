@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PlannerSpec {
     pub model: String,
     pub provider: String,
@@ -15,4 +14,3 @@ impl PlannerSpec {
         }
     }
 }
-

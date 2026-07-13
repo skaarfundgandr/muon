@@ -14,7 +14,10 @@ use muon::infrastructure::storage::open_pool;
 
 mod common;
 
-fn collect_events() -> (BridgeChannels, tokio::sync::mpsc::UnboundedReceiver<AgentEvent>) {
+fn collect_events() -> (
+    BridgeChannels,
+    tokio::sync::mpsc::UnboundedReceiver<AgentEvent>,
+) {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<AgentEvent>();
     (BridgeChannels::new(tx), rx)
 }
@@ -27,15 +30,7 @@ async fn pipeline_completes_for_shallow_intent() -> Result<(), Box<dyn std::erro
     let (_dir, infra) = common::stub_infra().await;
     let deps = PipelineDeps::from_infra(&infra);
 
-    let report = run_pipeline(
-        "what is rust?",
-        &mut state,
-        &cfg,
-        &deps,
-        &bridge,
-        None,
-    )
-    .await?;
+    let report = run_pipeline("what is rust?", &mut state, &cfg, &deps, &bridge, None).await?;
     assert!(!report.summary.is_empty());
 
     let mut saw_complete = false;
@@ -47,7 +42,9 @@ async fn pipeline_completes_for_shallow_intent() -> Result<(), Box<dyn std::erro
         match rx.try_recv() {
             Ok(AgentEvent::StageChanged(PipelineStage::Complete)) => saw_complete = true,
             Ok(AgentEvent::StageChanged(PipelineStage::ShallowResearch)) => saw_shallow = true,
-            Ok(AgentEvent::StageChanged(PipelineStage::CitationVerify)) => saw_citation_verify = true,
+            Ok(AgentEvent::StageChanged(PipelineStage::CitationVerify)) => {
+                saw_citation_verify = true
+            }
             Ok(AgentEvent::StageChanged(PipelineStage::Report)) => saw_report = true,
             Ok(AgentEvent::StageChanged(_)) => {}
             Ok(AgentEvent::Log(_)) => {}
@@ -94,7 +91,10 @@ async fn pipeline_meta_intent_returns_direct() -> Result<(), Box<dyn std::error:
             AgentTag::Orchestrate,
             "Mock deep report.",
         )),
-        Arc::new(common::stub_agent::StubAgent::new(AgentTag::Plan, "Mock plan.")),
+        Arc::new(common::stub_agent::StubAgent::new(
+            AgentTag::Plan,
+            "Mock plan.",
+        )),
         Arc::new(common::stub_agent::StubAgent::new(
             AgentTag::Search,
             "Mock researcher answer.",
@@ -103,15 +103,7 @@ async fn pipeline_meta_intent_returns_direct() -> Result<(), Box<dyn std::error:
     );
     let deps = PipelineDeps::from_infra(&infra);
 
-    let report = run_pipeline(
-        "hello",
-        &mut state,
-        &cfg,
-        &deps,
-        &bridge,
-        None,
-    )
-    .await?;
+    let report = run_pipeline("hello", &mut state, &cfg, &deps, &bridge, None).await?;
     assert_eq!(report.title, "Direct Answer");
     assert_eq!(report.summary, "hi there");
     assert_eq!(state.stage, PipelineStage::Complete);

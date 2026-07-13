@@ -1,9 +1,9 @@
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
+use crate::domain::error::MuonError;
 use crate::domain::models::report::{ReportSection, ResearchReport};
 use crate::domain::models::session::ReportStats;
-use crate::domain::error::MuonError;
 use crate::infrastructure::storage::schema::research_reports;
 
 #[derive(Debug, Clone, Queryable, Selectable)]
@@ -31,8 +31,8 @@ impl TryFrom<ReportRow> for ResearchReport {
     type Error = MuonError;
 
     fn try_from(row: ReportRow) -> Result<Self, Self::Error> {
-        let sections: Vec<ReportSection> = serde_json::from_str(&row.content)
-            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let sections: Vec<ReportSection> =
+            serde_json::from_str(&row.content).map_err(|e| MuonError::Database(e.to_string()))?;
         let citations = Vec::new();
         let stats: ReportStats = serde_json::from_str(&row.stats_json)
             .map_err(|e| MuonError::Database(e.to_string()))?;

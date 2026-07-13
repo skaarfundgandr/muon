@@ -80,7 +80,7 @@ pub fn render(
 
     let input_area = chunks[1];
     let input_hovered = is_hovering(input_area, mouse_col, mouse_row);
-    
+
     let border_color = if clarifier_focused && question.is_some() {
         theme::border_focus()
     } else if input_hovered {
@@ -95,11 +95,18 @@ pub fn render(
 
     let input_line = if question.is_some() {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(theme::accent()).add_modifier(ratatui::style::Modifier::BOLD)),
+            Span::styled(
+                "> ",
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(ratatui::style::Modifier::BOLD),
+            ),
             Span::styled(response.to_string(), Style::new().fg(theme::text_main())),
             Span::styled(
                 "\u{2588}",
-                Style::new().fg(theme::accent()).add_modifier(ratatui::style::Modifier::BOLD),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(ratatui::style::Modifier::BOLD),
             ),
         ])
     } else {

@@ -1,13 +1,13 @@
 use crate::config::{MuonConfig, ProviderConfig};
-use crate::presentation::views::View;
-use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
+use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
-use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
+use crate::presentation::views::View;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Clear};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 pub const PROVIDER_TYPES: &[&str] = &["openai", "gemini", "anthropic", "openai_compatible"];
 
@@ -109,7 +109,9 @@ fn field_line<'a>(
 ) -> Line<'a> {
     let prefix = if focused { "> " } else { "  " };
     let label_style = if focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_dim())
     };
@@ -118,26 +120,56 @@ fn field_line<'a>(
     } else {
         Style::new().fg(theme::text_dim())
     };
-    
+
     if editing {
         let buf = buffer.unwrap_or("");
         let cur = cursor.min(buf.len());
         let pre = &buf[..cur];
         let post = &buf[cur..];
         Line::from(vec![
-            Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                prefix,
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(format!("{:<10}", label), label_style),
             Span::styled("[", border_style),
-            Span::styled(pre.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                pre.to_string(),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("\u{2588}", Style::new().fg(theme::border_focus())),
-            Span::styled(post.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                post.to_string(),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("]", border_style),
         ])
     } else {
-        let display_val = if value.is_empty() { "<click to edit>" } else { value };
-        let fg_color = if focused { theme::border_focus() } else if hovered { theme::text_main() } else { value_color };
+        let display_val = if value.is_empty() {
+            "<click to edit>"
+        } else {
+            value
+        };
+        let fg_color = if focused {
+            theme::border_focus()
+        } else if hovered {
+            theme::text_main()
+        } else {
+            value_color
+        };
         Line::from(vec![
-            Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                prefix,
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(format!("{:<10}", label), label_style),
             Span::styled("[", border_style),
             Span::styled(display_val, Style::new().fg(fg_color)),
@@ -151,15 +183,12 @@ const ADD_BUTTON_HEIGHT: u16 = 3;
 const COUNT_SUMMARY_HEIGHT: u16 = 1;
 const SCROLL_INDICATOR_HEIGHT: u16 = 1;
 
-fn dropdown_line<'a>(
-    label: &'a str,
-    value: &'a str,
-    focused: bool,
-    hovered: bool,
-) -> Line<'a> {
+fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: bool) -> Line<'a> {
     let prefix = if focused { "> " } else { "  " };
     let label_style = if focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_dim())
     };
@@ -169,14 +198,21 @@ fn dropdown_line<'a>(
         Style::new().fg(theme::text_dim())
     };
     let val_style = if focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if hovered {
         Style::new().fg(theme::text_main())
     } else {
         Style::new().fg(theme::accent())
     };
     Line::from(vec![
-        Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            prefix,
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(format!("{:<10}", label), label_style),
         Span::styled("[", border_style),
         Span::styled(value, val_style),
@@ -202,9 +238,17 @@ fn render_provider_row(
     let title = format!(
         "#{}  {}",
         idx + 1,
-        if provider.name.is_empty() { "<unnamed>" } else { provider.name.as_str() }
+        if provider.name.is_empty() {
+            "<unnamed>"
+        } else {
+            provider.name.as_str()
+        }
     );
-    let block = section_block(&title, focused_sub_idx.is_some(), hovered && focused_sub_idx.is_none());
+    let block = section_block(
+        &title,
+        focused_sub_idx.is_some(),
+        hovered && focused_sub_idx.is_none(),
+    );
     let inner = block.inner(area);
     f.render_widget(block, area);
 
@@ -326,17 +370,25 @@ fn render_provider_row(
     let remove_hover = is_hovering(remove_btn_rect, mouse_col, mouse_row);
 
     let edit_style = if edit_hover {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else if models_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::accent())
     };
 
     let fetch_style = if fetch_hover {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else if models_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::accent())
     };
@@ -404,7 +456,9 @@ fn render_add_button(
         .border_style(Style::new().fg(border_color))
         .title(Span::styled(
             " ADD ",
-            Style::new().fg(theme::success()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::success())
+                .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -414,8 +468,10 @@ fn render_add_button(
         Span::styled(prefix, Style::new().fg(theme::border_focus())),
         Span::styled(
             "[+ Add Provider]",
-            Style::new().fg(theme::success()).add_modifier(Modifier::BOLD),
-        )
+            Style::new()
+                .fg(theme::success())
+                .add_modifier(Modifier::BOLD),
+        ),
     ]);
     f.render_widget(Paragraph::new(line), inner);
 
@@ -455,8 +511,7 @@ pub fn render(
     let (max_visible_rows, show_top, show_bottom) = if n <= max_no_indicators {
         (n, false, false)
     } else {
-        let worst = ((available.saturating_sub(SCROLL_INDICATOR_HEIGHT * 2)) / ROW_HEIGHT)
-            as usize;
+        let worst = ((available.saturating_sub(SCROLL_INDICATOR_HEIGHT * 2)) / ROW_HEIGHT) as usize;
         let worst = worst.max(1);
         if scroll_offset + worst < n {
             (worst, scroll_offset > 0, true)
@@ -472,10 +527,7 @@ pub fn render(
 
     let outer = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(0),
-            Constraint::Length(ADD_BUTTON_HEIGHT),
-        ])
+        .constraints([Constraint::Min(0), Constraint::Length(ADD_BUTTON_HEIGHT)])
         .split(area);
 
     if n == 0 {
@@ -592,7 +644,11 @@ pub fn render_models_popup(
     let max_visible_models = ((chunks_0_h / 2) as usize).max(1);
 
     let title_suffix = if m > max_visible_models {
-        format!(" ({}/{})", scroll_offset + 1, m.saturating_sub(max_visible_models) + 1)
+        format!(
+            " ({}/{})",
+            scroll_offset + 1,
+            m.saturating_sub(max_visible_models) + 1
+        )
     } else {
         String::new()
     };
@@ -602,18 +658,34 @@ pub fn render_models_popup(
         .style(Style::default().bg(theme::bg_main()))
         .border_style(Style::new().fg(theme::border_focus()))
         .title(Span::styled(
-            format!(" EDIT MODELS - {} {} ", provider.name.to_uppercase(), title_suffix),
-            Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD),
+            format!(
+                " EDIT MODELS - {} {} ",
+                provider.name.to_uppercase(),
+                title_suffix
+            ),
+            Style::new()
+                .fg(theme::purple())
+                .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(popup_area);
     f.render_widget(block, popup_area);
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(1), Constraint::Length(1)])
+        .constraints([
+            Constraint::Min(0),
+            Constraint::Length(1),
+            Constraint::Length(1),
+        ])
         .split(inner);
 
-    f.render_widget(Paragraph::new(Span::styled("\u{2500}".repeat(inner.width as usize), Style::new().fg(theme::border()))), chunks[1]);
+    f.render_widget(
+        Paragraph::new(Span::styled(
+            "\u{2500}".repeat(inner.width as usize),
+            Style::new().fg(theme::border()),
+        )),
+        chunks[1],
+    );
 
     let bottom_cols = Layout::default()
         .direction(Direction::Horizontal)
@@ -629,17 +701,24 @@ pub fn render_models_popup(
     let add_focused = focus_idx == 3 * m;
     let add_hovered = is_hovering(bottom_cols[1], mouse_col, mouse_row);
     let add_style = if add_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if add_hovered {
-        Style::new().fg(theme::success()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::success())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::success())
     };
     let add_prefix = if add_focused { "> " } else { "  " };
-    f.render_widget(Paragraph::new(Line::from(vec![
-        Span::styled(add_prefix, Style::new().fg(theme::border_focus())),
-        Span::styled("[+ Add Model]", add_style)
-    ])), bottom_cols[1]);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(add_prefix, Style::new().fg(theme::border_focus())),
+            Span::styled("[+ Add Model]", add_style),
+        ])),
+        bottom_cols[1],
+    );
     hit_registry.push(ClickTarget {
         rect: bottom_cols[1],
         action: ClickAction::AddModel,
@@ -648,17 +727,24 @@ pub fn render_models_popup(
     let close_focused = focus_idx == 3 * m + 1;
     let close_hovered = is_hovering(bottom_cols[3], mouse_col, mouse_row);
     let close_style = if close_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if close_hovered {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::accent())
     };
     let close_prefix = if close_focused { "> " } else { "  " };
-    f.render_widget(Paragraph::new(Line::from(vec![
-        Span::styled(close_prefix, Style::new().fg(theme::border_focus())),
-        Span::styled("[Close]", close_style)
-    ])), bottom_cols[3]);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(close_prefix, Style::new().fg(theme::border_focus())),
+            Span::styled("[Close]", close_style),
+        ])),
+        bottom_cols[3],
+    );
     hit_registry.push(ClickTarget {
         rect: bottom_cols[3],
         action: ClickAction::SwitchView(View::Settings),
@@ -698,14 +784,19 @@ pub fn render_models_popup(
             model.name.clone()
         };
         let name_style = if name_focused {
-            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD)
         } else if name_hover {
             Style::new().fg(theme::border_hover())
         } else {
             Style::new().fg(theme::text_main())
         };
         let name_line = Line::from(vec![
-            Span::styled(if name_focused { "> " } else { "  " }, Style::new().fg(theme::border_focus())),
+            Span::styled(
+                if name_focused { "> " } else { "  " },
+                Style::new().fg(theme::border_focus()),
+            ),
             Span::styled("Name: [", Style::new().fg(theme::text_dim())),
             Span::styled(name_val, name_style),
             Span::styled("]", Style::new().fg(theme::text_dim())),
@@ -728,14 +819,19 @@ pub fn render_models_popup(
             model.model_id.clone()
         };
         let id_style = if id_focused {
-            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD)
         } else if id_hover {
             Style::new().fg(theme::border_hover())
         } else {
             Style::new().fg(theme::text_main())
         };
         let id_line = Line::from(vec![
-            Span::styled(if id_focused { "> " } else { "  " }, Style::new().fg(theme::border_focus())),
+            Span::styled(
+                if id_focused { "> " } else { "  " },
+                Style::new().fg(theme::border_focus()),
+            ),
             Span::styled("ID: [", Style::new().fg(theme::text_dim())),
             Span::styled(id_val, id_style),
             Span::styled("]", Style::new().fg(theme::text_dim())),
@@ -750,14 +846,19 @@ pub fn render_models_popup(
         let rem_focused = focus_idx == 3 * i + 2;
         let rem_hover = is_hovering(row_cols[2], mouse_col, mouse_row);
         let rem_style = if rem_focused {
-            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD)
         } else if rem_hover {
             Style::new().fg(theme::error()).add_modifier(Modifier::BOLD)
         } else {
             Style::new().fg(theme::error())
         };
         let rem_line = Line::from(vec![
-            Span::styled(if rem_focused { "> " } else { "  " }, Style::new().fg(theme::border_focus())),
+            Span::styled(
+                if rem_focused { "> " } else { "  " },
+                Style::new().fg(theme::border_focus()),
+            ),
             Span::styled("[Rem]", rem_style),
         ]);
         f.render_widget(Paragraph::new(rem_line), row_cols[2]);

@@ -4,9 +4,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::future::join_all;
 
+use crate::domain::error::MuonError;
 use crate::domain::models::source::Source;
 use crate::domain::traits::search_provider::SearchProvider;
-use crate::domain::error::MuonError;
 
 pub(crate) fn percent_encode(input: &str) -> String {
     let mut encoded = String::with_capacity(input.len() * 3);

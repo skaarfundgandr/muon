@@ -77,10 +77,7 @@ impl QueryInput {
 
     pub fn submit(&mut self) -> String {
         let query = if self.is_new_command() {
-            self.buffer
-                .trim_start_matches("/new")
-                .trim()
-                .to_string()
+            self.buffer.trim_start_matches("/new").trim().to_string()
         } else {
             self.buffer.trim().to_string()
         };
@@ -115,7 +112,11 @@ fn next_boundary(s: &str, idx: usize) -> usize {
 
 /// Horizontal window over `buffer` so the caret stays visible with right pad.
 /// Returns `(visible_pre, visible_post, scrolled_left)`.
-pub fn visible_around_caret(buffer: &str, cursor: usize, text_budget: usize) -> (String, String, bool) {
+pub fn visible_around_caret(
+    buffer: &str,
+    cursor: usize,
+    text_budget: usize,
+) -> (String, String, bool) {
     let cursor = if cursor > buffer.len() {
         buffer.len()
     } else if !buffer.is_char_boundary(cursor) {
@@ -197,26 +198,22 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, query: &QueryInput) {
             ));
         }
 
-        spans.push(Span::styled(
-            pre,
-            Style::default().fg(theme::text_main()),
-        ));
+        spans.push(Span::styled(pre, Style::default().fg(theme::text_main())));
         spans.push(Span::styled(
             "█",
             Style::default()
                 .fg(theme::accent())
                 .add_modifier(Modifier::BOLD),
         ));
-        spans.push(Span::styled(
-            post,
-            Style::default().fg(theme::text_main()),
-        ));
+        spans.push(Span::styled(post, Style::default().fg(theme::text_main())));
         Line::from(spans)
     } else {
         Line::from(vec![
             Span::styled(
                 "> ",
-                Style::default().fg(theme::accent()).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 "Type your research query or /new to start a fresh session...",
@@ -237,7 +234,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, query: &QueryInput) {
             .fg(theme::accent())
             .add_modifier(Modifier::BOLD),
     );
-    let hint_text = Span::styled(" to start a new session | ", Style::default().fg(theme::text_dim()));
+    let hint_text = Span::styled(
+        " to start a new session | ",
+        Style::default().fg(theme::text_dim()),
+    );
     let hint_text2 = Span::styled(" to submit", Style::default().fg(theme::text_dim()));
     let hint_line = Line::from(vec![
         Span::styled("Type ", Style::default().fg(theme::text_dim())),

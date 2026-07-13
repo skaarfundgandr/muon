@@ -1,12 +1,12 @@
 use std::sync::{Mutex, OnceLock};
 
-use diesel::connection::SimpleConnection;
 use diesel::Connection;
+use diesel::connection::SimpleConnection;
 use diesel::sqlite::SqliteConnection;
-use diesel_async::pooled_connection::deadpool::{Hook, HookError, Pool};
-use diesel_async::pooled_connection::AsyncDieselConnectionManager;
-use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 use diesel_async::SimpleAsyncConnection;
+use diesel_async::pooled_connection::AsyncDieselConnectionManager;
+use diesel_async::pooled_connection::deadpool::{Hook, HookError, Pool};
+use diesel_async::sync_connection_wrapper::SyncConnectionWrapper;
 
 use crate::domain::error::MuonError;
 use crate::infrastructure::storage::migrations::run_migrations;
@@ -36,18 +36,16 @@ pub fn create_pool(path_str: &str) -> Result<DbPool, MuonError> {
     let mgr = AsyncDieselConnectionManager::<SyncConnectionWrapper<SqliteConnection>>::new(
         path_str.to_string(),
     );
-    let builder = Pool::builder(mgr)
-        .max_size(8)
-        .post_create(Hook::async_fn(
-            |conn: &mut SyncConnectionWrapper<SqliteConnection>, _| {
-                Box::pin(async move {
-                    conn.batch_execute(SQLITE_PRAGMAS)
-                        .await
-                        .map_err(|e| HookError::Message(e.to_string().into()))?;
-                    Ok(())
-                })
-            },
-        ));
+    let builder = Pool::builder(mgr).max_size(8).post_create(Hook::async_fn(
+        |conn: &mut SyncConnectionWrapper<SqliteConnection>, _| {
+            Box::pin(async move {
+                conn.batch_execute(SQLITE_PRAGMAS)
+                    .await
+                    .map_err(|e| HookError::Message(e.to_string().into()))?;
+                Ok(())
+            })
+        },
+    ));
     builder
         .build()
         .map_err(|e| MuonError::Database(e.to_string()))
@@ -69,9 +67,7 @@ pub async fn init_pool(path: &str) -> Result<DbPool, MuonError> {
     }
 
     // Slow path: serialize against intra-process TOCTOU races.
-    let _guard = INIT_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let _guard = INIT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
     // Double-checked locking: another thread may have finished init while
     // we waited on the mutex.
@@ -86,8 +82,8 @@ pub async fn init_pool(path: &str) -> Result<DbPool, MuonError> {
         return Ok(existing.clone());
     }
 
-    let mut sync = SqliteConnection::establish(&path_str)
-        .map_err(|e| MuonError::Database(e.to_string()))?;
+    let mut sync =
+        SqliteConnection::establish(&path_str).map_err(|e| MuonError::Database(e.to_string()))?;
     sync.batch_execute(SQLITE_PRAGMAS)
         .map_err(|e| MuonError::Database(e.to_string()))?;
     run_migrations(&mut sync)?;
@@ -111,8 +107,8 @@ pub fn global_pool() -> Result<DbPool, MuonError> {
 
 pub async fn open_pool(path: &str) -> Result<DbPool, MuonError> {
     let path_str = expand_and_ensure_parent(path)?;
-    let mut sync = SqliteConnection::establish(&path_str)
-        .map_err(|e| MuonError::Database(e.to_string()))?;
+    let mut sync =
+        SqliteConnection::establish(&path_str).map_err(|e| MuonError::Database(e.to_string()))?;
     sync.batch_execute(SQLITE_PRAGMAS)
         .map_err(|e| MuonError::Database(e.to_string()))?;
     run_migrations(&mut sync)?;

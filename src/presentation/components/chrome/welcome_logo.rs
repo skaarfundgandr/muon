@@ -12,7 +12,10 @@ const HINT_LINES: &[(&str, &str)] = &[
 ];
 
 pub fn render(f: &mut ratatui::Frame, area: Rect) {
-    f.render_widget(Block::default().style(Style::default().bg(theme::bg_main())), area);
+    f.render_widget(
+        Block::default().style(Style::default().bg(theme::bg_main())),
+        area,
+    );
 
     let outer = Layout::default()
         .direction(Direction::Vertical)
@@ -45,7 +48,9 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(
             "μon",
-            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::accent())
+                .add_modifier(Modifier::BOLD),
         )))
         .alignment(Alignment::Center),
         chunks[0],
@@ -54,7 +59,9 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     f.render_widget(
         Paragraph::new(Line::from(Span::styled(
             "Deep Research Agent",
-            Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::purple())
+                .add_modifier(Modifier::BOLD),
         )))
         .alignment(Alignment::Center),
         chunks[1],
@@ -85,13 +92,25 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
     let prompt_line = Line::from(vec![
         Span::styled(
             "muon-agent",
-            Style::new().fg(theme::success()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::success())
+                .add_modifier(Modifier::BOLD),
         ),
         Span::styled(":", theme::text_dim()),
-        Span::styled("~", Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "~",
+            Style::new()
+                .fg(theme::accent())
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("$", theme::text_dim()),
         Span::styled(" awaiting input", theme::text_dim()),
-        Span::styled("█", Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            "█",
+            Style::new()
+                .fg(theme::accent())
+                .add_modifier(Modifier::BOLD),
+        ),
     ]);
     f.render_widget(
         Paragraph::new(prompt_line).alignment(Alignment::Center),
@@ -139,11 +158,18 @@ fn render_hints_box(f: &mut ratatui::Frame, area: Rect) {
 
     for (i, (key, text)) in HINT_LINES.iter().enumerate() {
         let line = Line::from(vec![
-            Span::styled("> ", Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "> ",
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("Press ", Style::new().fg(theme::text_main())),
             Span::styled(
                 format!("[{}]", key),
-                Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled(format!(" {}", text), Style::new().fg(theme::text_main())),
         ]);

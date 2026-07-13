@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{log_entry::LogEntry, report::ResearchReport, source::Source};
 use super::pipeline::PipelineStage;
+use super::{log_entry::LogEntry, report::ResearchReport, source::Source};
 
 pub type SessionId = Uuid;
 

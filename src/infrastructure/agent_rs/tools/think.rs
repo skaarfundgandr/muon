@@ -28,8 +28,9 @@ impl Tool for ThinkTool {
     fn definition(
         &self,
         _prompt: String,
-    ) -> impl Future<Output = ToolDefinition> + rig_core::wasm_compat::WasmCompatSend + rig_core::wasm_compat::WasmCompatSync
-    {
+    ) -> impl Future<Output = ToolDefinition>
+    + rig_core::wasm_compat::WasmCompatSend
+    + rig_core::wasm_compat::WasmCompatSync {
         std::future::ready(ToolDefinition {
             name: NAME.to_string(),
             description: "Use this tool to think through complex reasoning before acting. Records the thought in the agent's working memory.".to_string(),

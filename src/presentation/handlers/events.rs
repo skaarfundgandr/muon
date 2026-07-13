@@ -71,17 +71,18 @@ pub(crate) fn handle_event(app: &mut AppState, event: Event) {
             if let Some(active) = app.sessions.active()
                 && active.id != session_id
             {
-                app.sessions.insert_front(crate::application::session::SessionSummary {
-                    id: session_id,
-                    title: app
-                        .last_report
-                        .as_ref()
-                        .map(|r| r.title.clone())
-                        .unwrap_or_else(|| "Session".into()),
-                    query: active.query.clone(),
-                    created_at: active.created_at,
-                    is_active: true,
-                });
+                app.sessions
+                    .insert_front(crate::application::session::SessionSummary {
+                        id: session_id,
+                        title: app
+                            .last_report
+                            .as_ref()
+                            .map(|r| r.title.clone())
+                            .unwrap_or_else(|| "Session".into()),
+                        query: active.query.clone(),
+                        created_at: active.created_at,
+                        is_active: true,
+                    });
             }
             app.drain_pending_config();
         }
@@ -132,7 +133,10 @@ pub(crate) fn handle_event(app: &mut AppState, event: Event) {
             responder,
         }) => {
             app.query_input.active = false;
-            app.clarifier_pending = Some(ClarifierPending { question, responder });
+            app.clarifier_pending = Some(ClarifierPending {
+                question,
+                responder,
+            });
             app.clarifier_focused = true;
         }
         Event::AgentEvent(AgentEvent::ClarificationComplete { log }) => {
@@ -252,4 +256,3 @@ pub(crate) fn handle_event(app: &mut AppState, event: Event) {
         }
     }
 }
-

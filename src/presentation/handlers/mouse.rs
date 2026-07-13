@@ -15,7 +15,13 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
         let mut close_popup_decision = None;
         if let Some(popup) = &mut app.active_popup {
             match popup {
-                ActivePopup::EditModels { provider_idx, focus_idx, edit_buffer, edit_cursor, scroll_offset } => {
+                ActivePopup::EditModels {
+                    provider_idx,
+                    focus_idx,
+                    edit_buffer,
+                    edit_cursor,
+                    scroll_offset,
+                } => {
                     match &target.action {
                         ClickAction::ActivateField(idx) => {
                             *focus_idx = *idx;
@@ -25,8 +31,12 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                             let sub_idx = idx % 3;
                             if model_idx < app.config.providers[*provider_idx].models.len() {
                                 let current = match sub_idx {
-                                    0 => app.config.providers[*provider_idx].models[model_idx].name.clone(),
-                                    1 => app.config.providers[*provider_idx].models[model_idx].model_id.clone(),
+                                    0 => app.config.providers[*provider_idx].models[model_idx]
+                                        .name
+                                        .clone(),
+                                    1 => app.config.providers[*provider_idx].models[model_idx]
+                                        .model_id
+                                        .clone(),
                                     _ => String::new(),
                                 };
                                 if sub_idx < 2 {
@@ -34,7 +44,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                     *edit_cursor = current.len();
                                 }
                             }
-                            
+
                             // Adjust scroll_offset to keep focused model in view
                             let popup_h = 18u16.min(app.term_rows);
                             let inner_h = popup_h.saturating_sub(2);
@@ -57,11 +67,13 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                             return;
                         }
                         ClickAction::AddModel => {
-                            app.config.providers[*provider_idx].models.push(crate::config::ProviderModel {
-                                name: String::new(),
-                                model_id: String::new(),
-                                description: String::new(),
-                            });
+                            app.config.providers[*provider_idx].models.push(
+                                crate::config::ProviderModel {
+                                    name: String::new(),
+                                    model_id: String::new(),
+                                    description: String::new(),
+                                },
+                            );
                             let m = app.config.providers[*provider_idx].models.len();
                             *focus_idx = 3 * m - 3;
                             let popup_h = 18u16.min(app.term_rows);
@@ -83,52 +95,60 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         _ => {}
                     }
                 }
-                ActivePopup::ConfigureSearch { provider_idx, focus_idx, edit_buffer, edit_cursor } => {
-                    match &target.action {
-                        ClickAction::ActivateField(idx) => {
-                            *focus_idx = *idx;
-                            *edit_buffer = None;
-                            *edit_cursor = 0;
-                            if *idx < 3 {
-                                let current = if *idx == 0 {
-                                    app.config.search.providers[*provider_idx].name.clone()
-                                } else if *idx == 1 {
-                                    app.config.search.providers[*provider_idx].api_key.clone()
-                                } else {
-                                    app.config.search.providers[*provider_idx].max_results.map(|x| x.to_string()).unwrap_or_default()
-                                };
-                                *edit_buffer = Some(current.clone());
-                                *edit_cursor = current.len();
-                            }
-                            return;
+                ActivePopup::ConfigureSearch {
+                    provider_idx,
+                    focus_idx,
+                    edit_buffer,
+                    edit_cursor,
+                } => match &target.action {
+                    ClickAction::ActivateField(idx) => {
+                        *focus_idx = *idx;
+                        *edit_buffer = None;
+                        *edit_cursor = 0;
+                        if *idx < 3 {
+                            let current = if *idx == 0 {
+                                app.config.search.providers[*provider_idx].name.clone()
+                            } else if *idx == 1 {
+                                app.config.search.providers[*provider_idx].api_key.clone()
+                            } else {
+                                app.config.search.providers[*provider_idx]
+                                    .max_results
+                                    .map(|x| x.to_string())
+                                    .unwrap_or_default()
+                            };
+                            *edit_buffer = Some(current.clone());
+                            *edit_cursor = current.len();
                         }
-                        ClickAction::SwitchView(View::Settings) => {
-                            app.active_popup = None;
-                            return;
-                        }
-                        _ => {}
+                        return;
                     }
-                }
-                ActivePopup::PlanApproval { focus, .. } => {
-                    match &target.action {
-                        ClickAction::PlanApprove => {
-                            close_popup_decision = Some(PlanDecision::Approve);
-                        }
-                        ClickAction::PlanReject => {
-                            close_popup_decision = Some(PlanDecision::Reject);
-                        }
-                        ClickAction::PlanFeedback => {
-                            if let ActivePopup::PlanApproval { feedback_buffer, .. } = popup {
-                                close_popup_decision = Some(PlanDecision::Feedback(feedback_buffer.clone()));
-                            }
-                        }
-                        ClickAction::PlanSelectFeedbackInput => {
-                            *focus = PlanApprovalFocus::Feedback;
-                            return;
-                        }
-                        _ => {}
+                    ClickAction::SwitchView(View::Settings) => {
+                        app.active_popup = None;
+                        return;
                     }
-                }
+                    _ => {}
+                },
+                ActivePopup::PlanApproval { focus, .. } => match &target.action {
+                    ClickAction::PlanApprove => {
+                        close_popup_decision = Some(PlanDecision::Approve);
+                    }
+                    ClickAction::PlanReject => {
+                        close_popup_decision = Some(PlanDecision::Reject);
+                    }
+                    ClickAction::PlanFeedback => {
+                        if let ActivePopup::PlanApproval {
+                            feedback_buffer, ..
+                        } = popup
+                        {
+                            close_popup_decision =
+                                Some(PlanDecision::Feedback(feedback_buffer.clone()));
+                        }
+                    }
+                    ClickAction::PlanSelectFeedbackInput => {
+                        *focus = PlanApprovalFocus::Feedback;
+                        return;
+                    }
+                    _ => {}
+                },
             }
             if close_popup_decision.is_none() {
                 return;
@@ -149,23 +169,78 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 app.forms[tab_idx].focus = *idx;
                 app.forms[tab_idx].reset_edit();
                 let current = match tab {
-                    SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::get_field(&app.config, *idx),
-                    SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::get_field(&app.config.agents, *idx),
-                    SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::get_field(&app.config, *idx),
-                    SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::get_field(&app.config, *idx),
-                    SettingsTab::Display => crate::presentation::components::inputs::settings::display::get_field(&app.config.display, *idx),
-                    SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::get_field(&app.config.advanced, *idx),
+                    SettingsTab::Providers => {
+                        crate::presentation::components::inputs::settings::providers::get_field(
+                            &app.config,
+                            *idx,
+                        )
+                    }
+                    SettingsTab::Agents => {
+                        crate::presentation::components::inputs::settings::agents::get_field(
+                            &app.config.agents,
+                            *idx,
+                        )
+                    }
+                    SettingsTab::Tools => {
+                        crate::presentation::components::inputs::settings::tools::get_field(
+                            &app.config,
+                            *idx,
+                        )
+                    }
+                    SettingsTab::DataSources => {
+                        crate::presentation::components::inputs::settings::data_sources::get_field(
+                            &app.config,
+                            *idx,
+                        )
+                    }
+                    SettingsTab::Display => {
+                        crate::presentation::components::inputs::settings::display::get_field(
+                            &app.config.display,
+                            *idx,
+                        )
+                    }
+                    SettingsTab::Advanced => {
+                        crate::presentation::components::inputs::settings::advanced::get_field(
+                            &app.config.advanced,
+                            *idx,
+                        )
+                    }
                 };
                 let kind = match tab {
-                    SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::fields(&app.config)[*idx].kind,
-                    SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::fields()[*idx].kind,
-                    SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::fields(&app.config)[*idx].kind,
-                    SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::fields(&app.config)[*idx].kind,
-                    SettingsTab::Display => crate::presentation::components::inputs::settings::display::fields()[*idx].kind,
-                    SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::fields()[*idx].kind,
+                    SettingsTab::Providers => {
+                        crate::presentation::components::inputs::settings::providers::fields(
+                            &app.config,
+                        )[*idx]
+                            .kind
+                    }
+                    SettingsTab::Agents => {
+                        crate::presentation::components::inputs::settings::agents::fields()[*idx]
+                            .kind
+                    }
+                    SettingsTab::Tools => {
+                        crate::presentation::components::inputs::settings::tools::fields(
+                            &app.config,
+                        )[*idx]
+                            .kind
+                    }
+                    SettingsTab::DataSources => {
+                        crate::presentation::components::inputs::settings::data_sources::fields(
+                            &app.config,
+                        )[*idx]
+                            .kind
+                    }
+                    SettingsTab::Display => {
+                        crate::presentation::components::inputs::settings::display::fields()[*idx]
+                            .kind
+                    }
+                    SettingsTab::Advanced => {
+                        crate::presentation::components::inputs::settings::advanced::fields()[*idx]
+                            .kind
+                    }
                 };
                 match kind {
-                    crate::presentation::form::FieldKind::Text | crate::presentation::form::FieldKind::Number => {
+                    crate::presentation::form::FieldKind::Text
+                    | crate::presentation::form::FieldKind::Number => {
                         app.forms[tab_idx].begin_edit(&current);
                     }
                     crate::presentation::form::FieldKind::Dropdown => {
@@ -186,39 +261,41 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         }
                         app.forms[tab_idx].dirty = true;
                     }
-                    crate::presentation::form::FieldKind::Button => {
-                        match tab {
-                            SettingsTab::DataSources => {
-                                if *idx == 6 {
-                                    let path = app.config.data_sources.source_path.clone();
-                                    let kind = app.config.data_sources.source_type.to_uppercase();
-                                    app.config.data_sources.rag_indexes.push(crate::config::RagIndexConfig {
+                    crate::presentation::form::FieldKind::Button => match tab {
+                        SettingsTab::DataSources => {
+                            if *idx == 6 {
+                                let path = app.config.data_sources.source_path.clone();
+                                let kind = app.config.data_sources.source_type.to_uppercase();
+                                app.config.data_sources.rag_indexes.push(
+                                    crate::config::RagIndexConfig {
                                         path,
                                         kind,
                                         status: "○ pending".to_string(),
                                         chunks: "0".to_string(),
-                                    });
-                                    app.forms[tab_idx].dirty = true;
-                                }
+                                    },
+                                );
+                                app.forms[tab_idx].dirty = true;
                             }
-                            SettingsTab::Providers => {
-                                let n = app.config.providers.len();
-                                if *idx == 5 * n {
-                                    app.config.providers.push(crate::config::ProviderConfig {
-                                        name: String::new(),
-                                        base_url: String::new(),
-                                        api_key: String::new(),
-                                        models: Vec::new(),
-                                        provider_type: crate::config::ProviderType::OpenAICompatible,
-                                    });
-                                    app.forms[tab_idx].focus = 5 * app.config.providers.len() - 5;
-                                    app.forms[tab_idx].dirty = true;
-                                }
+                        }
+                        SettingsTab::Providers => {
+                            let n = app.config.providers.len();
+                            if *idx == 5 * n {
+                                app.config.providers.push(crate::config::ProviderConfig {
+                                    name: String::new(),
+                                    base_url: String::new(),
+                                    api_key: String::new(),
+                                    models: Vec::new(),
+                                    provider_type: crate::config::ProviderType::OpenAICompatible,
+                                });
+                                app.forms[tab_idx].focus = 5 * app.config.providers.len() - 5;
+                                app.forms[tab_idx].dirty = true;
                             }
-                            SettingsTab::Tools => {
-                                let n = app.config.search.providers.len();
-                                if *idx == 5 * n + 1 {
-                                    app.config.search.providers.push(crate::config::SearchProviderConfig {
+                        }
+                        SettingsTab::Tools => {
+                            let n = app.config.search.providers.len();
+                            if *idx == 5 * n + 1 {
+                                app.config.search.providers.push(
+                                    crate::config::SearchProviderConfig {
                                         name: String::new(),
                                         provider_type: crate::config::SearchProviderType::Tavily,
                                         api_key: String::new(),
@@ -227,14 +304,15 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                         firecrawl: Default::default(),
                                         brave: Default::default(),
                                         serper: Default::default(),
-                                    });
-                                    app.forms[tab_idx].focus = 5 * app.config.search.providers.len() - 5;
-                                    app.forms[tab_idx].dirty = true;
-                                }
+                                    },
+                                );
+                                app.forms[tab_idx].focus =
+                                    5 * app.config.search.providers.len() - 5;
+                                app.forms[tab_idx].dirty = true;
                             }
-                            _ => {}
                         }
-                    }
+                        _ => {}
+                    },
                 }
             }
             ClickAction::ToggleCheckbox(idx) => {
@@ -286,35 +364,55 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 let tab = app.router.settings_tab();
                 let tab_idx = tab as usize;
                 let options: Vec<String> = match tab {
-                    SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::fields(&app.config)[app.forms[tab_idx].focus]
-                        .options
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::options_for(
-                        app.forms[tab_idx].focus,
-                        &app.config,
-                    ),
-                    SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::fields(&app.config)[app.forms[tab_idx].focus]
-                        .options
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::fields(&app.config)[app.forms[tab_idx].focus]
-                        .options
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    SettingsTab::Display => crate::presentation::components::inputs::settings::display::fields()[app.forms[tab_idx].focus]
-                        .options
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-                    SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::fields()[app.forms[tab_idx].focus]
-                        .options
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
+                    SettingsTab::Providers => {
+                        crate::presentation::components::inputs::settings::providers::fields(
+                            &app.config,
+                        )[app.forms[tab_idx].focus]
+                            .options
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect()
+                    }
+                    SettingsTab::Agents => {
+                        crate::presentation::components::inputs::settings::agents::options_for(
+                            app.forms[tab_idx].focus,
+                            &app.config,
+                        )
+                    }
+                    SettingsTab::Tools => {
+                        crate::presentation::components::inputs::settings::tools::fields(
+                            &app.config,
+                        )[app.forms[tab_idx].focus]
+                            .options
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect()
+                    }
+                    SettingsTab::DataSources => {
+                        crate::presentation::components::inputs::settings::data_sources::fields(
+                            &app.config,
+                        )[app.forms[tab_idx].focus]
+                            .options
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect()
+                    }
+                    SettingsTab::Display => {
+                        crate::presentation::components::inputs::settings::display::fields()
+                            [app.forms[tab_idx].focus]
+                            .options
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect()
+                    }
+                    SettingsTab::Advanced => {
+                        crate::presentation::components::inputs::settings::advanced::fields()
+                            [app.forms[tab_idx].focus]
+                            .options
+                            .iter()
+                            .map(|s| s.to_string())
+                            .collect()
+                    }
                 };
                 if *idx < options.len() {
                     let val = options[*idx].clone();
@@ -325,19 +423,35 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     app.forms[tab_idx].dropdown_open = false;
                     match tab {
                         SettingsTab::Providers => {
-                            crate::presentation::components::inputs::settings::providers::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
+                            crate::presentation::components::inputs::settings::providers::set_field(
+                                &mut app.config,
+                                app.forms[tab_idx].focus,
+                                &val,
+                            );
                         }
                         SettingsTab::Agents => {
-                            crate::presentation::components::inputs::settings::agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
+                            crate::presentation::components::inputs::settings::agents::set_field(
+                                &mut app.config.agents,
+                                app.forms[tab_idx].focus,
+                                &val,
+                            );
                         }
                         SettingsTab::Tools => {
-                            crate::presentation::components::inputs::settings::tools::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
+                            crate::presentation::components::inputs::settings::tools::set_field(
+                                &mut app.config,
+                                app.forms[tab_idx].focus,
+                                &val,
+                            );
                         }
                         SettingsTab::DataSources => {
                             crate::presentation::components::inputs::settings::data_sources::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
                         }
                         SettingsTab::Display => {
-                            crate::presentation::components::inputs::settings::display::set_field(&mut app.config.display, app.forms[tab_idx].focus, &val);
+                            crate::presentation::components::inputs::settings::display::set_field(
+                                &mut app.config.display,
+                                app.forms[tab_idx].focus,
+                                &val,
+                            );
                             if app.forms[tab_idx].focus == 0
                                 && let Some(palette) = crate::presentation::theme::for_name(&val)
                             {
@@ -345,7 +459,11 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                             }
                         }
                         SettingsTab::Advanced => {
-                            crate::presentation::components::inputs::settings::advanced::set_field(&mut app.config.advanced, app.forms[tab_idx].focus, &val);
+                            crate::presentation::components::inputs::settings::advanced::set_field(
+                                &mut app.config.advanced,
+                                app.forms[tab_idx].focus,
+                                &val,
+                            );
                         }
                     }
                     app.forms[tab_idx].dirty = true;
@@ -495,14 +613,18 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     edit_cursor: 0,
                 });
             }
-            ClickAction::ReindexRagIndex(idx) if *idx < app.config.data_sources.rag_indexes.len() => {
+            ClickAction::ReindexRagIndex(idx)
+                if *idx < app.config.data_sources.rag_indexes.len() =>
+            {
                 app.status_flash = Some((
                     Instant::now(),
                     "RAG reindex is not implemented yet".into(),
                     crate::presentation::components::chrome::toast::ToastKind::Info,
                 ));
             }
-            ClickAction::RemoveRagIndex(idx) if *idx < app.config.data_sources.rag_indexes.len() => {
+            ClickAction::RemoveRagIndex(idx)
+                if *idx < app.config.data_sources.rag_indexes.len() =>
+            {
                 app.config.data_sources.rag_indexes.remove(*idx);
                 app.forms[SettingsTab::DataSources as usize].dirty = true;
             }
@@ -530,4 +652,3 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
         return;
     }
 }
-

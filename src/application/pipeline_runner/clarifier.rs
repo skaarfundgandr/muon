@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::application::bridge::{AgentEvent, BridgeChannels, PlanDecision};
 use crate::config::MuonConfig;
 use crate::domain::agents::clarifier::{ClarifierResult, ClarifierState};
+use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::traits::agent::MuonAgent;
-use crate::domain::error::MuonError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ClarifyDecision {
@@ -139,9 +139,10 @@ pub async fn run_clarifier(
             responder: tx,
         })?;
         let answer = rx.await.map_err(|_| MuonError::Cancelled)?;
-        state
-            .clarifier_log
-            .push_str(&format!("Q: {}\nA: {}\n", parsed.clarification_question, answer));
+        state.clarifier_log.push_str(&format!(
+            "Q: {}\nA: {}\n",
+            parsed.clarification_question, answer
+        ));
         state.iteration += 1;
     }
 

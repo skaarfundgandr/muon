@@ -32,12 +32,10 @@ impl Default for DeepResearcherSpec {
 
 impl DeepResearcherSpec {
     pub fn planner_llm(&self) -> PlannerSpec {
-        self.planner_llm
-            .clone()
-            .unwrap_or_else(|| PlannerSpec {
-                model: self.orchestrator_llm.model.clone(),
-                provider: self.orchestrator_llm.provider.clone(),
-            })
+        self.planner_llm.clone().unwrap_or_else(|| PlannerSpec {
+            model: self.orchestrator_llm.model.clone(),
+            provider: self.orchestrator_llm.provider.clone(),
+        })
     }
 
     pub fn researcher_llm(&self) -> ResearcherSpec {

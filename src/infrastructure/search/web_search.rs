@@ -3,9 +3,9 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::config::{FirecrawlOptions, SerperOptions, TavilyOptions};
+use crate::domain::error::MuonError;
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::search_provider::SearchProvider;
-use crate::domain::error::MuonError;
 
 pub struct BraveProvider {
     api_key: String,
@@ -362,11 +362,7 @@ impl SearchProvider for SerperProvider {
             .into_iter()
             .map(|r| {
                 let pos = r.position.unwrap_or(0);
-                let relevance = if pos == 0 {
-                    0.0
-                } else {
-                    1.0 / (pos as f64)
-                };
+                let relevance = if pos == 0 { 0.0 } else { 1.0 / (pos as f64) };
                 Source {
                     url: r.link,
                     title: r.title,

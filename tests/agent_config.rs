@@ -78,8 +78,7 @@ fn parse_malformed_yaml() {
 fn parse_empty_body_ok() {
     let tmp = tempfile::NamedTempFile::new().unwrap();
     std::fs::write(tmp.path(), "---\nname: x\nmodel: y\nprovider: z\n---\n").unwrap();
-    let def = parse_agent_md(tmp.path())
-        .unwrap_or_else(|e| panic!("empty body should parse: {e}"));
+    let def = parse_agent_md(tmp.path()).unwrap_or_else(|e| panic!("empty body should parse: {e}"));
     assert_eq!(def.name, "x");
     assert!(def.preamble_markdown.is_empty());
 }

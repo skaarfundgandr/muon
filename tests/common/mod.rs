@@ -7,7 +7,7 @@ use std::sync::Arc;
 use muon::domain::models::log_entry::AgentTag;
 use muon::domain::traits::session_store::SessionStore;
 use muon::infrastructure::context::InfrastructureContext;
-use muon::infrastructure::storage::{open_pool, DieselSessionStore};
+use muon::infrastructure::storage::{DieselSessionStore, open_pool};
 
 pub async fn diesel_store() -> (tempfile::TempDir, DieselSessionStore) {
     let dir = tempfile::tempdir().unwrap();
@@ -28,12 +28,18 @@ pub async fn stub_infra() -> (tempfile::TempDir, InfrastructureContext) {
             AgentTag::Intent,
             r#"{"intent":"research","depth":"shallow"}"#,
         )),
-        Arc::new(stub_agent::StubAgent::new(AgentTag::Search, "Mock shallow answer.")),
+        Arc::new(stub_agent::StubAgent::new(
+            AgentTag::Search,
+            "Mock shallow answer.",
+        )),
         Arc::new(stub_agent::StubAgent::new(
             AgentTag::Clarify,
             r#"{"needs_clarification":false,"clarification_question":""}"#,
         )),
-        Arc::new(stub_agent::StubAgent::new(AgentTag::Orchestrate, "Mock deep report.")),
+        Arc::new(stub_agent::StubAgent::new(
+            AgentTag::Orchestrate,
+            "Mock deep report.",
+        )),
         Arc::new(stub_agent::StubAgent::new(AgentTag::Plan, "Mock plan.")),
         Arc::new(stub_agent::StubAgent::new(
             AgentTag::Search,

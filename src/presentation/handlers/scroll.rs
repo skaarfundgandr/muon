@@ -5,7 +5,12 @@ use crate::presentation::types::ActivePopup;
 
 pub(crate) fn handle_scroll(app: &mut AppState, delta: i32) {
     // 1. If EditModels popup is active, scroll the popup list
-    if let Some(ActivePopup::EditModels { provider_idx, scroll_offset, .. }) = &mut app.active_popup {
+    if let Some(ActivePopup::EditModels {
+        provider_idx,
+        scroll_offset,
+        ..
+    }) = &mut app.active_popup
+    {
         let m = app.config.providers[*provider_idx].models.len();
         let popup_h = 18u16.min(app.term_rows);
         let inner_h = popup_h.saturating_sub(2);
@@ -31,35 +36,54 @@ pub(crate) fn handle_scroll(app: &mut AppState, delta: i32) {
         let tab_idx = tab as usize;
         if app.forms[tab_idx].dropdown_open {
             let options = match tab {
-                SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::fields(&app.config)[app.forms[tab_idx].focus]
-                    .options
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
-                SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::options_for(
-                    app.forms[tab_idx].focus,
-                    &app.config,
-                ),
-                SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::fields(&app.config)[app.forms[tab_idx].focus]
-                    .options
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
-                SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::fields(&app.config)[app.forms[tab_idx].focus]
-                    .options
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
-                SettingsTab::Display => crate::presentation::components::inputs::settings::display::fields()[app.forms[tab_idx].focus]
-                    .options
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
-                SettingsTab::Advanced => crate::presentation::components::inputs::settings::advanced::fields()[app.forms[tab_idx].focus]
-                    .options
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
+                SettingsTab::Providers => {
+                    crate::presentation::components::inputs::settings::providers::fields(
+                        &app.config,
+                    )[app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect()
+                }
+                SettingsTab::Agents => {
+                    crate::presentation::components::inputs::settings::agents::options_for(
+                        app.forms[tab_idx].focus,
+                        &app.config,
+                    )
+                }
+                SettingsTab::Tools => {
+                    crate::presentation::components::inputs::settings::tools::fields(&app.config)
+                        [app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect()
+                }
+                SettingsTab::DataSources => {
+                    crate::presentation::components::inputs::settings::data_sources::fields(
+                        &app.config,
+                    )[app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect()
+                }
+                SettingsTab::Display => {
+                    crate::presentation::components::inputs::settings::display::fields()
+                        [app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect()
+                }
+                SettingsTab::Advanced => {
+                    crate::presentation::components::inputs::settings::advanced::fields()
+                        [app.forms[tab_idx].focus]
+                        .options
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect()
+                }
             };
             let max = options.len();
             if max > 0 {
@@ -68,7 +92,8 @@ pub(crate) fn handle_scroll(app: &mut AppState, delta: i32) {
                         app.forms[tab_idx].dropdown_cursor += 1;
                     }
                 } else {
-                    app.forms[tab_idx].dropdown_cursor = app.forms[tab_idx].dropdown_cursor.saturating_sub(1);
+                    app.forms[tab_idx].dropdown_cursor =
+                        app.forms[tab_idx].dropdown_cursor.saturating_sub(1);
                 }
             }
             return;
@@ -144,4 +169,3 @@ pub(crate) fn handle_scroll(app: &mut AppState, delta: i32) {
         }
     }
 }
-

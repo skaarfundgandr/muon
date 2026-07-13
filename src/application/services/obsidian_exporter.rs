@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
+use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
-use crate::domain::error::MuonError;
 
 pub struct ObsidianExporter;
 
@@ -86,4 +86,3 @@ pub fn slugify(title: &str) -> String {
         collapsed
     }
 }
-

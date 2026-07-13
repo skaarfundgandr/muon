@@ -65,17 +65,19 @@ fn i_dont_have_enough_escalates() {
 
 #[test]
 fn keyword_in_section_body_escalates() {
-    let report = report_with_sections("Summary looks fine.", &[
-        "Some body text that says I am unable to find the answer here.",
-    ]);
+    let report = report_with_sections(
+        "Summary looks fine.",
+        &["Some body text that says I am unable to find the answer here."],
+    );
     assert!(should_escalate(&report));
 }
 
 #[test]
 fn empty_summary_with_clean_body_does_not_escalate() {
-    let report = report_with_sections("", &[
-        "Rust is a systems programming language focused on safety and concurrency.",
-    ]);
+    let report = report_with_sections(
+        "",
+        &["Rust is a systems programming language focused on safety and concurrency."],
+    );
     assert!(!should_escalate(&report));
 }
 

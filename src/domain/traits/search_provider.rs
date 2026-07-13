@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::domain::models::source::Source;
 use crate::domain::error::MuonError;
+use crate::domain::models::source::Source;
 
 #[async_trait]
 pub trait SearchProvider: Send + Sync {

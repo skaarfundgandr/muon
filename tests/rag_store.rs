@@ -1,8 +1,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use muon::config::MuonConfig;
+use muon::domain::error::MuonError;
 use muon::domain::models::source::{Source, SourceType, VerificationStatus};
 use muon::domain::traits::vector_store::VectorStore;
-use muon::domain::error::MuonError;
 use muon::infrastructure::rag::rag_store::RagContext;
 
 #[tokio::test]
@@ -27,7 +27,9 @@ async fn rag_round_trip() -> Result<(), MuonError> {
         embedding_id: None,
     };
 
-    let id = ctx.add(&source, "Hello world, this is a test document.").await?;
+    let id = ctx
+        .add(&source, "Hello world, this is a test document.")
+        .await?;
     assert!(id.is_some());
 
     let results = ctx.query("test document", 5).await?;

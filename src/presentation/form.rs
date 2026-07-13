@@ -19,19 +19,39 @@ pub struct FieldDef {
 
 impl FieldDef {
     pub const fn text(label: &'static str) -> Self {
-        Self { label, kind: FieldKind::Text, options: &[] }
+        Self {
+            label,
+            kind: FieldKind::Text,
+            options: &[],
+        }
     }
     pub const fn number(label: &'static str) -> Self {
-        Self { label, kind: FieldKind::Number, options: &[] }
+        Self {
+            label,
+            kind: FieldKind::Number,
+            options: &[],
+        }
     }
     pub const fn dropdown(label: &'static str, options: &'static [&'static str]) -> Self {
-        Self { label, kind: FieldKind::Dropdown, options }
+        Self {
+            label,
+            kind: FieldKind::Dropdown,
+            options,
+        }
     }
     pub const fn checkbox(label: &'static str) -> Self {
-        Self { label, kind: FieldKind::Checkbox, options: &[] }
+        Self {
+            label,
+            kind: FieldKind::Checkbox,
+            options: &[],
+        }
     }
     pub const fn button(label: &'static str) -> Self {
-        Self { label, kind: FieldKind::Button, options: &[] }
+        Self {
+            label,
+            kind: FieldKind::Button,
+            options: &[],
+        }
     }
 }
 

@@ -21,7 +21,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &crate::config::MuonCo
         .style(Style::default().bg(theme::bg_dark()))
         .border_style(Style::default().fg(theme::border()));
 
-    let footer_text = format!(" Built with Rust • Powered by rig • {} Theme ", config.display.visual_theme);
+    let footer_text = format!(
+        " Built with Rust • Powered by rig • {} Theme ",
+        config.display.visual_theme
+    );
     let footer = Paragraph::new(Line::from(ratatui::text::Span::styled(
         footer_text,
         Style::default().fg(theme::text_dim()).bg(theme::bg_dark()),

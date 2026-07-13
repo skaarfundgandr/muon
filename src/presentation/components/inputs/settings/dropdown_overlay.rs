@@ -65,7 +65,9 @@ pub fn render_dropdown_overlay(
     let start_idx = if total_items <= max_items {
         0
     } else {
-        cursor.saturating_sub(max_items / 2).min(total_items - max_items)
+        cursor
+            .saturating_sub(max_items / 2)
+            .min(total_items - max_items)
     };
     let end_idx = (start_idx + max_items).min(total_items);
     let visible_options = &options[start_idx..end_idx];
@@ -82,24 +84,35 @@ pub fn render_dropdown_overlay(
         .border_style(Style::new().fg(theme::border_focus()))
         .title(Span::styled(
             format!(" {} {} ", field_label, title_suffix),
-            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::accent())
+                .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(popup_area);
     f.render_widget(block, popup_area);
 
     let mut items: Vec<ListItem> = Vec::with_capacity(visible_options.len());
-    let option_rects: Vec<Rect> = (0..visible_options.len()).map(|i| {
-        Rect::new(inner.x, inner.y.saturating_add(i as u16), inner.width, 1)
-    }).collect();
+    let option_rects: Vec<Rect> = (0..visible_options.len())
+        .map(|i| Rect::new(inner.x, inner.y.saturating_add(i as u16), inner.width, 1))
+        .collect();
 
     for (i, opt) in visible_options.iter().enumerate() {
         let actual_idx = start_idx + i;
         let selected = actual_idx == cursor;
         let hovered = is_hovering(option_rects[i], mouse_col, mouse_row) && !selected;
         let (style, arrow) = if selected {
-            (Style::new().bg(theme::bg_highlight()).fg(theme::text_main()).add_modifier(Modifier::BOLD), "\u{25B6} ")
+            (
+                Style::new()
+                    .bg(theme::bg_highlight())
+                    .fg(theme::text_main())
+                    .add_modifier(Modifier::BOLD),
+                "\u{25B6} ",
+            )
         } else if hovered {
-            (Style::new().bg(theme::bg_dark()).fg(theme::text_main()), "  ")
+            (
+                Style::new().bg(theme::bg_dark()).fg(theme::text_main()),
+                "  ",
+            )
         } else {
             (Style::new().fg(theme::text_dim()), "  ")
         };

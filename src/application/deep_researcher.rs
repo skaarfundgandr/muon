@@ -1,4 +1,5 @@
 use crate::application::bridge::BridgeChannels;
+use crate::application::deps::PipelineDeps;
 use crate::application::pipeline::PipelineStage;
 use crate::application::pipeline_runner::citation_verifier::{
     self, ValidCitation, VerificationOutput,
@@ -6,11 +7,10 @@ use crate::application::pipeline_runner::citation_verifier::{
 use crate::application::services::report_builder;
 use crate::config::MuonConfig;
 use crate::domain::agents::clarifier::ClarifierResult;
+use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::report::{ResearchReport, VerificationLevel};
 use crate::domain::models::session::ReportStats;
-use crate::domain::error::MuonError;
-use crate::application::deps::PipelineDeps;
 use crate::infrastructure::source_registry::SourceRegistry;
 
 const GAVE_UP_PATTERNS: &[&str] = &[
@@ -29,11 +29,7 @@ pub struct DeepResearcher<'a> {
 }
 
 impl<'a> DeepResearcher<'a> {
-    pub fn new(
-        cfg: &'a MuonConfig,
-        deps: &'a PipelineDeps,
-        bridge: &'a BridgeChannels,
-    ) -> Self {
+    pub fn new(cfg: &'a MuonConfig, deps: &'a PipelineDeps, bridge: &'a BridgeChannels) -> Self {
         Self { cfg, deps, bridge }
     }
 
@@ -196,7 +192,11 @@ impl<'a> DeepResearcher<'a> {
             }
         };
         if let Ok(mut sink) = self.deps.source_sink.lock() {
-            citation_verifier::merge_verified_into_sink(&mut sink, registry.sources_mut(), &verified);
+            citation_verifier::merge_verified_into_sink(
+                &mut sink,
+                registry.sources_mut(),
+                &verified,
+            );
         }
         let elapsed = start.elapsed().as_secs();
         self.bridge.stage(PipelineStage::Report);

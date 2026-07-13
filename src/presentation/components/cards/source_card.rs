@@ -6,7 +6,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::domain::models::source::Source;
-use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
+use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::theme;
 
 #[derive(Clone, Copy)]
@@ -342,8 +342,10 @@ pub fn render(
             Line::from("")
         };
 
-        let snippet_line =
-            Line::from(Span::styled(&entry.snippet, Style::default().fg(theme::text_dim())));
+        let snippet_line = Line::from(Span::styled(
+            &entry.snippet,
+            Style::default().fg(theme::text_dim()),
+        ));
 
         let inner = block.inner(card_area);
         f.render_widget(block, card_area);

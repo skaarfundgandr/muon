@@ -6,7 +6,6 @@ impl std::fmt::Debug for HeldClipboard {
     }
 }
 
-
 pub(crate) fn copy_text_to_clipboard(
     text: &str,
     held: &mut Option<HeldClipboard>,
@@ -20,7 +19,10 @@ pub(crate) fn copy_text_to_clipboard(
     Ok(())
 }
 
-fn copy_via_arboard(text: &str, held: &mut Option<HeldClipboard>) -> std::result::Result<(), String> {
+fn copy_via_arboard(
+    text: &str,
+    held: &mut Option<HeldClipboard>,
+) -> std::result::Result<(), String> {
     if held.is_none() {
         match arboard::Clipboard::new() {
             Ok(cb) => *held = Some(HeldClipboard(cb)),

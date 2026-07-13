@@ -87,8 +87,9 @@ impl Tool for FetchPageTool {
     fn definition(
         &self,
         _prompt: String,
-    ) -> impl Future<Output = ToolDefinition> + rig_core::wasm_compat::WasmCompatSend + rig_core::wasm_compat::WasmCompatSync
-    {
+    ) -> impl Future<Output = ToolDefinition>
+    + rig_core::wasm_compat::WasmCompatSend
+    + rig_core::wasm_compat::WasmCompatSync {
         std::future::ready(ToolDefinition {
             name: NAME.to_string(),
             description: "Fetch a web page and return its text content. HTML tags are stripped and content is truncated.".to_string(),
@@ -134,13 +135,10 @@ impl Tool for FetchPageTool {
                 });
             }
 
-            let bytes = resp
-                .bytes()
-                .await
-                .map_err(|e| MuonError::Search {
-                    provider: "fetch".into(),
-                    message: format!("failed to read body from {}: {e}", args.url),
-                })?;
+            let bytes = resp.bytes().await.map_err(|e| MuonError::Search {
+                provider: "fetch".into(),
+                message: format!("failed to read body from {}: {e}", args.url),
+            })?;
             let capped = if bytes.len() > MAX_BODY_BYTES {
                 &bytes[..MAX_BODY_BYTES]
             } else {
@@ -158,7 +156,11 @@ fn html_to_text(html: &str, max_chars: usize) -> (String, Option<String>) {
     // Extract title from <title>...</title>
     let title = {
         let re = regex::Regex::new(r"(?is)<title[^>]*>(.*?)</title>").ok();
-        re.and_then(|r| r.captures(html).and_then(|c| c.get(1)).map(|m| strip_tags_single(m.as_str()).trim().to_string()))
+        re.and_then(|r| {
+            r.captures(html)
+                .and_then(|c| c.get(1))
+                .map(|m| strip_tags_single(m.as_str()).trim().to_string())
+        })
     };
 
     // Strip all HTML tags

@@ -1,7 +1,7 @@
 use diesel::prelude::*;
 
-use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::error::MuonError;
+use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::infrastructure::storage::schema::sources;
 
 #[derive(Debug, Clone, Queryable, Selectable)]
@@ -36,8 +36,7 @@ impl TryFrom<SourceRow> for Source {
 
     fn try_from(row: SourceRow) -> Result<Self, Self::Error> {
         let source_type = SourceType::try_from_str(&row.source_type)?;
-        let verification_status =
-            VerificationStatus::try_from_str(&row.verification_status)?;
+        let verification_status = VerificationStatus::try_from_str(&row.verification_status)?;
         Ok(Self {
             url: row.url,
             title: row.title,
@@ -75,9 +74,7 @@ impl SourceType {
             "Code" => Ok(Self::Code),
             "Enterprise" => Ok(Self::Enterprise),
             "Knowledge" => Ok(Self::Knowledge),
-            other => Err(MuonError::Database(format!(
-                "unknown source type: {other}"
-            ))),
+            other => Err(MuonError::Database(format!("unknown source type: {other}"))),
         }
     }
 

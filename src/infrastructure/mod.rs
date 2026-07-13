@@ -1,9 +1,9 @@
 pub mod agent_rs;
 pub mod agent_stubs;
 pub mod context;
-pub mod providers;
 pub mod models;
 pub mod observability;
+pub mod providers;
 pub mod rag;
 pub mod search;
 pub mod source_registry;

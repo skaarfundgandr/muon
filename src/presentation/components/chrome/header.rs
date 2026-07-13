@@ -38,21 +38,27 @@ impl HeaderConfig {
                 badge: Some("RESEARCHING [DEEP]"),
                 extra_right: vec![Span::styled(
                     format!("ELAPSED: {}", format_elapsed(elapsed_secs)),
-                    Style::default().fg(theme::accent()).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(theme::accent())
+                        .add_modifier(Modifier::BOLD),
                 )],
             },
             View::Results => Self {
                 badge: Some("RESEARCH COMPLETE"),
                 extra_right: vec![Span::styled(
                     format!("TOTAL TIME: {}", format_elapsed(elapsed_secs)),
-                    Style::default().fg(theme::success()).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(theme::success())
+                        .add_modifier(Modifier::BOLD),
                 )],
             },
             View::Settings => Self {
                 badge: Some("CONFIGURATION CONSOLE"),
                 extra_right: vec![Span::styled(
                     "UNSAVED CHANGES",
-                    Style::default().fg(theme::warning()).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(theme::warning())
+                        .add_modifier(Modifier::BOLD),
                 )],
             },
             View::Welcome => Self {
@@ -84,7 +90,9 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: HeaderConfig) {
 
     let mut left_spans: Vec<Span> = vec![Span::styled(
         "μon // Deep Research Agent",
-        Style::default().fg(theme::accent()).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD),
     )];
 
     if let Some(text) = config.badge {
@@ -117,7 +125,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: HeaderConfig) {
     if !config.extra_right.is_empty() {
         right_spans.push(Span::styled("  ", theme::dim_style()));
     }
-    right_spans.push(Span::styled(format!("SYS: {}", sys_time), theme::dim_style()));
+    right_spans.push(Span::styled(
+        format!("SYS: {}", sys_time),
+        theme::dim_style(),
+    ));
     right_spans.push(Span::styled("  ", theme::dim_style()));
     right_spans.push(Span::styled(ws_dir, theme::dim_style()));
 

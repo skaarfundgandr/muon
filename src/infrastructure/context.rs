@@ -1,7 +1,7 @@
+use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::AgentTag;
 use crate::domain::traits::agent::MuonAgent;
 use crate::domain::traits::session_store::SessionStore;
-use crate::domain::error::MuonError;
 use crate::infrastructure::source_registry::SourceRegistry;
 use std::sync::{Arc, Mutex};
 
@@ -91,29 +91,32 @@ impl InfrastructureContext {
                 crate::domain::models::log_entry::LogLevel::Warn,
                 "no [[providers]] configured — starting with degraded stub agents",
             );
-            let pool = crate::infrastructure::storage::init_pool(&cfg.advanced.session_db_path)
-                .await?;
-            let session_store: Arc<dyn SessionStore> =
-                Arc::new(crate::infrastructure::storage::DieselSessionStore::new(pool));
+            let pool =
+                crate::infrastructure::storage::init_pool(&cfg.advanced.session_db_path).await?;
+            let session_store: Arc<dyn SessionStore> = Arc::new(
+                crate::infrastructure::storage::DieselSessionStore::new(pool),
+            );
             return Ok(Self::with_sink(
-                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
-                    AgentTag::Intent,
-                )),
-                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
-                    AgentTag::Search,
-                )),
-                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
-                    AgentTag::Clarify,
-                )),
-                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
-                    AgentTag::Orchestrate,
-                )),
-                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
-                    AgentTag::Plan,
-                )),
-                Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
-                    AgentTag::Search,
-                )),
+                Arc::new(
+                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Intent),
+                ),
+                Arc::new(
+                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Search),
+                ),
+                Arc::new(
+                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Clarify),
+                ),
+                Arc::new(
+                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                        AgentTag::Orchestrate,
+                    ),
+                ),
+                Arc::new(
+                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Plan),
+                ),
+                Arc::new(
+                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Search),
+                ),
                 session_store,
                 source_sink,
                 None,
@@ -271,25 +274,16 @@ impl InfrastructureContext {
                         } else {
                             b
                         };
-                        let max_turns = cfg
-                            .agents
-                            .shallow_researcher
-                            .max_tool_iters
-                            .max(1) as usize;
-                        let max_cycles = cfg
-                            .agents
-                            .shallow_researcher
-                            .max_llm_turns
-                            .max(1) as usize;
+                        let max_turns =
+                            cfg.agents.shallow_researcher.max_tool_iters.max(1) as usize;
+                        let max_cycles =
+                            cfg.agents.shallow_researcher.max_llm_turns.max(1) as usize;
                         let shallow_hook = crate::infrastructure::agent_rs::researcher_hook(
                             bridge.clone(),
                             AgentTag::Search,
                             source_sink.clone(),
                         );
-                        let agent = b
-                            .default_max_turns(max_turns)
-                            .hook(shallow_hook)
-                            .build();
+                        let agent = b.default_max_turns(max_turns).hook(shallow_hook).build();
                         factory.build_runner(
                             agent,
                             AgentTag::Search,
@@ -392,20 +386,14 @@ impl InfrastructureContext {
                         };
                         let agent = b
                             .default_max_turns(
-                                cfg.agents
-                                    .deep_researcher
-                                    .planner_max_tool_calls
-                                    .max(1) as usize,
+                                cfg.agents.deep_researcher.planner_max_tool_calls.max(1) as usize,
                             )
                             .hook(agent_rs::observability::LangSmithAgentHook)
                             .build();
                         factory.build_planner_runner(
                             agent,
                             AgentTag::Plan,
-                            cfg.agents
-                                .deep_researcher
-                                .planner_max_cycles
-                                .max(1) as usize,
+                            cfg.agents.deep_researcher.planner_max_cycles.max(1) as usize,
                             180,
                             source_sink.clone(),
                         )
@@ -422,57 +410,56 @@ impl InfrastructureContext {
             AgentTag::Search,
             source_sink.clone(),
         );
-        let researcher: Arc<dyn MuonAgent> =
-            Arc::new(build_agent!(
-                &researcher_client.client,
-                &resolve_model_id(
-                    providers,
-                    &cfg.agents.deep_researcher.researcher.provider,
-                    &cfg.agents.deep_researcher.researcher.model
-                ),
-                |c| {
-                    let b = c
-                        .agent(resolve_model_id(
-                            providers,
-                            &cfg.agents.deep_researcher.researcher.provider,
-                            &cfg.agents.deep_researcher.researcher.model,
-                        ))
-                        .preamble(&researcher_preamble)
-                        .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
-                            fetch_http.clone(),
-                            8000,
-                        ));
-                    let b = if let Some(ref wp) = web_provider {
-                        b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
-                            wp.clone(),
-                        ))
-                    } else {
-                        b
-                    };
-                    let b = if !paper_providers.is_empty() {
-                        b.tool(
-                            crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
-                                paper_providers.clone(),
-                            ),
-                        )
-                    } else {
-                        b
-                    };
-                    let agent = b
-                        .default_max_turns(researcher_max_turns)
-                        .hook(researcher_hook.clone())
-                        .build();
-                    crate::infrastructure::agent_rs::ManagedAgent::from_rig_agent_with_hook(
-                        AgentTag::Search,
-                        agent,
-                        bridge.clone(),
+        let researcher: Arc<dyn MuonAgent> = Arc::new(build_agent!(
+            &researcher_client.client,
+            &resolve_model_id(
+                providers,
+                &cfg.agents.deep_researcher.researcher.provider,
+                &cfg.agents.deep_researcher.researcher.model
+            ),
+            |c| {
+                let b = c
+                    .agent(resolve_model_id(
+                        providers,
+                        &cfg.agents.deep_researcher.researcher.provider,
+                        &cfg.agents.deep_researcher.researcher.model,
+                    ))
+                    .preamble(&researcher_preamble)
+                    .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
+                        fetch_http.clone(),
+                        8000,
+                    ));
+                let b = if let Some(ref wp) = web_provider {
+                    b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
+                        wp.clone(),
+                    ))
+                } else {
+                    b
+                };
+                let b = if !paper_providers.is_empty() {
+                    b.tool(
+                        crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
+                            paper_providers.clone(),
+                        ),
                     )
-                }
-            ));
+                } else {
+                    b
+                };
+                let agent = b
+                    .default_max_turns(researcher_max_turns)
+                    .hook(researcher_hook.clone())
+                    .build();
+                crate::infrastructure::agent_rs::ManagedAgent::from_rig_agent_with_hook(
+                    AgentTag::Search,
+                    agent,
+                    bridge.clone(),
+                )
+            }
+        ));
 
         // Deep Orchestrator — think (always), web_search + paper_search (if configured).
-        let deep_orchestrator: Arc<dyn MuonAgent> =
-            Arc::new(crate::infrastructure::agent_rs::ReActAgent::new(
+        let deep_orchestrator: Arc<dyn MuonAgent> = Arc::new(
+            crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Orchestrate,
                 build_agent!(
                     &deep_client.client,
@@ -539,7 +526,8 @@ impl InfrastructureContext {
                     }
                 ),
                 bridge.clone(),
-            ));
+            ),
+        );
 
         let pool = crate::infrastructure::storage::init_pool(&cfg.advanced.session_db_path).await?;
         let session_store: Arc<dyn SessionStore> = Arc::new(

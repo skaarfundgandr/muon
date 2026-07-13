@@ -81,5 +81,12 @@ pub fn render(
         mouse_row,
     );
     resource_monitor::render(f, chunks[3]);
-    footer::render(f, chunks[4], View::Progress, hit_registry, mouse_col, mouse_row);
+    footer::render(
+        f,
+        chunks[4],
+        View::Progress,
+        hit_registry,
+        mouse_col,
+        mouse_row,
+    );
 }

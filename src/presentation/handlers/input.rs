@@ -1,9 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent};
 
-use crate::presentation::{ActivePopup, AppState, PlanApprovalFocus};
 use crate::application::bridge::PlanDecision;
 use crate::presentation::handlers::{dashboard, settings, view_events};
 use crate::presentation::views::View;
+use crate::presentation::{ActivePopup, AppState, PlanApprovalFocus};
 
 pub fn handle_key(app: &mut AppState, key: KeyEvent) {
     if let Some(ActivePopup::PlanApproval {

@@ -1,4 +1,4 @@
-use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
+use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::theme;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
@@ -61,7 +61,9 @@ pub fn render(
         .border_style(Style::new().fg(theme::purple()))
         .title(Span::styled(
             " RESEARCH PLAN ",
-            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::accent())
+                .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(popup_area);
     f.render_widget(block, popup_area);
@@ -81,18 +83,26 @@ pub fn render(
         .split(inner);
 
     // Title
-    let title_text = plan.plan_title.as_deref().unwrap_or("Proposed Research Plan");
+    let title_text = plan
+        .plan_title
+        .as_deref()
+        .unwrap_or("Proposed Research Plan");
     f.render_widget(
         Paragraph::new(Span::styled(
             title_text,
-            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::accent())
+                .add_modifier(Modifier::BOLD),
         ))
         .wrap(Wrap { trim: false }),
         inner_chunks[0],
     );
 
     // Sections List Block
-    let sections_title = Line::from(Span::styled("Sections:", Style::new().fg(theme::text_dim())));
+    let sections_title = Line::from(Span::styled(
+        "Sections:",
+        Style::new().fg(theme::text_dim()),
+    ));
     let mut section_lines = vec![sections_title, Line::default()];
 
     for (i, sec) in plan.plan_sections.iter().enumerate() {
@@ -130,9 +140,13 @@ pub fn render(
     let approve_focused = focus == crate::presentation::PlanApprovalFocus::Approve;
     let approve_hovered = is_hovering(button_chunks[0], mouse_col, mouse_row);
     let approve_style = if approve_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if approve_hovered {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_dim())
     };
@@ -149,9 +163,13 @@ pub fn render(
     let reject_focused = focus == crate::presentation::PlanApprovalFocus::Reject;
     let reject_hovered = is_hovering(button_chunks[2], mouse_col, mouse_row);
     let reject_style = if reject_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if reject_hovered {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_dim())
     };
@@ -168,9 +186,13 @@ pub fn render(
     let feedback_focused = focus == crate::presentation::PlanApprovalFocus::Feedback;
     let feedback_hovered = is_hovering(button_chunks[4], mouse_col, mouse_row);
     let feedback_style = if feedback_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if feedback_hovered {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_dim())
     };
@@ -210,7 +232,9 @@ pub fn render(
             Span::styled(before.to_string(), Style::new().fg(theme::text_main())),
             Span::styled(
                 "\u{2588}",
-                Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled(after.to_string(), Style::new().fg(theme::text_main())),
         ])
@@ -220,10 +244,7 @@ pub fn render(
             Style::new().fg(theme::text_main()),
         )])
     };
-    f.render_widget(
-        Paragraph::new(line).wrap(Wrap { trim: false }),
-        inner_input,
-    );
+    f.render_widget(Paragraph::new(line).wrap(Wrap { trim: false }), inner_input);
 
     hit_registry.push(ClickTarget {
         rect: feedback_area,

@@ -46,8 +46,7 @@ fn fails_when_no_sources_section_and_no_known_url() {
                  eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim \
                  ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut \
                  aliquip ex ea commodo consequat.\n";
-    let (complete, reason) =
-        is_report_complete(draft, &url("https://example.com/missing"), 100, 1);
+    let (complete, reason) = is_report_complete(draft, &url("https://example.com/missing"), 100, 1);
     assert!(!complete);
     assert!(reason.contains("citation"), "reason: {reason}");
 }
@@ -100,8 +99,7 @@ fn cites_known_url_passes_sources_check() {
                  sit amet, consectetur adipiscing elit, sed do eiusmod tempor \
                  incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.\
                  See https://example.com/known for details.\n";
-    let (complete, _reason) =
-        is_report_complete(draft, &url("https://example.com/known"), 100, 1);
+    let (complete, _reason) = is_report_complete(draft, &url("https://example.com/known"), 100, 1);
     assert!(complete);
 }
 

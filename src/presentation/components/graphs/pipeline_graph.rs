@@ -9,7 +9,8 @@ use crate::presentation::theme;
 /// Function-pointer signature for rendering the clarifier sub-panel inside the
 /// pipeline routing graph. Carries the pending question (if any) and the
 /// in-progress response buffer text.
-pub type ClarifierRenderer = fn(&mut ratatui::Frame, Rect, Option<&str>, &str, u16, u16, Option<&str>, bool) -> Option<Rect>;
+pub type ClarifierRenderer =
+    fn(&mut ratatui::Frame, Rect, Option<&str>, &str, u16, u16, Option<&str>, bool) -> Option<Rect>;
 
 #[allow(clippy::too_many_arguments)]
 pub fn render_horizontal(
@@ -30,7 +31,9 @@ pub fn render_horizontal(
         .border_style(Style::new().fg(theme::border()))
         .title(Span::styled(
             " PIPELINE ROUTING ",
-            Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::text_main())
+                .add_modifier(Modifier::BOLD),
         ));
 
     let inner = block.inner(area);
@@ -97,7 +100,16 @@ pub fn render_horizontal(
     render_horizontal_node(f, nodes_row[4], "Deep Researcher", deep_status, deep_color);
 
     if let Some(clarifier_fn) = clarifier {
-        *clarifier_input_rect = clarifier_fn(f, chunks[1], clarifier_question, clarifier_response, mouse_col, mouse_row, clarifier_log, clarifier_focused);
+        *clarifier_input_rect = clarifier_fn(
+            f,
+            chunks[1],
+            clarifier_question,
+            clarifier_response,
+            mouse_col,
+            mouse_row,
+            clarifier_log,
+            clarifier_focused,
+        );
     }
 }
 
@@ -117,7 +129,9 @@ fn render_horizontal_node(
 
     let title_line = Line::from(Span::styled(
         title,
-        Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
+        Style::new()
+            .fg(theme::text_main())
+            .add_modifier(Modifier::BOLD),
     ));
     let status_line = Line::from(Span::styled(status, Style::new().fg(color)));
 
@@ -143,7 +157,9 @@ fn render_horizontal_node(
 
 fn render_horizontal_arrow(f: &mut ratatui::Frame, area: Rect, active: bool) {
     let style = if active {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::border())
     };
@@ -160,7 +176,11 @@ fn render_horizontal_arrow(f: &mut ratatui::Frame, area: Rect, active: bool) {
     );
 }
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::application::pipeline::PipelineState) {
+pub fn render(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    pipeline: &crate::application::pipeline::PipelineState,
+) {
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(theme::border()));
@@ -182,7 +202,11 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::application:
     let stage = pipeline.stage;
     let (ic_status, ic_color, ic_body) = match stage {
         PipelineStage::Idle => ("○ Pending", theme::text_dim(), "—"),
-        PipelineStage::IntentClassification => ("◉ Classifying", theme::accent(), "Running classification..."),
+        PipelineStage::IntentClassification => (
+            "◉ Classifying",
+            theme::accent(),
+            "Running classification...",
+        ),
         _ => ("✓ Complete", theme::success(), "Routed"),
     };
 
@@ -194,7 +218,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::application:
         ic_color,
         ic_body,
     );
-    let conn1 = Paragraph::new(Line::from(Span::styled(" │", Style::new().fg(theme::border()))));
+    let conn1 = Paragraph::new(Line::from(Span::styled(
+        " │",
+        Style::new().fg(theme::border()),
+    )));
     f.render_widget(conn1, chunks[1]);
 
     let (clarifier_status, clarifier_color, clarifier_body) = match stage {
@@ -215,7 +242,10 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::application:
         clarifier_color,
         clarifier_body,
     );
-    let conn2 = Paragraph::new(Line::from(Span::styled(" │", Style::new().fg(theme::border()))));
+    let conn2 = Paragraph::new(Line::from(Span::styled(
+        " │",
+        Style::new().fg(theme::border()),
+    )));
     f.render_widget(conn2, chunks[3]);
 
     render_deep_researcher(f, chunks[4], pipeline);
@@ -238,7 +268,9 @@ fn render_node_with_body(
 
     let title_line = Line::from(Span::styled(
         title,
-        Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD),
+        Style::new()
+            .fg(theme::text_main())
+            .add_modifier(Modifier::BOLD),
     ));
     let status_line = Line::from(Span::styled(status, Style::new().fg(color)));
     let body_line = Line::from(Span::styled(body, Style::new().fg(color)));
@@ -272,13 +304,19 @@ fn render_node_with_body(
     );
 }
 
-fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::application::pipeline::PipelineState) {
+fn render_deep_researcher(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    pipeline: &crate::application::pipeline::PipelineState,
+) {
     let outer_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::new().fg(theme::border()))
         .title(Span::styled(
             " Deep Researcher ",
-            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::accent())
+                .add_modifier(Modifier::BOLD),
         ));
 
     let inner = outer_block.inner(area);
@@ -286,27 +324,17 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
 
     let stage = pipeline.stage;
     let (orch_icon, orch_desc, orch_color) = match stage {
-        PipelineStage::Idle | PipelineStage::IntentClassification | PipelineStage::Clarification => {
-            ("○", "pending", theme::text_dim())
-        }
-        PipelineStage::ShallowResearch => {
-            ("◉", "Shallow research in progress", theme::accent())
-        }
-        PipelineStage::DeepResearch => {
-            ("✓", "Coordinated", theme::success())
-        }
+        PipelineStage::Idle
+        | PipelineStage::IntentClassification
+        | PipelineStage::Clarification => ("○", "pending", theme::text_dim()),
+        PipelineStage::ShallowResearch => ("◉", "Shallow research in progress", theme::accent()),
+        PipelineStage::DeepResearch => ("✓", "Coordinated", theme::success()),
         PipelineStage::CitationVerify | PipelineStage::Report => {
             ("◉", "Finalizing", theme::accent())
         }
-        PipelineStage::Complete => {
-            ("✓", "Complete", theme::success())
-        }
-        PipelineStage::Cancelled => {
-            ("✗", "Cancelled", theme::error())
-        }
-        PipelineStage::Failed => {
-            ("✗", "Failed", theme::error())
-        }
+        PipelineStage::Complete => ("✓", "Complete", theme::success()),
+        PipelineStage::Cancelled => ("✗", "Cancelled", theme::error()),
+        PipelineStage::Failed => ("✗", "Failed", theme::error()),
     };
 
     let (plan_icon, plan_desc, plan_color) = match stage {
@@ -317,9 +345,7 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
                 ("✓", "Plan generated", theme::success())
             }
         }
-        PipelineStage::Complete => {
-            ("✓", "Plan generated", theme::success())
-        }
+        PipelineStage::Complete => ("✓", "Plan generated", theme::success()),
         _ => ("○", "pending", theme::text_dim()),
     };
 
@@ -333,9 +359,7 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
                 ("○", "pending", theme::text_dim())
             }
         }
-        PipelineStage::Complete => {
-            ("✓", "Complete", theme::success())
-        }
+        PipelineStage::Complete => ("✓", "Complete", theme::success()),
         _ => ("○", "pending", theme::text_dim()),
     };
 
@@ -349,16 +373,12 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
                 ("○", "pending", theme::text_dim())
             }
         }
-        PipelineStage::Complete => {
-            ("✓", "Complete", theme::success())
-        }
+        PipelineStage::Complete => ("✓", "Complete", theme::success()),
         _ => ("○", "pending", theme::text_dim()),
     };
 
     let (ver_icon, ver_desc, ver_color) = match stage {
-        PipelineStage::CitationVerify => {
-            ("◉", "Verifying citations", theme::accent())
-        }
+        PipelineStage::CitationVerify => ("◉", "Verifying citations", theme::accent()),
         PipelineStage::DeepResearch => {
             if pipeline.current_step >= 5 {
                 ("◉", "Verifying citations", theme::accent())
@@ -366,19 +386,13 @@ fn render_deep_researcher(f: &mut ratatui::Frame, area: Rect, pipeline: &crate::
                 ("○", "pending", theme::text_dim())
             }
         }
-        PipelineStage::Report | PipelineStage::Complete => {
-            ("✓", "Verified", theme::success())
-        }
+        PipelineStage::Report | PipelineStage::Complete => ("✓", "Verified", theme::success()),
         _ => ("○", "pending", theme::text_dim()),
     };
 
     let (fin_icon, fin_desc, fin_color) = match stage {
-        PipelineStage::Report => {
-            ("◉", "Generating report", theme::accent())
-        }
-        PipelineStage::Complete => {
-            ("✓", "Report generated", theme::success())
-        }
+        PipelineStage::Report => ("◉", "Generating report", theme::accent()),
+        PipelineStage::Complete => ("✓", "Report generated", theme::success()),
         _ => ("○", "pending", theme::text_dim()),
     };
 

@@ -2,9 +2,9 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
-use crate::domain::error::MuonError;
 
 use super::markdown_exporter::MarkdownExporter;
 use super::obsidian_exporter::ObsidianExporter;
@@ -31,9 +31,7 @@ impl FromStr for ExportFormat {
         match s.to_lowercase().as_str() {
             "markdown" => Ok(ExportFormat::Markdown),
             "obsidian" => Ok(ExportFormat::Obsidian),
-            other => Err(MuonError::Config(format!(
-                "unknown export format: {other}"
-            ))),
+            other => Err(MuonError::Config(format!("unknown export format: {other}"))),
         }
     }
 }
@@ -57,9 +55,9 @@ impl ExportService {
                 None => MarkdownExporter::export(req.report, req.session),
             },
             ExportFormat::Obsidian => {
-                let vault = req.obsidian_vault.ok_or_else(|| {
-                    MuonError::Config("obsidian_vault missing".into())
-                })?;
+                let vault = req
+                    .obsidian_vault
+                    .ok_or_else(|| MuonError::Config("obsidian_vault missing".into()))?;
                 ObsidianExporter::export(req.report, req.session, vault)
             }
         }

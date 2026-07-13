@@ -1,9 +1,9 @@
 use crate::application::pipeline::PipelineStage;
+use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::SessionId;
 use crate::domain::models::source::Source;
 use crate::domain::traits::session_store::SessionStore;
-use crate::domain::error::MuonError;
 
 pub async fn finalize_session(
     store: &dyn SessionStore,

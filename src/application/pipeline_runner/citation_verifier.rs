@@ -2,9 +2,9 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::source::Source;
-use crate::domain::error::MuonError;
 use crate::infrastructure::source_registry::SourceRegistry;
 
 pub use crate::domain::models::report::VerificationLevel;
@@ -40,7 +40,9 @@ pub struct ValidCitation {
     pub level: VerificationLevel,
 }
 
-pub fn level_to_status(level: VerificationLevel) -> crate::domain::models::source::VerificationStatus {
+pub fn level_to_status(
+    level: VerificationLevel,
+) -> crate::domain::models::source::VerificationStatus {
     use crate::domain::models::source::VerificationStatus;
     match level {
         VerificationLevel::Exact => VerificationStatus::Exact,
@@ -169,8 +171,7 @@ pub fn verify(
         }
     }
 
-    let verified_report =
-        report_reflow(&report_to_markdown(report), &valid, &report.citations)?;
+    let verified_report = report_reflow(&report_to_markdown(report), &valid, &report.citations)?;
 
     Ok(VerificationOutput {
         verified_report,
@@ -294,9 +295,7 @@ pub fn match_url(url: &str, registry_urls: &[String]) -> Option<VerificationLeve
         let count = norm_reg
             .iter()
             .filter(|r| {
-                r.starts_with(&area)
-                    && r.get(area.len()..area.len() + 1)
-                        .is_some_and(|c| c == "/")
+                r.starts_with(&area) && r.get(area.len()..area.len() + 1).is_some_and(|c| c == "/")
             })
             .count();
         if count == 1 {
@@ -449,10 +448,9 @@ pub fn report_reflow(
         }
     }
 
-    let numbered_re = Regex::new(r"\[(\d+)\]")
-        .map_err(|e| MuonError::Database(e.to_string()))?;
-    let url_re = Regex::new(r"\[(https?://[^\]]+)\]")
-        .map_err(|e| MuonError::Database(e.to_string()))?;
+    let numbered_re = Regex::new(r"\[(\d+)\]").map_err(|e| MuonError::Database(e.to_string()))?;
+    let url_re =
+        Regex::new(r"\[(https?://[^\]]+)\]").map_err(|e| MuonError::Database(e.to_string()))?;
 
     let mut old_to_new: HashMap<String, String> = HashMap::new();
 
@@ -494,4 +492,3 @@ pub fn report_reflow(
     }
     Ok(result)
 }
-

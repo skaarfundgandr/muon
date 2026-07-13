@@ -15,7 +15,10 @@ fn citation_line<'a>(text: &'a str, citations: &[&'a str]) -> Line<'a> {
     for cite in citations {
         if let Some(idx) = rest.find(cite) {
             if idx > 0 {
-                spans.push(Span::styled(&rest[..idx], Style::new().fg(theme::text_main())));
+                spans.push(Span::styled(
+                    &rest[..idx],
+                    Style::new().fg(theme::text_main()),
+                ));
             }
             spans.push(Span::styled(*cite, Style::new().fg(theme::cyan())));
             rest = &rest[idx + cite.len()..];

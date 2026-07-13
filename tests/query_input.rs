@@ -1,8 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use muon::presentation::components::inputs::query_input::{
-    visible_around_caret, QueryInput,
-};
+use muon::presentation::components::inputs::query_input::{QueryInput, visible_around_caret};
 
 #[test]
 fn short_query_shows_all() {
@@ -26,9 +24,7 @@ fn long_query_follows_caret_at_end() {
 
 #[test]
 fn long_query_follows_caret_at_start() {
-    let buf: String = (0..80)
-        .map(|i| char::from(b'a' + (i % 26) as u8))
-        .collect();
+    let buf: String = (0..80).map(|i| char::from(b'a' + (i % 26) as u8)).collect();
     let (pre, post, scrolled) = visible_around_caret(&buf, 0, 20);
     assert!(!scrolled);
     assert_eq!(pre, "");

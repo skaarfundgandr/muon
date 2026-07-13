@@ -101,7 +101,10 @@ pub struct RegistryTool {
 }
 
 impl RegistryTool {
-    pub fn new<F>(registry: std::sync::Arc<std::sync::Mutex<SourceRegistry>>, url_extractor: F) -> Self
+    pub fn new<F>(
+        registry: std::sync::Arc<std::sync::Mutex<SourceRegistry>>,
+        url_extractor: F,
+    ) -> Self
     where
         F: Fn(&str) -> Vec<String> + Send + Sync + 'static,
     {

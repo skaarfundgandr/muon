@@ -47,5 +47,8 @@ pub enum ClickAction {
 }
 
 pub fn is_hovering(rect: Rect, col: u16, row: u16) -> bool {
-    col >= rect.x && col < rect.x.saturating_add(rect.width) && row >= rect.y && row < rect.y.saturating_add(rect.height)
+    col >= rect.x
+        && col < rect.x.saturating_add(rect.width)
+        && row >= rect.y
+        && row < rect.y.saturating_add(rect.height)
 }

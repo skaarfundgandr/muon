@@ -1,8 +1,8 @@
-use crate::config::{MuonConfig, DataSourcesConfig};
+use crate::config::{DataSourcesConfig, MuonConfig};
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
-use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -75,8 +75,25 @@ pub fn render(
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
-    render_source_providers(f, grid[0], &config.data_sources, form, hit_registry, mouse_col, mouse_row);
-    render_rag_indexes(f, grid[1], config, form, hit_registry, mouse_col, mouse_row, pending_dropdown);
+    render_source_providers(
+        f,
+        grid[0],
+        &config.data_sources,
+        form,
+        hit_registry,
+        mouse_col,
+        mouse_row,
+    );
+    render_rag_indexes(
+        f,
+        grid[1],
+        config,
+        form,
+        hit_registry,
+        mouse_col,
+        mouse_row,
+        pending_dropdown,
+    );
 }
 
 fn section_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
@@ -107,7 +124,8 @@ fn render_source_providers(
     mouse_col: u16,
     mouse_row: u16,
 ) {
-    let any_focused = is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2) || is_focused(form, 3);
+    let any_focused =
+        is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2) || is_focused(form, 3);
     let block = section_block(
         "SOURCE PROVIDERS",
         any_focused,
@@ -169,26 +187,42 @@ fn render_source_providers(
         } else {
             "\u{25CB} DISABLED"
         };
-        let status_color = if *enabled { theme::success() } else { theme::text_dim() };
+        let status_color = if *enabled {
+            theme::success()
+        } else {
+            theme::text_dim()
+        };
         let checkbox_str = if *enabled { "[\u{2713}]" } else { "[ ]" };
-        let checkbox_color = if *enabled { theme::success() } else { theme::text_dim() };
+        let checkbox_color = if *enabled {
+            theme::success()
+        } else {
+            theme::text_dim()
+        };
 
         let prefix = if focused { "> " } else { "  " };
         let title_style = if focused {
-            Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD)
         } else if hovered {
-            Style::new().fg(theme::border_hover()).add_modifier(Modifier::BOLD)
+            Style::new()
+                .fg(theme::border_hover())
+                .add_modifier(Modifier::BOLD)
         } else {
-            Style::new().fg(theme::text_main()).add_modifier(Modifier::BOLD)
+            Style::new()
+                .fg(theme::text_main())
+                .add_modifier(Modifier::BOLD)
         };
 
         let card_lines = vec![
             Line::from(vec![
-                Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
                 Span::styled(
-                    format!("[{}] ", i + 1),
-                    Style::new().fg(theme::text_dim()),
+                    prefix,
+                    Style::new()
+                        .fg(theme::border_focus())
+                        .add_modifier(Modifier::BOLD),
                 ),
+                Span::styled(format!("[{}] ", i + 1), Style::new().fg(theme::text_dim())),
                 Span::styled(*title, title_style),
                 Span::raw("  "),
                 Span::styled(status_text, Style::new().fg(status_color)),
@@ -235,7 +269,15 @@ fn render_rag_indexes(
         .constraints([Constraint::Length(3), Constraint::Min(0)])
         .split(inner);
 
-    render_add_source_form(f, sections[0], config, form, hit_registry, mouse_col, mouse_row);
+    render_add_source_form(
+        f,
+        sections[0],
+        config,
+        form,
+        hit_registry,
+        mouse_col,
+        mouse_row,
+    );
     render_source_table(f, sections[1], config, hit_registry, mouse_col, mouse_row);
 
     if form.dropdown_open && form.focus == 5 {
@@ -248,7 +290,11 @@ fn render_rag_indexes(
             ])
             .split(sections[0]);
         let field_label = "Source Type";
-        let options: Vec<String> = vec!["Directory".to_string(), "File".to_string(), "Glob".to_string()];
+        let options: Vec<String> = vec![
+            "Directory".to_string(),
+            "File".to_string(),
+            "Glob".to_string(),
+        ];
         *pending_dropdown = Some(PendingDropdown {
             below: form_cols[1],
             field_label: field_label.to_string(),
@@ -300,49 +346,77 @@ fn render_add_source_form(
         config.data_sources.source_path.clone()
     };
     let path_value_style = if is_focused(form, 4) {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if is_hovering(form_cols[0], mouse_col, mouse_row) {
         Style::new().fg(theme::border_hover())
     } else {
         Style::new().fg(theme::text_main())
     };
     let path_line = Line::from(vec![
-        Span::styled(path_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            path_prefix,
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(path_value, path_value_style),
     ]);
     f.render_widget(Paragraph::new(path_line), form_cols[0]);
 
     let type_prefix = if is_focused(form, 5) { "> " } else { "  " };
     let type_label_style = if is_focused(form, 5) {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if is_hovering(form_cols[1], mouse_col, mouse_row) {
         Style::new().fg(theme::border_hover())
     } else {
         Style::new().fg(theme::text_dim())
     };
     let type_val_style = if is_focused(form, 5) {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::accent())
     };
     let type_line = Line::from(vec![
-        Span::styled(type_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            type_prefix,
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("[", type_label_style),
-        Span::styled(format!("{}\u{25BC}", config.data_sources.source_type), type_val_style),
+        Span::styled(
+            format!("{}\u{25BC}", config.data_sources.source_type),
+            type_val_style,
+        ),
         Span::styled("]", type_label_style),
     ]);
     f.render_widget(Paragraph::new(type_line), form_cols[1]);
 
     let btn_prefix = if is_focused(form, 6) { "> " } else { "  " };
     let btn_style = if is_focused(form, 6) {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if is_hovering(form_cols[2], mouse_col, mouse_row) {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::accent())
     };
     let btn_line = Line::from(vec![
-        Span::styled(btn_prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            btn_prefix,
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled("[ + Add ]", btn_style),
     ]);
     f.render_widget(Paragraph::new(btn_line), form_cols[2]);
@@ -433,13 +507,35 @@ fn render_source_table(
             });
         }
 
-        let ref_style = if row_y < area.y + area.height && is_hovering(Rect::new(area.x + (col_path + col_type + col_status + col_chunks) as u16 + 1, row_y, 1, 1), mouse_col, mouse_row) {
-            Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        let ref_style = if row_y < area.y + area.height
+            && is_hovering(
+                Rect::new(
+                    area.x + (col_path + col_type + col_status + col_chunks) as u16 + 1,
+                    row_y,
+                    1,
+                    1,
+                ),
+                mouse_col,
+                mouse_row,
+            ) {
+            Style::new()
+                .fg(theme::accent())
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::new().fg(theme::accent())
         };
 
-        let rem_style = if row_y < area.y + area.height && is_hovering(Rect::new(area.x + (col_path + col_type + col_status + col_chunks) as u16 + 5, row_y, 1, 1), mouse_col, mouse_row) {
+        let rem_style = if row_y < area.y + area.height
+            && is_hovering(
+                Rect::new(
+                    area.x + (col_path + col_type + col_status + col_chunks) as u16 + 5,
+                    row_y,
+                    1,
+                    1,
+                ),
+                mouse_col,
+                mouse_row,
+            ) {
             Style::new().fg(theme::error()).add_modifier(Modifier::BOLD)
         } else {
             Style::new().fg(theme::error())

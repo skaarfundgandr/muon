@@ -3,6 +3,7 @@ use ratatui::style::Style;
 use ratatui::widgets::Block;
 
 use crate::application::pipeline::PipelineState;
+use crate::application::session::SessionSummary;
 use crate::config::MuonConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
@@ -10,7 +11,6 @@ use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::components::*;
 use crate::presentation::theme;
 use crate::presentation::views::View;
-use crate::application::session::SessionSummary;
 
 #[allow(clippy::too_many_arguments)]
 pub fn render(
@@ -81,13 +81,7 @@ pub fn render(
         mouse_col,
         mouse_row,
     );
-    telemetry_panel::render(
-        f,
-        sidebar_split[1],
-        sessions.len(),
-        tokens_in,
-        tokens_out,
-    );
+    telemetry_panel::render(f, sidebar_split[1], sessions.len(), tokens_in, tokens_out);
 
     let main_split = Layout::default()
         .direction(Direction::Vertical)

@@ -2,10 +2,10 @@ use async_trait::async_trait;
 use rig_core::vector_store::VectorStoreIndex;
 use std::path::PathBuf;
 
+use super::rag_store::RagContext;
+use crate::domain::error::MuonError;
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::vector_store::VectorStore;
-use crate::domain::error::MuonError;
-use super::rag_store::RagContext;
 
 #[async_trait]
 impl VectorStore for RagContext {
@@ -16,11 +16,8 @@ impl VectorStore for RagContext {
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .collect();
 
-        let path: PathBuf = std::env::temp_dir().join(format!(
-            "muon-rag-{}-{}.txt",
-            slug,
-            uuid::Uuid::new_v4()
-        ));
+        let path: PathBuf =
+            std::env::temp_dir().join(format!("muon-rag-{}-{}.txt", slug, uuid::Uuid::new_v4()));
 
         tokio::fs::write(&path, content)
             .await

@@ -59,7 +59,9 @@ pub fn render(
 
     for (local_i, (abs_i, session)) in window.iter().enumerate() {
         let dot_style = if session.is_active {
-            Style::new().fg(theme::success()).add_modifier(Modifier::BOLD)
+            Style::new()
+                .fg(theme::success())
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::new().fg(theme::text_dim())
         };
@@ -122,7 +124,14 @@ pub fn render(
             Style::new().fg(theme::text_dim())
         };
         let title_line = Line::from(vec![
-            Span::styled("●", if hovered { dot_style.bg(theme::bg_dark()) } else { dot_style }),
+            Span::styled(
+                "●",
+                if hovered {
+                    dot_style.bg(theme::bg_dark())
+                } else {
+                    dot_style
+                },
+            ),
             Span::styled(format!(" {} ", session.title), title_style_main),
             Span::styled(time_str, title_style_dim),
         ]);

@@ -1,8 +1,8 @@
 use crate::application::pipeline_runner::citation_verifier::VerificationOutput;
 use crate::domain::agents::clarifier::ClarifierResult;
+use crate::domain::error::MuonError;
 use crate::domain::models::report::{Citation, ReportSection, ResearchReport};
 use crate::domain::models::session::ReportStats;
-use crate::domain::error::MuonError;
 
 pub fn build(
     verified: VerificationOutput,
@@ -105,4 +105,3 @@ pub fn derive_title(url: &str) -> String {
     }
     url.to_string()
 }
-

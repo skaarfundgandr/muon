@@ -70,7 +70,9 @@ fn section_block<'a>(title: &'a str) -> Block<'a> {
         .border_style(Style::new().fg(theme::border()))
         .title(Span::styled(
             format!(" {} ", title),
-            Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::purple())
+                .add_modifier(Modifier::BOLD),
         ))
 }
 
@@ -265,16 +267,8 @@ fn render_right(
             "True Color (24-bit RGB)",
             Style::new().fg(theme::warning()),
         ),
-        info_row(
-            "Window Size:",
-            &window_size,
-            Style::new().fg(theme::cyan()),
-        ),
-        info_row(
-            "Note:",
-            &theme_note,
-            Style::new().fg(theme::text_dim()),
-        ),
+        info_row("Window Size:", &window_size, Style::new().fg(theme::cyan())),
+        info_row("Note:", &theme_note, Style::new().fg(theme::text_dim())),
         info_row(
             "Font / Theme:",
             "emulator-controlled",

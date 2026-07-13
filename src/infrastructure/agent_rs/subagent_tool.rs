@@ -6,8 +6,8 @@ use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::traits::agent::MuonAgent;
 use crate::domain::error::MuonError;
+use crate::domain::traits::agent::MuonAgent;
 
 pub trait SubagentKind: Send + Sync + 'static {
     const NAME: &'static str;

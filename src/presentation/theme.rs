@@ -146,30 +146,83 @@ pub fn for_name(name: &str) -> Option<Theme> {
 }
 
 // Color accessors
-pub fn bg_main() -> Color { current().bg_main }
-pub fn bg_dark() -> Color { current().bg_dark }
-pub fn bg_highlight() -> Color { current().bg_highlight }
-pub fn border() -> Color { current().border }
-pub fn border_focus() -> Color { current().border_focus }
-pub fn border_hover() -> Color { current().border_hover }
-pub fn text_main() -> Color { current().text_main }
-pub fn text_dim() -> Color { current().text_dim }
-pub fn text_dark() -> Color { current().text_dark }
-pub fn accent() -> Color { current().accent }
-pub fn success() -> Color { current().success }
-pub fn warning() -> Color { current().warning }
-pub fn error() -> Color { current().error }
-pub fn purple() -> Color { current().purple }
-pub fn cyan() -> Color { current().cyan }
+pub fn bg_main() -> Color {
+    current().bg_main
+}
+pub fn bg_dark() -> Color {
+    current().bg_dark
+}
+pub fn bg_highlight() -> Color {
+    current().bg_highlight
+}
+pub fn border() -> Color {
+    current().border
+}
+pub fn border_focus() -> Color {
+    current().border_focus
+}
+pub fn border_hover() -> Color {
+    current().border_hover
+}
+pub fn text_main() -> Color {
+    current().text_main
+}
+pub fn text_dim() -> Color {
+    current().text_dim
+}
+pub fn text_dark() -> Color {
+    current().text_dark
+}
+pub fn accent() -> Color {
+    current().accent
+}
+pub fn success() -> Color {
+    current().success
+}
+pub fn warning() -> Color {
+    current().warning
+}
+pub fn error() -> Color {
+    current().error
+}
+pub fn purple() -> Color {
+    current().purple
+}
+pub fn cyan() -> Color {
+    current().cyan
+}
 
 // Style accessors
-pub fn border_style() -> Style { Style::new().fg(border()) }
-pub fn border_focus_style() -> Style { Style::new().fg(border_focus()) }
-pub fn border_hover_style() -> Style { Style::new().fg(border_hover()) }
-pub fn active_style() -> Style { Style::new().fg(accent()).add_modifier(Modifier::BOLD) }
-pub fn dim_style() -> Style { Style::new().fg(text_dim()) }
-pub fn success_style() -> Style { Style::new().fg(success()) }
-pub fn warning_style() -> Style { Style::new().fg(warning()) }
-pub fn error_style() -> Style { Style::new().fg(error()) }
-pub fn title_style() -> Style { Style::new().fg(purple()).add_modifier(Modifier::BOLD) }
-pub fn header_style() -> Style { Style::new().bg(bg_dark()).fg(text_main()).add_modifier(Modifier::BOLD) }
+pub fn border_style() -> Style {
+    Style::new().fg(border())
+}
+pub fn border_focus_style() -> Style {
+    Style::new().fg(border_focus())
+}
+pub fn border_hover_style() -> Style {
+    Style::new().fg(border_hover())
+}
+pub fn active_style() -> Style {
+    Style::new().fg(accent()).add_modifier(Modifier::BOLD)
+}
+pub fn dim_style() -> Style {
+    Style::new().fg(text_dim())
+}
+pub fn success_style() -> Style {
+    Style::new().fg(success())
+}
+pub fn warning_style() -> Style {
+    Style::new().fg(warning())
+}
+pub fn error_style() -> Style {
+    Style::new().fg(error())
+}
+pub fn title_style() -> Style {
+    Style::new().fg(purple()).add_modifier(Modifier::BOLD)
+}
+pub fn header_style() -> Style {
+    Style::new()
+        .bg(bg_dark())
+        .fg(text_main())
+        .add_modifier(Modifier::BOLD)
+}

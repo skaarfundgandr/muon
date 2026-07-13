@@ -16,14 +16,10 @@ pub struct ResolvedClient {
 }
 
 impl ResolvedClient {
-    pub fn for_named_provider(
-        name: &str,
-        providers: &[ProviderConfig],
-    ) -> Result<Self, MuonError> {
-        let provider = providers
-            .iter()
-            .find(|p| p.name == name)
-            .ok_or_else(|| MuonError::Config(format!("provider '{name}' not found in [[providers]]")))?;
+    pub fn for_named_provider(name: &str, providers: &[ProviderConfig]) -> Result<Self, MuonError> {
+        let provider = providers.iter().find(|p| p.name == name).ok_or_else(|| {
+            MuonError::Config(format!("provider '{name}' not found in [[providers]]"))
+        })?;
         Self::for_provider_config(provider)
     }
 
@@ -35,7 +31,12 @@ impl ResolvedClient {
                     .api_key(&api_key)
                     .base_url(&provider.base_url)
                     .build()
-                    .map_err(|e| MuonError::Config(format!("failed to build client for '{}': {e}", provider.name)))?
+                    .map_err(|e| {
+                        MuonError::Config(format!(
+                            "failed to build client for '{}': {e}",
+                            provider.name
+                        ))
+                    })?
                     .completions_api();
                 if provider.provider_type == ProviderType::OpenAI {
                     ProviderClient::OpenAI(c)
@@ -48,7 +49,12 @@ impl ResolvedClient {
                     .api_key(&api_key)
                     .base_url(&provider.base_url)
                     .build()
-                    .map_err(|e| MuonError::Config(format!("failed to build gemini client for '{}': {e}", provider.name)))?;
+                    .map_err(|e| {
+                        MuonError::Config(format!(
+                            "failed to build gemini client for '{}': {e}",
+                            provider.name
+                        ))
+                    })?;
                 ProviderClient::Gemini(c)
             }
             ProviderType::Anthropic => {
@@ -56,7 +62,12 @@ impl ResolvedClient {
                     .api_key(&api_key)
                     .base_url(&provider.base_url)
                     .build()
-                    .map_err(|e| MuonError::Config(format!("failed to build anthropic client for '{}': {e}", provider.name)))?;
+                    .map_err(|e| {
+                        MuonError::Config(format!(
+                            "failed to build anthropic client for '{}': {e}",
+                            provider.name
+                        ))
+                    })?;
                 ProviderClient::Anthropic(c)
             }
         };
@@ -67,9 +78,9 @@ impl ResolvedClient {
     }
 
     pub fn for_default_provider(providers: &[ProviderConfig]) -> Result<Self, MuonError> {
-        let provider = providers
-            .first()
-            .ok_or_else(|| MuonError::Config("no [[providers]] configured — add at least one".into()))?;
+        let provider = providers.first().ok_or_else(|| {
+            MuonError::Config("no [[providers]] configured — add at least one".into())
+        })?;
         Self::for_provider_config(provider)
     }
 }

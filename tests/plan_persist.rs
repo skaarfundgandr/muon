@@ -57,7 +57,11 @@ async fn save_clarifier_outcome_round_trips_through_diesel_store() {
         .await
         .unwrap();
 
-    let (stored_plan, stored_cr) = store.get_clarifier_outcome(id).await.unwrap().expect("outcome missing");
+    let (stored_plan, stored_cr) = store
+        .get_clarifier_outcome(id)
+        .await
+        .unwrap()
+        .expect("outcome missing");
     assert_eq!(stored_plan.as_deref(), Some(plan_json.as_str()));
     assert_eq!(stored_cr.as_deref(), Some(cr_json.as_str()));
 }
@@ -80,7 +84,11 @@ async fn save_clarifier_outcome_with_plan_none_stores_clarifier_result() {
         .await
         .unwrap();
 
-    let (stored_plan, stored_cr) = store.get_clarifier_outcome(id).await.unwrap().expect("outcome missing");
+    let (stored_plan, stored_cr) = store
+        .get_clarifier_outcome(id)
+        .await
+        .unwrap()
+        .expect("outcome missing");
     assert!(stored_plan.is_none());
     assert_eq!(stored_cr.as_deref(), Some(cr_json.as_str()));
 }

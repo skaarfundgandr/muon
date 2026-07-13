@@ -1,13 +1,13 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use muon::application::pipeline_runner::citation_verifier::{
+    RemovalReason, RemovedCitation, ValidCitation, VerificationLevel, VerificationOutput,
     apply_verification_to_sources, extract_urls, match_url, normalize, normalize_url,
-    report_reflow, sanitize, verify, RemovedCitation, RemovalReason, ValidCitation,
-    VerificationLevel, VerificationOutput,
+    report_reflow, sanitize, verify,
 };
+use muon::domain::error::MuonError;
 use muon::domain::models::report::{Citation, ReportSection, ResearchReport};
 use muon::domain::models::session::ReportStats;
 use muon::domain::models::source::{Source, VerificationStatus};
-use muon::domain::error::MuonError;
 
 fn make_report(citations: Vec<Citation>, body: &str) -> ResearchReport {
     ResearchReport {
@@ -332,7 +332,6 @@ fn test_unverifiable_citation_no_url() -> Result<(), MuonError> {
     );
     Ok(())
 }
-
 
 fn make_output(valid: Vec<ValidCitation>, removed: Vec<RemovedCitation>) -> VerificationOutput {
     VerificationOutput {

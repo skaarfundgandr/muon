@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::models::query::{Depth, Intent, QueryIntent};
 use crate::domain::error::MuonError;
+use crate::domain::models::query::{Depth, Intent, QueryIntent};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntentClassifierSpec {
@@ -50,7 +50,7 @@ pub fn parse_intent(text: &str) -> Result<QueryIntent, MuonError> {
         other => {
             return Err(MuonError::Pipeline(format!(
                 "unknown intent discriminant: {other}"
-            )))
+            )));
         }
     };
     let depth = match value.get("depth").and_then(|v| v.as_str()) {
@@ -59,7 +59,7 @@ pub fn parse_intent(text: &str) -> Result<QueryIntent, MuonError> {
         Some(other) => {
             return Err(MuonError::Pipeline(format!(
                 "unknown depth discriminant: {other}"
-            )))
+            )));
         }
     };
     Ok(QueryIntent { intent, depth })

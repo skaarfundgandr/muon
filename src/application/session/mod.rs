@@ -1,3 +1,3 @@
 mod service;
 
-pub use service::{format_relative_time, SessionService, SessionSummary};
+pub use service::{SessionService, SessionSummary, format_relative_time};

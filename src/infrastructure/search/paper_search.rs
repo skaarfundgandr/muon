@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
+use crate::domain::error::MuonError;
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::search_provider::SearchProvider;
-use crate::domain::error::MuonError;
 
 pub struct ArxivProvider {
     http: reqwest::Client,
@@ -72,8 +72,7 @@ impl SearchProvider for ArxivProvider {
                         if tag == "link" {
                             for attr in e.attributes().flatten() {
                                 if attr.key.as_ref() == b"href" {
-                                    link =
-                                        String::from_utf8_lossy(&attr.value).to_string();
+                                    link = String::from_utf8_lossy(&attr.value).to_string();
                                 }
                             }
                         }

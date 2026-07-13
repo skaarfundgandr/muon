@@ -1,3 +1,5 @@
+use muon::application::pipeline::PipelineStage;
+use muon::domain::agents::intent_classifier::parse_intent;
 use muon::domain::models::log_entry::AgentTag;
 use muon::domain::models::log_entry::LogEntry;
 use muon::domain::models::log_entry::LogLevel;
@@ -13,8 +15,6 @@ use muon::domain::models::session::SessionStatus;
 use muon::domain::models::source::Source;
 use muon::domain::models::source::SourceType;
 use muon::domain::models::source::VerificationStatus;
-use muon::application::pipeline::PipelineStage;
-use muon::domain::agents::intent_classifier::parse_intent;
 use uuid::Uuid;
 
 // ── intent_classifier ─────────────────────────────────────────────────

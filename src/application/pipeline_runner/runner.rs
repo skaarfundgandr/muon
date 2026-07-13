@@ -1,16 +1,16 @@
 use crate::application::bridge::BridgeChannels;
+use crate::application::deps::PipelineDeps;
 use crate::application::pipeline::{PipelineStage, PipelineState};
 use crate::application::pipeline_runner::citation_verifier;
 use crate::application::pipeline_runner::finalize::finalize_session;
 use crate::config::MuonConfig;
+use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::query::Intent;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::SessionId;
 use crate::domain::models::source::SourceType;
 use crate::domain::traits::agent::MuonAgent;
-use crate::application::deps::PipelineDeps;
-use crate::domain::error::MuonError;
 use crate::infrastructure::source_registry::SourceRegistry;
 
 use super::escalation;
@@ -193,7 +193,8 @@ async fn shallow_research(
     let elapsed = start.elapsed().as_secs();
     let plan = crate::domain::agents::clarifier::ClarifierResult::default();
     bridge.stage(PipelineStage::Report);
-    let final_report = crate::application::services::report_builder::build(verified, &plan, elapsed)?;
+    let final_report =
+        crate::application::services::report_builder::build(verified, &plan, elapsed)?;
     bridge.log(
         AgentTag::Verify,
         LogLevel::Info,

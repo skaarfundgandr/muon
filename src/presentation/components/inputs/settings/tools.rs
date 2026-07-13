@@ -1,19 +1,22 @@
 use crate::config::{MuonConfig, SearchProviderConfig, SearchProviderType};
-use crate::presentation::views::View;
-use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
+use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
-use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
+use crate::presentation::views::View;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Clear};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 pub fn fields(config: &MuonConfig) -> Vec<FieldDef> {
     let mut f = Vec::new();
     for _ in &config.search.providers {
         f.push(FieldDef::text("Name"));
-        f.push(FieldDef::dropdown("Type", &["tavily", "firecrawl", "brave", "serper"]));
+        f.push(FieldDef::dropdown(
+            "Type",
+            &["tavily", "firecrawl", "brave", "serper"],
+        ));
         f.push(FieldDef::text("API Key"));
         f.push(FieldDef::button("Configure"));
         f.push(FieldDef::button("Remove"));
@@ -57,13 +60,15 @@ pub fn set_field(config: &mut MuonConfig, index: usize, value: &str) {
         let p = &mut config.search.providers[provider_idx];
         match sub_idx {
             0 => p.name = value.to_string(),
-            1 => p.provider_type = match value {
-                "tavily" => SearchProviderType::Tavily,
-                "firecrawl" => SearchProviderType::Firecrawl,
-                "brave" => SearchProviderType::Brave,
-                "serper" => SearchProviderType::Serper,
-                _ => SearchProviderType::Tavily,
-            },
+            1 => {
+                p.provider_type = match value {
+                    "tavily" => SearchProviderType::Tavily,
+                    "firecrawl" => SearchProviderType::Firecrawl,
+                    "brave" => SearchProviderType::Brave,
+                    "serper" => SearchProviderType::Serper,
+                    _ => SearchProviderType::Tavily,
+                }
+            }
             2 => p.api_key = value.to_string(),
             _ => {}
         }
@@ -116,7 +121,9 @@ fn field_line<'a>(
 ) -> Line<'a> {
     let prefix = if focused { "> " } else { "  " };
     let label_style = if focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_dim())
     };
@@ -125,26 +132,56 @@ fn field_line<'a>(
     } else {
         Style::new().fg(theme::text_dim())
     };
-    
+
     if editing {
         let buf = buffer.unwrap_or("");
         let cur = cursor.min(buf.len());
         let pre = &buf[..cur];
         let post = &buf[cur..];
         Line::from(vec![
-            Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                prefix,
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(format!("{:<10}", label), label_style),
             Span::styled("[", border_style),
-            Span::styled(pre.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                pre.to_string(),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("\u{2588}", Style::new().fg(theme::border_focus())),
-            Span::styled(post.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                post.to_string(),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("]", border_style),
         ])
     } else {
-        let display_val = if value.is_empty() { "<click to edit>" } else { value };
-        let fg_color = if focused { theme::border_focus() } else if hovered { theme::text_main() } else { value_color };
+        let display_val = if value.is_empty() {
+            "<click to edit>"
+        } else {
+            value
+        };
+        let fg_color = if focused {
+            theme::border_focus()
+        } else if hovered {
+            theme::text_main()
+        } else {
+            value_color
+        };
         Line::from(vec![
-            Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                prefix,
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(format!("{:<10}", label), label_style),
             Span::styled("[", border_style),
             Span::styled(display_val, Style::new().fg(fg_color)),
@@ -174,9 +211,17 @@ fn render_search_row(
     let title = format!(
         "#{}  {}",
         idx + 1,
-        if p.name.is_empty() { "<unnamed>" } else { p.name.as_str() }
+        if p.name.is_empty() {
+            "<unnamed>"
+        } else {
+            p.name.as_str()
+        }
     );
-    let block = section_block(&title, focused_sub_idx.is_some(), hovered && focused_sub_idx.is_none());
+    let block = section_block(
+        &title,
+        focused_sub_idx.is_some(),
+        hovered && focused_sub_idx.is_none(),
+    );
     let inner = block.inner(area);
     f.render_widget(block, area);
 
@@ -233,7 +278,9 @@ fn render_search_row(
         Style::new().fg(theme::text_dim())
     };
     let label_style = if type_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::text_dim())
     };
@@ -244,10 +291,18 @@ fn render_search_row(
         SearchProviderType::Serper => "serper",
     };
     let type_line = Line::from(vec![
-        Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            prefix,
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(format!("{:<10}", "Type"), label_style),
         Span::styled("[", border_style),
-        Span::styled(type_str, Style::new().fg(val_color).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            type_str,
+            Style::new().fg(val_color).add_modifier(Modifier::BOLD),
+        ),
         Span::styled("▼", border_style),
         Span::styled("]", border_style),
     ]);
@@ -282,17 +337,23 @@ fn render_search_row(
     let config_focused = focused_sub_idx == Some(3);
     let config_hover = is_hovering(rows[3], mouse_col, mouse_row);
     let conf_style = if config_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if config_hover {
-        Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::accent())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::accent())
     };
-    
+
     let remove_focused = focused_sub_idx == Some(4);
     let remove_hover = is_hovering(rows[3], mouse_col, mouse_row); // wait, refine mouse hover checking for columns
     let rem_style = if remove_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if remove_hover {
         Style::new().fg(theme::error()).add_modifier(Modifier::BOLD)
     } else {
@@ -302,7 +363,10 @@ fn render_search_row(
     let actions_prefix = if config_focused { "> " } else { "  " };
     let actions_line = Line::from(vec![
         Span::styled(actions_prefix, Style::new().fg(theme::border_focus())),
-        Span::styled(format!("{:<10}  ", "Options"), Style::new().fg(theme::text_dim())),
+        Span::styled(
+            format!("{:<10}  ", "Options"),
+            Style::new().fg(theme::text_dim()),
+        ),
         Span::styled("[Configure]", conf_style),
         Span::styled("    ", Style::new().fg(theme::text_dim())),
         Span::styled("[Remove]", rem_style),
@@ -338,18 +402,21 @@ fn render_arxiv_row(
         action: ClickAction::ToggleArxiv,
     });
 
-    let arxiv_mark = if enabled {
-        "[\u{2713}]"
-    } else {
-        "[ ]"
-    };
+    let arxiv_mark = if enabled { "[\u{2713}]" } else { "[ ]" };
     let prefix = if focused { "> " } else { "  " };
     let line = Line::from(vec![
-        Span::styled(prefix, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            prefix,
+            Style::new()
+                .fg(theme::border_focus())
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::styled(
             "ArXiv  ",
             if focused {
-                Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::new().fg(theme::text_dim())
             },
@@ -389,7 +456,9 @@ fn render_add_button(
         .border_style(Style::new().fg(border_color))
         .title(Span::styled(
             " ADD ",
-            Style::new().fg(theme::success()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::success())
+                .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(area);
     f.render_widget(block, area);
@@ -399,8 +468,10 @@ fn render_add_button(
         Span::styled(prefix, Style::new().fg(theme::border_focus())),
         Span::styled(
             "[+ Add Search Provider]",
-            Style::new().fg(theme::success()).add_modifier(Modifier::BOLD),
-        )
+            Style::new()
+                .fg(theme::success())
+                .add_modifier(Modifier::BOLD),
+        ),
     ]);
     f.render_widget(Paragraph::new(line), inner);
 
@@ -429,12 +500,14 @@ pub fn render(
     let (max_visible_rows, show_top, show_bottom) = if n <= max_no_indicators {
         (n, false, false)
     } else {
-        let worst = ((list_area_height.saturating_sub(SCROLL_INDICATOR_HEIGHT * 2)) / SEARCH_ROW_HEIGHT) as usize;
+        let worst = ((list_area_height.saturating_sub(SCROLL_INDICATOR_HEIGHT * 2))
+            / SEARCH_ROW_HEIGHT) as usize;
         let worst = worst.max(1);
         if scroll_offset + worst < n {
             (worst, scroll_offset > 0, true)
         } else {
-            let refined = ((list_area_height.saturating_sub(SCROLL_INDICATOR_HEIGHT)) / SEARCH_ROW_HEIGHT) as usize;
+            let refined = ((list_area_height.saturating_sub(SCROLL_INDICATOR_HEIGHT))
+                / SEARCH_ROW_HEIGHT) as usize;
             (refined.max(1), true, false)
         }
     };
@@ -455,7 +528,12 @@ pub fn render(
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::new().fg(theme::border()))
-            .title(Span::styled(" SEARCH PROVIDERS ", Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD)));
+            .title(Span::styled(
+                " SEARCH PROVIDERS ",
+                Style::new()
+                    .fg(theme::purple())
+                    .add_modifier(Modifier::BOLD),
+            ));
         let inner = block.inner(outer[0]);
         f.render_widget(block, outer[0]);
         let line = Line::from(vec![Span::styled(
@@ -534,7 +612,9 @@ pub fn render(
             idx += 1;
         }
 
-        if let Some(rect) = dropdown_rect && form.dropdown_open {
+        if let Some(rect) = dropdown_rect
+            && form.dropdown_open
+        {
             let field_label = "Type";
             let options: Vec<String> = vec![
                 "tavily".to_string(),
@@ -560,7 +640,14 @@ pub fn render(
 
     let arxiv_focused = form.focus == 5 * n + 1;
     let arxiv_hovered = is_hovering(outer[1], mouse_col, mouse_row);
-    render_arxiv_row(f, outer[1], config.search.papers.arxiv_enabled, arxiv_focused, arxiv_hovered, hit_registry);
+    render_arxiv_row(
+        f,
+        outer[1],
+        config.search.papers.arxiv_enabled,
+        arxiv_focused,
+        arxiv_hovered,
+        hit_registry,
+    );
 
     let add_focused = form.focus == 5 * n;
     let add_hovered = is_hovering(outer[2], mouse_col, mouse_row);
@@ -599,7 +686,9 @@ pub fn render_configure_popup(
         .border_style(Style::new().fg(theme::border_focus()))
         .title(Span::styled(
             format!(" CONFIGURE SEARCH - {} ", p.name.to_uppercase()),
-            Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::purple())
+                .add_modifier(Modifier::BOLD),
         ));
     let inner = block.inner(popup_area);
     f.render_widget(block, popup_area);
@@ -636,18 +725,26 @@ pub fn render_configure_popup(
         p.name.clone()
     };
     let name_style = if name_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if name_hover {
         Style::new().fg(theme::border_hover())
     } else {
         Style::new().fg(theme::text_main())
     };
-    f.render_widget(Paragraph::new(Line::from(vec![
-        Span::styled(if name_focused { "> " } else { "  " }, Style::new().fg(theme::border_focus())),
-        Span::styled("Name: [", Style::new().fg(theme::text_dim())),
-        Span::styled(name_val, name_style),
-        Span::styled("]", Style::new().fg(theme::text_dim())),
-    ])), chunks[0]);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                if name_focused { "> " } else { "  " },
+                Style::new().fg(theme::border_focus()),
+            ),
+            Span::styled("Name: [", Style::new().fg(theme::text_dim())),
+            Span::styled(name_val, name_style),
+            Span::styled("]", Style::new().fg(theme::text_dim())),
+        ])),
+        chunks[0],
+    );
 
     // API Key (1)
     let key_focused = focus_idx == 1;
@@ -663,18 +760,26 @@ pub fn render_configure_popup(
         mask_key(&p.api_key)
     };
     let key_style = if key_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if key_hover {
         Style::new().fg(theme::border_hover())
     } else {
         Style::new().fg(theme::success())
     };
-    f.render_widget(Paragraph::new(Line::from(vec![
-        Span::styled(if key_focused { "> " } else { "  " }, Style::new().fg(theme::border_focus())),
-        Span::styled("API Key: [", Style::new().fg(theme::text_dim())),
-        Span::styled(key_val, key_style),
-        Span::styled("]", Style::new().fg(theme::text_dim())),
-    ])), chunks[1]);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                if key_focused { "> " } else { "  " },
+                Style::new().fg(theme::border_focus()),
+            ),
+            Span::styled("API Key: [", Style::new().fg(theme::text_dim())),
+            Span::styled(key_val, key_style),
+            Span::styled("]", Style::new().fg(theme::text_dim())),
+        ])),
+        chunks[1],
+    );
 
     // Max Results (2)
     let max_focused = focus_idx == 2;
@@ -688,21 +793,35 @@ pub fn render_configure_popup(
         p.max_results.map(|x| x.to_string()).unwrap_or_default()
     };
     let max_style = if max_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if max_hover {
         Style::new().fg(theme::border_hover())
     } else {
         Style::new().fg(theme::cyan())
     };
-    f.render_widget(Paragraph::new(Line::from(vec![
-        Span::styled(if max_focused { "> " } else { "  " }, Style::new().fg(theme::border_focus())),
-        Span::styled("Max Results: [", Style::new().fg(theme::text_dim())),
-        Span::styled(max_val, max_style),
-        Span::styled("]", Style::new().fg(theme::text_dim())),
-    ])), chunks[2]);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(
+                if max_focused { "> " } else { "  " },
+                Style::new().fg(theme::border_focus()),
+            ),
+            Span::styled("Max Results: [", Style::new().fg(theme::text_dim())),
+            Span::styled(max_val, max_style),
+            Span::styled("]", Style::new().fg(theme::text_dim())),
+        ])),
+        chunks[2],
+    );
 
     // Divider
-    f.render_widget(Paragraph::new(Span::styled("\u{2500}".repeat(inner.width as usize), Style::new().fg(theme::border()))), chunks[4]);
+    f.render_widget(
+        Paragraph::new(Span::styled(
+            "\u{2500}".repeat(inner.width as usize),
+            Style::new().fg(theme::border()),
+        )),
+        chunks[4],
+    );
 
     // Bottom buttons (Save & Close, Cancel)
     let bottom_cols = Layout::default()
@@ -719,17 +838,24 @@ pub fn render_configure_popup(
     let save_focused = focus_idx == 3;
     let save_hover = is_hovering(bottom_cols[1], mouse_col, mouse_row);
     let save_style = if save_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if save_hover {
-        Style::new().fg(theme::success()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::success())
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::success())
     };
     let save_prefix = if save_focused { "> " } else { "  " };
-    f.render_widget(Paragraph::new(Line::from(vec![
-        Span::styled(save_prefix, Style::new().fg(theme::border_focus())),
-        Span::styled("[Save & Close]", save_style)
-    ])), bottom_cols[1]);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(save_prefix, Style::new().fg(theme::border_focus())),
+            Span::styled("[Save & Close]", save_style),
+        ])),
+        bottom_cols[1],
+    );
     hit_registry.push(ClickTarget {
         rect: bottom_cols[1],
         action: ClickAction::SwitchView(View::Settings), // mapped to exit/save
@@ -738,17 +864,22 @@ pub fn render_configure_popup(
     let cancel_focused = focus_idx == 4;
     let cancel_hover = is_hovering(bottom_cols[3], mouse_col, mouse_row);
     let cancel_style = if cancel_focused {
-        Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)
+        Style::new()
+            .fg(theme::border_focus())
+            .add_modifier(Modifier::BOLD)
     } else if cancel_hover {
         Style::new().fg(theme::error()).add_modifier(Modifier::BOLD)
     } else {
         Style::new().fg(theme::error())
     };
     let cancel_prefix = if cancel_focused { "> " } else { "  " };
-    f.render_widget(Paragraph::new(Line::from(vec![
-        Span::styled(cancel_prefix, Style::new().fg(theme::border_focus())),
-        Span::styled("[Cancel]", cancel_style)
-    ])), bottom_cols[3]);
+    f.render_widget(
+        Paragraph::new(Line::from(vec![
+            Span::styled(cancel_prefix, Style::new().fg(theme::border_focus())),
+            Span::styled("[Cancel]", cancel_style),
+        ])),
+        bottom_cols[3],
+    );
     hit_registry.push(ClickTarget {
         rect: bottom_cols[3],
         action: ClickAction::SwitchView(View::Settings), // Cancel

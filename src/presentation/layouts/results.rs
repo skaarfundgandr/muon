@@ -4,7 +4,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::application::pipeline::PipelineState;
-use crate::presentation::click::{is_hovering, ClickAction, ClickTarget};
+use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::*;
 use crate::presentation::theme;

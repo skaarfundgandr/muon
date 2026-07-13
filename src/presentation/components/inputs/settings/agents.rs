@@ -1,8 +1,8 @@
 use crate::config::{AgentsConfig, DeepResearcherConfig, MuonConfig};
 use crate::presentation::click::{ClickAction, ClickTarget};
+use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};
 use crate::presentation::theme;
-use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
@@ -65,7 +65,10 @@ pub fn get_field(config: &AgentsConfig, index: usize) -> String {
         19 => config.deep_researcher.iterations.to_string(),
         20 => config.deep_researcher.max_retries.to_string(),
         21 => config.deep_researcher.planner_max_cycles.to_string(),
-        22 => config.deep_researcher.orchestrator_max_tool_calls.to_string(),
+        22 => config
+            .deep_researcher
+            .orchestrator_max_tool_calls
+            .to_string(),
         23 => config.deep_researcher.planner_max_tool_calls.to_string(),
         24 => config.deep_researcher.researcher_max_tool_calls.to_string(),
         25 => config.deep_researcher.citation_verify.to_string(),
@@ -104,15 +107,13 @@ pub fn set_field(config: &mut AgentsConfig, index: usize, value: &str) {
             config.deep_researcher.planner_max_cycles = value.parse().unwrap_or(3).max(1);
         }
         22 => {
-            config.deep_researcher.orchestrator_max_tool_calls =
-                value.parse().unwrap_or(8).max(1);
+            config.deep_researcher.orchestrator_max_tool_calls = value.parse().unwrap_or(8).max(1);
         }
         23 => {
             config.deep_researcher.planner_max_tool_calls = value.parse().unwrap_or(4).max(1);
         }
         24 => {
-            config.deep_researcher.researcher_max_tool_calls =
-                value.parse().unwrap_or(10).max(1);
+            config.deep_researcher.researcher_max_tool_calls = value.parse().unwrap_or(10).max(1);
         }
         25 => config.deep_researcher.citation_verify = value == "true",
         _ => {}
@@ -181,7 +182,16 @@ fn section_has_focus(form: &FormState, start: usize, end: usize) -> bool {
 }
 
 #[allow(clippy::vec_init_then_push, clippy::too_many_arguments)]
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig, form: &FormState, hit_registry: &mut Vec<ClickTarget>, _mouse_col: u16, _mouse_row: u16, pending_dropdown: &mut Option<PendingDropdown>) {
+pub fn render(
+    f: &mut ratatui::Frame,
+    area: Rect,
+    config: &MuonConfig,
+    form: &FormState,
+    hit_registry: &mut Vec<ClickTarget>,
+    _mouse_col: u16,
+    _mouse_row: u16,
+    pending_dropdown: &mut Option<PendingDropdown>,
+) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0)])
@@ -219,10 +229,42 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig, form: &Fo
         action: ClickAction::FocusField(13),
     });
 
-    render_intent_classifier(f, left_chunks[0], &config.agents.intent_classifier, form, hit_registry, config, pending_dropdown);
-    render_clarifier(f, left_chunks[1], &config.agents.clarifier, form, hit_registry, config, pending_dropdown);
-    render_shallow_researcher(f, right_chunks[0], &config.agents.shallow_researcher, form, hit_registry, config, pending_dropdown);
-    render_deep_researcher(f, right_chunks[1], &config.agents.deep_researcher, form, hit_registry, config, pending_dropdown);
+    render_intent_classifier(
+        f,
+        left_chunks[0],
+        &config.agents.intent_classifier,
+        form,
+        hit_registry,
+        config,
+        pending_dropdown,
+    );
+    render_clarifier(
+        f,
+        left_chunks[1],
+        &config.agents.clarifier,
+        form,
+        hit_registry,
+        config,
+        pending_dropdown,
+    );
+    render_shallow_researcher(
+        f,
+        right_chunks[0],
+        &config.agents.shallow_researcher,
+        form,
+        hit_registry,
+        config,
+        pending_dropdown,
+    );
+    render_deep_researcher(
+        f,
+        right_chunks[1],
+        &config.agents.deep_researcher,
+        form,
+        hit_registry,
+        config,
+        pending_dropdown,
+    );
 }
 
 fn agent_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
@@ -238,27 +280,53 @@ fn agent_block<'a>(title: &'a str, focused: bool, hovered: bool) -> Block<'a> {
         .border_style(Style::new().fg(border_color))
         .title(Span::styled(
             format!(" {} ", title),
-            Style::new().fg(theme::purple()).add_modifier(Modifier::BOLD),
+            Style::new()
+                .fg(theme::purple())
+                .add_modifier(Modifier::BOLD),
         ))
 }
 
 fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: bool) -> Line<'a> {
     if focused {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<14}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "> ",
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{:<14}", label),
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("[", Style::new().fg(theme::border_focus())),
-            Span::styled(value, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                value,
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("\u{25BC}", Style::new().fg(theme::border_focus())),
             Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
     } else if hovered {
         Line::from(vec![
-            Span::styled(format!("{:<14}", label), Style::new().fg(crate::presentation::theme::border_hover())),
-            Span::styled("[", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(
+                format!("{:<14}", label),
+                Style::new().fg(crate::presentation::theme::border_hover()),
+            ),
+            Span::styled(
+                "[",
+                Style::new().fg(crate::presentation::theme::border_hover()),
+            ),
             Span::styled(value, Style::new().fg(theme::accent())),
             Span::styled("\u{25BC}", Style::new().fg(theme::accent())),
-            Span::styled("]", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(
+                "]",
+                Style::new().fg(crate::presentation::theme::border_hover()),
+            ),
         ])
     } else {
         Line::from(vec![
@@ -271,35 +339,87 @@ fn dropdown_line<'a>(label: &'a str, value: &'a str, focused: bool, hovered: boo
     }
 }
 
-fn input_line<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, cursor: usize, buffer: Option<&'a str>, hovered: bool) -> Line<'a> {
+fn input_line<'a>(
+    label: &'a str,
+    value: &'a str,
+    focused: bool,
+    editing: bool,
+    cursor: usize,
+    buffer: Option<&'a str>,
+    hovered: bool,
+) -> Line<'a> {
     if editing {
         let buf = buffer.unwrap_or("");
         let cur = cursor.min(buf.len());
         let pre = &buf[..cur];
         let post = &buf[cur..];
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<14}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "> ",
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{:<14}", label),
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("[", Style::new().fg(theme::border_focus())),
-            Span::styled(pre.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                pre.to_string(),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("\u{2588}", Style::new().fg(theme::border_focus())),
-            Span::styled(post.to_string(), Style::new().fg(theme::accent()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                post.to_string(),
+                Style::new()
+                    .fg(theme::accent())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
     } else if focused {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{:<14}", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "> ",
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{:<14}", label),
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("[", Style::new().fg(theme::border_focus())),
-            Span::styled(value, Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                value,
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled("]", Style::new().fg(theme::border_focus())),
         ])
     } else if hovered {
         Line::from(vec![
-            Span::styled(format!("{:<14}", label), Style::new().fg(crate::presentation::theme::border_hover())),
-            Span::styled("[", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(
+                format!("{:<14}", label),
+                Style::new().fg(crate::presentation::theme::border_hover()),
+            ),
+            Span::styled(
+                "[",
+                Style::new().fg(crate::presentation::theme::border_hover()),
+            ),
             Span::styled(value, Style::new().fg(theme::success())),
-            Span::styled("]", Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(
+                "]",
+                Style::new().fg(crate::presentation::theme::border_hover()),
+            ),
         ])
     } else {
         Line::from(vec![
@@ -313,16 +433,33 @@ fn input_line<'a>(label: &'a str, value: &'a str, focused: bool, editing: bool, 
 
 fn checkbox_line(label: &str, checked: bool, focused: bool, hovered: bool) -> Line<'_> {
     let mark = if checked { "[\u{2713}]" } else { "[ ]" };
-    let mark_color = if checked { theme::success() } else { theme::text_dim() };
+    let mark_color = if checked {
+        theme::success()
+    } else {
+        theme::text_dim()
+    };
     if focused {
         Line::from(vec![
-            Span::styled("> ", Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
-            Span::styled(format!("{} ", label), Style::new().fg(theme::border_focus()).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                "> ",
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                format!("{} ", label),
+                Style::new()
+                    .fg(theme::border_focus())
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(mark, Style::new().fg(theme::border_focus())),
         ])
     } else if hovered {
         Line::from(vec![
-            Span::styled(format!("{} ", label), Style::new().fg(crate::presentation::theme::border_hover())),
+            Span::styled(
+                format!("{} ", label),
+                Style::new().fg(crate::presentation::theme::border_hover()),
+            ),
             Span::styled(mark, Style::new().fg(mark_color)),
         ])
     } else {
@@ -346,7 +483,10 @@ fn render_intent_classifier(
     let timeout_str = cfg.timeout_sec.to_string();
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let inner = agent_block("INTENT CLASSIFIER", focused, hovered && !focused).inner(area);
-    f.render_widget(agent_block("INTENT CLASSIFIER", focused, hovered && !focused), area);
+    f.render_widget(
+        agent_block("INTENT CLASSIFIER", focused, hovered && !focused),
+        area,
+    );
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -366,10 +506,37 @@ fn render_intent_classifier(
     }
 
     let lines: Vec<Line> = vec![
-        dropdown_line("Model", &cfg.model, is_focused(form, 0), crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row) && !is_focused(form, 0)),
-        dropdown_line("Provider", &cfg.provider, is_focused(form, 1), crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row) && !is_focused(form, 1)),
-        input_line("Timeout (sec)", &timeout_str, is_focused(form, 2), is_focused(form, 2) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row) && !is_focused(form, 2)),
-        checkbox_line("Verbose Output ", cfg.verbose, is_focused(form, 3), crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row) && !is_focused(form, 3)),
+        dropdown_line(
+            "Model",
+            &cfg.model,
+            is_focused(form, 0),
+            crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 0),
+        ),
+        dropdown_line(
+            "Provider",
+            &cfg.provider,
+            is_focused(form, 1),
+            crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 1),
+        ),
+        input_line(
+            "Timeout (sec)",
+            &timeout_str,
+            is_focused(form, 2),
+            is_focused(form, 2) && form.is_editing(),
+            form.edit_cursor,
+            form.edit_buffer.as_deref(),
+            crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 2),
+        ),
+        checkbox_line(
+            "Verbose Output ",
+            cfg.verbose,
+            is_focused(form, 3),
+            crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 3),
+        ),
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
@@ -399,7 +566,10 @@ fn render_clarifier(
     let max_iters_str = cfg.max_iterations.to_string();
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let inner = agent_block("CLARIFIER (HITL)", focused, hovered && !focused).inner(area);
-    f.render_widget(agent_block("CLARIFIER (HITL)", focused, hovered && !focused), area);
+    f.render_widget(
+        agent_block("CLARIFIER (HITL)", focused, hovered && !focused),
+        area,
+    );
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -420,11 +590,47 @@ fn render_clarifier(
     }
 
     let lines: Vec<Line> = vec![
-        dropdown_line("Model", &cfg.model, is_focused(form, 4), crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row) && !is_focused(form, 4)),
-        dropdown_line("Provider", &cfg.provider, is_focused(form, 5), crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row) && !is_focused(form, 5)),
-        input_line("Max turns", &max_turns_str, is_focused(form, 6), is_focused(form, 6) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row) && !is_focused(form, 6)),
-        checkbox_line("Plan approval  ", cfg.plan_approval, is_focused(form, 7), crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row) && !is_focused(form, 7)),
-        input_line("Max iterations", &max_iters_str, is_focused(form, 8), is_focused(form, 8) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[4], form.mouse_col, form.mouse_row) && !is_focused(form, 8)),
+        dropdown_line(
+            "Model",
+            &cfg.model,
+            is_focused(form, 4),
+            crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 4),
+        ),
+        dropdown_line(
+            "Provider",
+            &cfg.provider,
+            is_focused(form, 5),
+            crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 5),
+        ),
+        input_line(
+            "Max turns",
+            &max_turns_str,
+            is_focused(form, 6),
+            is_focused(form, 6) && form.is_editing(),
+            form.edit_cursor,
+            form.edit_buffer.as_deref(),
+            crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 6),
+        ),
+        checkbox_line(
+            "Plan approval  ",
+            cfg.plan_approval,
+            is_focused(form, 7),
+            crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 7),
+        ),
+        input_line(
+            "Max iterations",
+            &max_iters_str,
+            is_focused(form, 8),
+            is_focused(form, 8) && form.is_editing(),
+            form.edit_cursor,
+            form.edit_buffer.as_deref(),
+            crate::presentation::click::is_hovering(rows[4], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 8),
+        ),
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
@@ -454,7 +660,10 @@ fn render_shallow_researcher(
     let tool_iters_str = cfg.max_tool_iters.to_string();
     let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row);
     let inner = agent_block("SHALLOW RESEARCHER", focused, hovered && !focused).inner(area);
-    f.render_widget(agent_block("SHALLOW RESEARCHER", focused, hovered && !focused), area);
+    f.render_widget(
+        agent_block("SHALLOW RESEARCHER", focused, hovered && !focused),
+        area,
+    );
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
@@ -474,10 +683,40 @@ fn render_shallow_researcher(
     }
 
     let lines: Vec<Line> = vec![
-        dropdown_line("Model", &cfg.model, is_focused(form, 9), crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row) && !is_focused(form, 9)),
-        dropdown_line("Provider", &cfg.provider, is_focused(form, 10), crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row) && !is_focused(form, 10)),
-        input_line("Max LLM turns", &llm_turns_str, is_focused(form, 11), is_focused(form, 11) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row) && !is_focused(form, 11)),
-        input_line("Max tool iters", &tool_iters_str, is_focused(form, 12), is_focused(form, 12) && form.is_editing(), form.edit_cursor, form.edit_buffer.as_deref(), crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row) && !is_focused(form, 12)),
+        dropdown_line(
+            "Model",
+            &cfg.model,
+            is_focused(form, 9),
+            crate::presentation::click::is_hovering(rows[0], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 9),
+        ),
+        dropdown_line(
+            "Provider",
+            &cfg.provider,
+            is_focused(form, 10),
+            crate::presentation::click::is_hovering(rows[1], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 10),
+        ),
+        input_line(
+            "Max LLM turns",
+            &llm_turns_str,
+            is_focused(form, 11),
+            is_focused(form, 11) && form.is_editing(),
+            form.edit_cursor,
+            form.edit_buffer.as_deref(),
+            crate::presentation::click::is_hovering(rows[2], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 11),
+        ),
+        input_line(
+            "Max tool iters",
+            &tool_iters_str,
+            is_focused(form, 12),
+            is_focused(form, 12) && form.is_editing(),
+            form.edit_cursor,
+            form.edit_buffer.as_deref(),
+            crate::presentation::click::is_hovering(rows[3], form.mouse_col, form.mouse_row)
+                && !is_focused(form, 12),
+        ),
     ];
 
     f.render_widget(Paragraph::new(lines), inner);
@@ -561,8 +800,8 @@ fn deep_num_cell(
 ) -> Line<'static> {
     let focused = is_focused(form, field);
     let editing = focused && form.is_editing();
-    let hovered = crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row)
-        && !focused;
+    let hovered =
+        crate::presentation::click::is_hovering(area, form.mouse_col, form.mouse_row) && !focused;
     let display = if editing {
         form.edit_buffer.as_deref().unwrap_or(value)
     } else {
@@ -770,13 +1009,7 @@ fn render_deep_researcher(
     });
     let retries = cfg.max_retries.to_string();
     f.render_widget(
-        Paragraph::new(deep_num_cell(
-            "Max retries",
-            &retries,
-            20,
-            form,
-            footer[0],
-        )),
+        Paragraph::new(deep_num_cell("Max retries", &retries, 20, form, footer[0])),
         footer[0],
     );
     f.render_widget(

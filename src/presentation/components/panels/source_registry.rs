@@ -34,7 +34,11 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig) {
 
     for (i, (name, on)) in sources.iter().enumerate() {
         let dot = if *on { "●" } else { "○" };
-        let color = if *on { theme::success() } else { theme::text_dim() };
+        let color = if *on {
+            theme::success()
+        } else {
+            theme::text_dim()
+        };
         let line = Line::from(vec![
             Span::styled(*name, Style::default().fg(theme::text_main())),
             Span::raw(" "),

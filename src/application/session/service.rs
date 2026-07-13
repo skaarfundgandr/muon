@@ -80,9 +80,7 @@ impl SessionService {
         let removed = self.sessions.remove(index);
         let was_active = removed.is_active;
         let id = removed.id;
-        if was_active
-            && let Some(first) = self.sessions.first_mut()
-        {
+        if was_active && let Some(first) = self.sessions.first_mut() {
             first.is_active = true;
         }
         Some(id)

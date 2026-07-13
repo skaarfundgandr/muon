@@ -43,7 +43,9 @@ pub fn render(f: &mut ratatui::Frame, area: Rect) {
         Span::styled("Cost: ", Style::default().fg(theme::text_dim())),
         Span::styled(
             "—",
-            Style::default().fg(theme::text_dim()).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(theme::text_dim())
+                .add_modifier(Modifier::BOLD),
         ),
         Span::styled("  |  ", Style::default().fg(theme::text_dim())),
         Span::styled("Mem: ", Style::default().fg(theme::text_dim())),

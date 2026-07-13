@@ -1,9 +1,9 @@
 use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
+use crate::domain::error::MuonError;
 use crate::domain::models::session::{Session, SessionId, SessionStatus};
 use crate::domain::traits::session_store::SessionSummary;
-use crate::domain::error::MuonError;
 use crate::infrastructure::storage::schema::sessions;
 
 #[derive(Debug, Clone, Queryable, Selectable)]
@@ -142,5 +142,3 @@ impl SessionStatus {
         }
     }
 }
-
-

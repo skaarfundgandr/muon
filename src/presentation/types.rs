@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use crossterm::event::MouseEvent;
 use crate::application::bridge::{AgentEvent, PlanDecision};
 use crate::config::MuonConfig;
 use crate::infrastructure::context::InfrastructureContext;
+use crossterm::event::MouseEvent;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanApprovalFocus {
@@ -36,7 +36,6 @@ pub enum ActivePopup {
     },
 }
 
-
 #[derive(Debug)]
 pub struct ClarifierPending {
     pub question: String,
@@ -68,4 +67,3 @@ pub enum Event {
         restored: Option<crate::application::session::SessionSummary>,
     },
 }
-
