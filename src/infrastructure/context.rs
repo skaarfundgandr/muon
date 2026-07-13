@@ -177,38 +177,54 @@ impl InfrastructureContext {
         let repo_agents_dir: std::path::PathBuf =
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents");
 
-        let load_preamble = |name: &str, fallback: &str| -> String {
-            for dir in [user_agents_dir.as_path(), repo_agents_dir.as_path()] {
-                match crate::infrastructure::config::load_by_name(dir, name) {
-                    Ok(Some(def)) if !def.preamble_markdown.is_empty() => {
-                        return def.preamble_markdown;
+        let load_agent_def =
+            |name: &str, fallback_preamble: &str, fallback_timeout: u64| -> crate::application::config::AgentDef {
+                for dir in [user_agents_dir.as_path(), repo_agents_dir.as_path()] {
+                    match crate::infrastructure::config::load_by_name(dir, name) {
+                        Ok(Some(def)) if !def.preamble_markdown.is_empty() => return def,
+                        Ok(Some(_)) => {}
+                        Ok(None) => {}
+                        Err(e) => {
+                            bridge.log(
+                                AgentTag::Sys,
+                                crate::domain::models::log_entry::LogLevel::Warn,
+                                format!("agent def '{name}' in {dir:?} parse failed: {e}"),
+                            );
+                        }
                     }
-                    Ok(Some(_)) => {}
-                    Err(e) => {
-                        bridge.log(
-                            crate::domain::models::log_entry::AgentTag::Sys,
-                            crate::domain::models::log_entry::LogLevel::Warn,
-                            format!("agent def '{name}' in {dir:?} parse failed: {e}"),
-                        );
-                    }
-                    Ok(None) => {}
                 }
-            }
-            fallback.to_string()
-        };
+                crate::application::config::AgentDef {
+                    name: name.to_string(),
+                    model: String::new(),
+                    provider: String::new(),
+                    temperature: 0.0,
+                    max_tokens: 2048,
+                    timeout_secs: fallback_timeout,
+                    preamble_markdown: fallback_preamble.to_string(),
+                }
+            };
 
-        let orchestrator_preamble = load_preamble("deep-orchestrator", preamble);
-        let planner_preamble = load_preamble("planner", preamble);
-        let researcher_preamble = load_preamble("researcher", preamble);
-        let clarifier_preamble = load_preamble(
+        let orchestrator_def = load_agent_def("deep-orchestrator", preamble, 600);
+        let planner_def = load_agent_def("planner", preamble, 180);
+        let researcher_def = load_agent_def("researcher", preamble, 90);
+        let clarifier_def = load_agent_def(
             "clarifier",
             "You are a clarifying and planning agent. Ask clarifying questions to resolve ambiguities in the user's query, and construct a detailed research plan. You must respond with strict JSON only.",
+            60,
         );
-        let intent_preamble = load_preamble(
+        let intent_def = load_agent_def(
             "intent-classifier",
             "You are an intent classifier. Classify the user's query and respond with STRICT JSON only — no other text, no markdown, no explanation:\n{\"intent\": \"research\"|\"meta\", \"depth\": \"shallow\"|\"deep\"}\nIf intent is \"meta\", also include a \"response\" field with a direct answer.",
+            0,
         );
-        let shallow_preamble = load_preamble("shallow-researcher", preamble);
+        let shallow_def = load_agent_def("shallow-researcher", preamble, 60);
+
+        let orchestrator_preamble = &orchestrator_def.preamble_markdown;
+        let planner_preamble = &planner_def.preamble_markdown;
+        let researcher_preamble = &researcher_def.preamble_markdown;
+        let clarifier_preamble = &clarifier_def.preamble_markdown;
+        let intent_preamble = &intent_def.preamble_markdown;
+        let shallow_preamble = &shallow_def.preamble_markdown;
 
         // Intent Classifier — no tools.
         let intent_classifier: Arc<dyn MuonAgent> =
@@ -228,7 +244,9 @@ impl InfrastructureContext {
                                 &cfg.agents.intent_classifier.provider,
                                 &cfg.agents.intent_classifier.model,
                             ))
-                            .preamble(&intent_preamble)
+                            .preamble(intent_preamble)
+                            .temperature(intent_def.temperature)
+                            .max_tokens(u64::from(intent_def.max_tokens))
                             .hook(agent_rs::observability::LangSmithAgentHook)
                             .build();
                         factory.build_runner(
@@ -263,7 +281,9 @@ impl InfrastructureContext {
                                 &cfg.agents.shallow_researcher.provider,
                                 &cfg.agents.shallow_researcher.model,
                             ))
-                            .preamble(&shallow_preamble)
+                            .preamble(shallow_preamble)
+                            .temperature(shallow_def.temperature)
+                            .max_tokens(u64::from(shallow_def.max_tokens))
                             .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
                                 fetch_http.clone(),
                                 8000,
@@ -289,7 +309,7 @@ impl InfrastructureContext {
                             agent,
                             AgentTag::Search,
                             max_cycles,
-                            60,
+                            shallow_def.timeout_secs,
                             source_sink.clone(),
                             Some(crate::infrastructure::agent_rs::react_agents::REMINDER_FINALIZE),
                             false,
@@ -318,7 +338,9 @@ impl InfrastructureContext {
                                 &cfg.agents.clarifier.provider,
                                 &cfg.agents.clarifier.model,
                             ))
-                            .preamble(&clarifier_preamble)
+                            .preamble(clarifier_preamble)
+                            .temperature(clarifier_def.temperature)
+                            .max_tokens(u64::from(clarifier_def.max_tokens))
                             .tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
                                 wp.clone(),
                             ))
@@ -331,7 +353,9 @@ impl InfrastructureContext {
                                 &cfg.agents.clarifier.provider,
                                 &cfg.agents.clarifier.model,
                             ))
-                            .preamble(&clarifier_preamble)
+                            .preamble(clarifier_preamble)
+                            .temperature(clarifier_def.temperature)
+                            .max_tokens(u64::from(clarifier_def.max_tokens))
                             .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
                             .hook(agent_rs::observability::LangSmithAgentHook)
                             .build()
@@ -340,7 +364,7 @@ impl InfrastructureContext {
                             agent,
                             AgentTag::Clarify,
                             cfg.agents.clarifier.max_iterations as usize,
-                            60,
+                            clarifier_def.timeout_secs,
                             compaction_threshold,
                             source_sink.clone(),
                         )
@@ -367,7 +391,9 @@ impl InfrastructureContext {
                                 &cfg.agents.deep_researcher.planner.provider,
                                 &cfg.agents.deep_researcher.planner.model,
                             ))
-                            .preamble(&planner_preamble)
+                            .preamble(planner_preamble)
+                            .temperature(planner_def.temperature)
+                            .max_tokens(u64::from(planner_def.max_tokens))
                             .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
                         let b = if let Some(ref wp) = web_provider {
                             b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
@@ -395,7 +421,7 @@ impl InfrastructureContext {
                             agent,
                             AgentTag::Plan,
                             cfg.agents.deep_researcher.planner_max_cycles.max(1) as usize,
-                            180,
+                            planner_def.timeout_secs,
                             source_sink.clone(),
                         )
                     }
@@ -425,7 +451,9 @@ impl InfrastructureContext {
                         &cfg.agents.deep_researcher.researcher.provider,
                         &cfg.agents.deep_researcher.researcher.model,
                     ))
-                    .preamble(&researcher_preamble)
+                    .preamble(researcher_preamble)
+                    .temperature(researcher_def.temperature)
+                    .max_tokens(u64::from(researcher_def.max_tokens))
                     .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
                         fetch_http.clone(),
                         8000,
@@ -476,7 +504,9 @@ impl InfrastructureContext {
                                 &cfg.agents.deep_researcher.orchestrator.provider,
                                 &cfg.agents.deep_researcher.orchestrator.model,
                             ))
-                            .preamble(&orchestrator_preamble)
+                            .preamble(orchestrator_preamble)
+                            .temperature(orchestrator_def.temperature)
+                            .max_tokens(u64::from(orchestrator_def.max_tokens))
                             .tool(crate::infrastructure::agent_rs::tools::ThinkTool)
                             .tool(crate::infrastructure::agent_rs::SubagentTool::<
                                 crate::infrastructure::agent_rs::PlannerKind,
@@ -517,7 +547,7 @@ impl InfrastructureContext {
                             agent,
                             AgentTag::Orchestrate,
                             cfg.agents.deep_researcher.iterations.max(1) as usize,
-                            600,
+                            orchestrator_def.timeout_secs,
                             source_sink.clone(),
                             Some(
                                 crate::infrastructure::agent_rs::react_agents::REMINDER_ORCHESTRATOR,
