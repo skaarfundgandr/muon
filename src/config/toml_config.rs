@@ -654,3 +654,75 @@ fn default_true() -> bool {
 fn default_batch_delay() -> u64 {
     1000
 }
+
+const SCAFFOLD_AGENT_FILES: &[(&str, &str)] = &[
+    (
+        "intent-classifier.md",
+        include_str!("../../examples/agents/intent-classifier.md"),
+    ),
+    (
+        "clarifier.md",
+        include_str!("../../examples/agents/clarifier.md"),
+    ),
+    (
+        "shallow-researcher.md",
+        include_str!("../../examples/agents/shallow-researcher.md"),
+    ),
+    (
+        "deep-orchestrator.md",
+        include_str!("../../examples/agents/deep-orchestrator.md"),
+    ),
+    (
+        "planner.md",
+        include_str!("../../examples/agents/planner.md"),
+    ),
+    (
+        "researcher.md",
+        include_str!("../../examples/agents/researcher.md"),
+    ),
+];
+
+impl MuonConfig {
+    /// On first run, write a discoverable config tree under `~/.config/muon/`
+    /// (config.toml + agent preambles) when missing. Idempotent — never
+    /// overwrites user files. Fail-soft: logging-only on I/O errors.
+    pub fn ensure_scaffolded() {
+        let Some(dir) = config_dir() else { return };
+        Self::ensure_scaffolded_in(&dir);
+    }
+
+    /// Scaffold into a fully-resolved config directory (call site provides the
+    /// `~/.config/muon` path). See [`MuonConfig::ensure_scaffolded`].
+    pub fn ensure_scaffolded_in(config_dir: &std::path::Path) {
+        let cfg_path = config_dir.join("config.toml");
+        if !cfg_path.exists() {
+            if let Err(e) = std::fs::create_dir_all(config_dir) {
+                tracing::warn!(target: "muon::config", "scaffold: mkdir failed: {e}");
+                return;
+            }
+            let content = include_str!("../../examples/muon.toml");
+            if let Err(e) = std::fs::write(&cfg_path, content) {
+                tracing::warn!(target: "muon::config", "scaffold: config.toml write failed: {e}");
+                return;
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(&cfg_path, std::fs::Permissions::from_mode(0o600));
+            }
+        }
+        let agents_dir = config_dir.join("agents");
+        if std::fs::create_dir_all(&agents_dir).is_err() {
+            return;
+        }
+        for (name, content) in SCAFFOLD_AGENT_FILES {
+            let path = agents_dir.join(name);
+            if path.exists() {
+                continue;
+            }
+            if let Err(e) = std::fs::write(&path, content) {
+                tracing::warn!(target: "muon::config", "scaffold: agent '{name}' write failed: {e}");
+            }
+        }
+    }
+}

@@ -4,6 +4,8 @@
 
 μon is a terminal-based deep research agent. It takes a user query, classifies intent, optionally clarifies scope interactively, then runs either shallow (single-pass) or deep (multi-loop orchestrator/planner/researcher) research. The output is a citation-backed structured report.
 
+On first launch, μon creates `~/.config/muon/config.toml` (copy of `examples/muon.toml`) and `~/.config/muon/agents/` containing the six agent preamble `.md` files. Existing files are never overwritten — edit them in place or use the Settings view. There is no separate `muon init` subcommand.
+
 The backend follows a **CLEAN layered architecture**:
 
 ```

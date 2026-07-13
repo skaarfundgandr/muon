@@ -1,6 +1,9 @@
 # μon configuration example
 # Copy to ~/.config/muon/config.toml
 #
+# First launch auto-writes this file (and agent preambles) to
+# ~/.config/muon/ — edit that copy or use Settings rather than copying by hand.
+#
 # Dynamic Provider Model: configure LLM providers in [[providers]] and search
 # providers in [[search.providers]]. Agent `provider` strings look up the
 # `name` field in the [[providers]] list. API key values support ${ENV_VAR}
