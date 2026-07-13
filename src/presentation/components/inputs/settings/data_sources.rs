@@ -164,7 +164,7 @@ fn render_source_providers(
         ),
         (
             "Paper Search",
-            "Search Semantic Scholar & ArXiv archives",
+            "Search arXiv paper archives",
             config.paper_search,
         ),
         (

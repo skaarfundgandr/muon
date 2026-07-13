@@ -58,7 +58,7 @@ impl Tool for PaperSearchTool {
     + rig_core::wasm_compat::WasmCompatSync {
         std::future::ready(ToolDefinition {
             name: NAME.to_string(),
-            description: "Search academic papers on arXiv and Semantic Scholar. Returns URLs, titles, and snippets.".to_string(),
+            description: "Search academic papers on arXiv. Returns URLs, titles, and snippets.".to_string(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {
