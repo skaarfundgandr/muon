@@ -71,5 +71,6 @@ pub fn map_langsmith_config(
     }
     agent_cfg.console = cfg.console;
     agent_cfg.batch = cfg.batch;
+    agent_cfg.batch_delay_ms = cfg.batch_delay_ms;
     agent_cfg
 }

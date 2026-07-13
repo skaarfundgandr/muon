@@ -118,8 +118,10 @@ fn scaffold_skips_existing_agent_files() {
 fn map_langsmith_prefers_toml_service_name() {
     let mut cfg = muon::application::config::LangSmithConfig::default();
     cfg.service_name = "from-toml".into();
+    cfg.batch_delay_ms = 250;
     let mapped = map_langsmith_config("muon", &cfg, "key".into());
     assert_eq!(mapped.service_name, "from-toml");
+    assert_eq!(mapped.batch_delay_ms, 250);
     assert_eq!(mapped.api_key, "key");
 }
 
