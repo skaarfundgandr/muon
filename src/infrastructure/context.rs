@@ -149,12 +149,7 @@ impl InfrastructureContext {
                 )
             }
         };
-        let intent_client = resolve_client(&cfg.agents.intent_classifier.provider)?;
-        let shallow_client = resolve_client(&cfg.agents.shallow_researcher.provider)?;
-        let clarifier_client = resolve_client(&cfg.agents.clarifier.provider)?;
-        let deep_client = resolve_client(&cfg.agents.deep_researcher.orchestrator.provider)?;
-        let planner_client = resolve_client(&cfg.agents.deep_researcher.planner.provider)?;
-        let researcher_client = resolve_client(&cfg.agents.deep_researcher.researcher.provider)?;
+
 
         macro_rules! build_agent {
             ($client:expr, $model:expr, |$c:ident| $body:expr) => {
@@ -178,46 +173,50 @@ impl InfrastructureContext {
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents");
 
         let load_agent_def =
-            |name: &str, fallback_preamble: &str, fallback_timeout: u64| -> crate::application::config::AgentDef {
+            |name: &str, fallback_preamble: &str| -> Result<crate::application::config::AgentDef, MuonError> {
                 for dir in [user_agents_dir.as_path(), repo_agents_dir.as_path()] {
                     match crate::infrastructure::config::load_by_name(dir, name) {
-                        Ok(Some(def)) if !def.preamble_markdown.is_empty() => return def,
-                        Ok(Some(_)) => {}
-                        Ok(None) => {}
+                        Ok(Some(mut def)) => {
+                            if def.preamble_markdown.is_empty() {
+                                def.preamble_markdown = fallback_preamble.to_string();
+                            }
+                            return Ok(def);
+                        }
+                        Ok(None) => {} // try next dir
                         Err(e) => {
                             bridge.log(
                                 AgentTag::Sys,
                                 crate::domain::models::log_entry::LogLevel::Warn,
                                 format!("agent def '{name}' in {dir:?} parse failed: {e}"),
                             );
+                            // keep trying next dir; if both fail to load, hard error below.
                         }
                     }
                 }
-                crate::application::config::AgentDef {
-                    name: name.to_string(),
-                    model: String::new(),
-                    provider: String::new(),
-                    temperature: 0.0,
-                    max_tokens: 2048,
-                    timeout_secs: fallback_timeout,
-                    preamble_markdown: fallback_preamble.to_string(),
-                }
+                Err(MuonError::Config(format!(
+                    "agent definition '{name}' not found in ~/.config/muon/agents or bundled examples/agents"
+                )))
             };
 
-        let orchestrator_def = load_agent_def("deep-orchestrator", preamble, 600);
-        let planner_def = load_agent_def("planner", preamble, 180);
-        let researcher_def = load_agent_def("researcher", preamble, 90);
+        let orchestrator_def = load_agent_def("deep-orchestrator", preamble)?;
+        let planner_def = load_agent_def("planner", preamble)?;
+        let researcher_def = load_agent_def("researcher", preamble)?;
         let clarifier_def = load_agent_def(
             "clarifier",
             "You are a clarifying and planning agent. Ask clarifying questions to resolve ambiguities in the user's query, and construct a detailed research plan. You must respond with strict JSON only.",
-            60,
-        );
+        )?;
         let intent_def = load_agent_def(
             "intent-classifier",
-            "You are an intent classifier. Classify the user's query and respond with STRICT JSON only — no other text, no markdown, no explanation:\n{\"intent\": \"research\"|\"meta\", \"depth\": \"shallow\"|\"deep\"}\nIf intent is \"meta\", also include a \"response\" field with a direct answer.",
-            0,
-        );
-        let shallow_def = load_agent_def("shallow-researcher", preamble, 60);
+            "You are an intent classifier. Classify the user's query and respond with STRICT JSON only \u{2014} no other text, no markdown, no explanation:\n{\"intent\": \"research\"|\"meta\", \"depth\": \"shallow\"|\"deep\"}\nIf intent is \"meta\", also include a \"response\" field with a direct answer.",
+        )?;
+        let shallow_def = load_agent_def("shallow-researcher", preamble)?;
+
+        let intent_client = resolve_client(&intent_def.provider)?;
+        let shallow_client = resolve_client(&shallow_def.provider)?;
+        let clarifier_client = resolve_client(&clarifier_def.provider)?;
+        let deep_client = resolve_client(&orchestrator_def.provider)?;
+        let planner_client = resolve_client(&planner_def.provider)?;
+        let researcher_client = resolve_client(&researcher_def.provider)?;
 
         let orchestrator_preamble = &orchestrator_def.preamble_markdown;
         let planner_preamble = &planner_def.preamble_markdown;
@@ -234,15 +233,15 @@ impl InfrastructureContext {
                     &intent_client.client,
                     &resolve_model_id(
                         providers,
-                        &cfg.agents.intent_classifier.provider,
-                        &cfg.agents.intent_classifier.model
+                        &intent_def.provider,
+                        &intent_def.model
                     ),
                     |c| {
                         let agent = c
                             .agent(resolve_model_id(
                                 providers,
-                                &cfg.agents.intent_classifier.provider,
-                                &cfg.agents.intent_classifier.model,
+                                &intent_def.provider,
+                                &intent_def.model,
                             ))
                             .preamble(intent_preamble)
                             .temperature(intent_def.temperature)
@@ -253,7 +252,7 @@ impl InfrastructureContext {
                             agent,
                             AgentTag::Intent,
                             5,
-                            cfg.agents.intent_classifier.timeout_sec,
+                            intent_def.timeout_secs,
                             source_sink.clone(),
                             Some(crate::infrastructure::agent_rs::react_agents::REMINDER_FINALIZE),
                             true,
@@ -271,15 +270,15 @@ impl InfrastructureContext {
                     &shallow_client.client,
                     &resolve_model_id(
                         providers,
-                        &cfg.agents.shallow_researcher.provider,
-                        &cfg.agents.shallow_researcher.model
+                        &shallow_def.provider,
+                        &shallow_def.model
                     ),
                     |c| {
                         let b = c
                             .agent(resolve_model_id(
                                 providers,
-                                &cfg.agents.shallow_researcher.provider,
-                                &cfg.agents.shallow_researcher.model,
+                                &shallow_def.provider,
+                                &shallow_def.model,
                             ))
                             .preamble(shallow_preamble)
                             .temperature(shallow_def.temperature)
@@ -328,15 +327,15 @@ impl InfrastructureContext {
                     &clarifier_client.client,
                     &resolve_model_id(
                         providers,
-                        &cfg.agents.clarifier.provider,
-                        &cfg.agents.clarifier.model
+                        &clarifier_def.provider,
+                        &clarifier_def.model
                     ),
                     |c| {
                         let agent = if let Some(ref wp) = web_provider {
                             c.agent(resolve_model_id(
                                 providers,
-                                &cfg.agents.clarifier.provider,
-                                &cfg.agents.clarifier.model,
+                                &clarifier_def.provider,
+                                &clarifier_def.model,
                             ))
                             .preamble(clarifier_preamble)
                             .temperature(clarifier_def.temperature)
@@ -350,8 +349,8 @@ impl InfrastructureContext {
                         } else {
                             c.agent(resolve_model_id(
                                 providers,
-                                &cfg.agents.clarifier.provider,
-                                &cfg.agents.clarifier.model,
+                                &clarifier_def.provider,
+                                &clarifier_def.model,
                             ))
                             .preamble(clarifier_preamble)
                             .temperature(clarifier_def.temperature)
@@ -381,15 +380,15 @@ impl InfrastructureContext {
                     &planner_client.client,
                     &resolve_model_id(
                         providers,
-                        &cfg.agents.deep_researcher.planner.provider,
-                        &cfg.agents.deep_researcher.planner.model
+                        &planner_def.provider,
+                        &planner_def.model
                     ),
                     |c| {
                         let b = c
                             .agent(resolve_model_id(
                                 providers,
-                                &cfg.agents.deep_researcher.planner.provider,
-                                &cfg.agents.deep_researcher.planner.model,
+                                &planner_def.provider,
+                                &planner_def.model,
                             ))
                             .preamble(planner_preamble)
                             .temperature(planner_def.temperature)
@@ -441,15 +440,15 @@ impl InfrastructureContext {
             &researcher_client.client,
             &resolve_model_id(
                 providers,
-                &cfg.agents.deep_researcher.researcher.provider,
-                &cfg.agents.deep_researcher.researcher.model
+                &researcher_def.provider,
+                &researcher_def.model
             ),
             |c| {
                 let b = c
                     .agent(resolve_model_id(
                         providers,
-                        &cfg.agents.deep_researcher.researcher.provider,
-                        &cfg.agents.deep_researcher.researcher.model,
+                        &researcher_def.provider,
+                        &researcher_def.model,
                     ))
                     .preamble(researcher_preamble)
                     .temperature(researcher_def.temperature)
@@ -494,15 +493,15 @@ impl InfrastructureContext {
                     &deep_client.client,
                     &resolve_model_id(
                         providers,
-                        &cfg.agents.deep_researcher.orchestrator.provider,
-                        &cfg.agents.deep_researcher.orchestrator.model
+                        &orchestrator_def.provider,
+                        &orchestrator_def.model
                     ),
                     |c| {
                         let b = c
                             .agent(resolve_model_id(
                                 providers,
-                                &cfg.agents.deep_researcher.orchestrator.provider,
-                                &cfg.agents.deep_researcher.orchestrator.model,
+                                &orchestrator_def.provider,
+                                &orchestrator_def.model,
                             ))
                             .preamble(orchestrator_preamble)
                             .temperature(orchestrator_def.temperature)

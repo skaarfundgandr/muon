@@ -48,27 +48,16 @@ arxiv_enabled = true
 
 [agents]
 
-# Intent classifier — first stage, classifies query type and depth.
-[agents.intent_classifier]
-model = "glm-5.2-short"
-provider = "opencode-go"
-timeout_sec = 90
-verbose = false
-
 # Clarifier — interactive HITL disambiguation before research.
-# This is the single source of truth for plan_approval, max_turns, and
-# max_iterations.
+# Pipeline knobs only; model/provider come from agents/*.md.
 [agents.clarifier]
-model = "glm-5.2"
-provider = "opencode-go"
 max_turns = 3
 plan_approval = true
 max_iterations = 10
 
 # Shallow researcher — single-pass synthesis of search results.
+# Pipeline knobs only; model/provider come from agents/*.md.
 [agents.shallow_researcher]
-model = "glm-5.2"
-provider = "NeuralWatt"
 max_llm_turns = 10
 max_tool_iters = 5
 
@@ -76,6 +65,7 @@ max_tool_iters = 5
 # iterations = ReAct cycle budget (loop owner).
 # orchestrator_max_tool_calls = per-cycle multi-tool turns (keep low, ~1–2).
 # researcher_max_tool_calls = managed multi-turn for search → fetch → synthesize.
+# Pipeline knobs only; model/provider come from agents/*.md.
 [agents.deep_researcher]
 iterations = 8
 max_retries = 3
@@ -84,18 +74,6 @@ orchestrator_max_tool_calls = 2
 planner_max_tool_calls = 4
 researcher_max_tool_calls = 4
 citation_verify = true
-
-[agents.deep_researcher.orchestrator]
-model = "glm-5.2"
-provider = "opencode-go"
-
-[agents.deep_researcher.planner]
-model = "glm-5.2-short"
-provider = "NeuralWatt"
-
-[agents.deep_researcher.researcher]
-model = "glm-5.2-flex"
-provider = "NeuralWatt"
 
 # Data source toggles.
 [data_sources]

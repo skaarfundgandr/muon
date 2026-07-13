@@ -56,9 +56,15 @@ fn scaffolded_config_toml_deserializes_with_providers() {
             .any(|p| p.provider_type == SearchProviderType::Brave),
         "expected brave search provider from type = \"brave\""
     );
-    assert_ne!(
-        cfg.agents.intent_classifier.model,
-        MuonConfig::default().agents.intent_classifier.model
+    // After migration: model/provider live in agents/*.md, not config.toml.
+    let intent_def = muon::infrastructure::config::parse_agent_md(
+        &dir.join("agents").join("intent-classifier.md"),
+    )
+    .expect("intent-classifier.md should parse");
+    assert!(!intent_def.model.is_empty(), "intent-classifier.md must set a model");
+    assert!(
+        !intent_def.provider.is_empty(),
+        "intent-classifier.md must set a provider"
     );
 }
 

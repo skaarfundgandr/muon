@@ -190,35 +190,14 @@ pub struct SerperOptions {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AgentsConfig {
-    pub intent_classifier: AgentEntryConfig,
     pub clarifier: ClarifierConfig,
     pub shallow_researcher: ShallowResearcherConfig,
     pub deep_researcher: DeepResearcherConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AgentEntryConfig {
-    pub model: String,
-    pub provider: String,
-    pub timeout_sec: u64,
-    pub verbose: bool,
-}
-
-impl Default for AgentEntryConfig {
-    fn default() -> Self {
-        Self {
-            model: String::new(),
-            provider: String::new(),
-            timeout_sec: 90,
-            verbose: false,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClarifierConfig {
-    pub model: String,
-    pub provider: String,
     pub max_turns: u64,
     pub plan_approval: bool,
     pub max_iterations: u64,
@@ -227,8 +206,6 @@ pub struct ClarifierConfig {
 impl Default for ClarifierConfig {
     fn default() -> Self {
         Self {
-            model: String::new(),
-            provider: String::new(),
             max_turns: 3,
             plan_approval: true,
             max_iterations: 10,
@@ -238,8 +215,6 @@ impl Default for ClarifierConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShallowResearcherConfig {
-    pub model: String,
-    pub provider: String,
     pub max_llm_turns: u64,
     pub max_tool_iters: u64,
 }
@@ -247,8 +222,6 @@ pub struct ShallowResearcherConfig {
 impl Default for ShallowResearcherConfig {
     fn default() -> Self {
         Self {
-            model: String::new(),
-            provider: String::new(),
             max_llm_turns: 10,
             max_tool_iters: 5,
         }
@@ -284,9 +257,6 @@ fn default_researcher_max_tool_calls() -> u64 {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DeepResearcherConfig {
-    pub orchestrator: SubagentConfig,
-    pub planner: SubagentConfig,
-    pub researcher: SubagentConfig,
     pub iterations: u64,
     #[serde(default = "default_max_retries")]
     pub max_retries: u64,
@@ -308,18 +278,6 @@ pub struct DeepResearcherConfig {
 impl Default for DeepResearcherConfig {
     fn default() -> Self {
         Self {
-            orchestrator: SubagentConfig {
-                model: String::new(),
-                provider: String::new(),
-            },
-            planner: SubagentConfig {
-                model: String::new(),
-                provider: String::new(),
-            },
-            researcher: SubagentConfig {
-                model: String::new(),
-                provider: String::new(),
-            },
             iterations: 8,
             max_retries: default_max_retries(),
             planner_max_cycles: default_planner_max_cycles(),
@@ -333,11 +291,6 @@ impl Default for DeepResearcherConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SubagentConfig {
-    pub model: String,
-    pub provider: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RagIndexConfig {
