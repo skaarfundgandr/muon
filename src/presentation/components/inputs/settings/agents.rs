@@ -66,14 +66,14 @@ pub fn set_field(config: &mut AgentsConfig, index: usize, value: &str) {
         }
         8 => {
             config.deep_researcher.orchestrator_max_tool_calls =
-                value.parse().unwrap_or(8).max(1);
+                value.parse().unwrap_or(2).max(1);
         }
         9 => {
             config.deep_researcher.planner_max_tool_calls = value.parse().unwrap_or(4).max(1);
         }
         10 => {
             config.deep_researcher.researcher_max_tool_calls =
-                value.parse().unwrap_or(10).max(1);
+                value.parse().unwrap_or(4).max(1);
         }
         11 => config.deep_researcher.citation_verify = value == "true",
         _ => {}
@@ -336,7 +336,6 @@ fn render_clarifier(
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Length(1),
-            Constraint::Length(1),
         ])
         .split(inner);
 
@@ -399,12 +398,7 @@ fn render_shallow_researcher(
 
     let rows = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Length(1),
-        ])
+        .constraints([Constraint::Length(1), Constraint::Length(1)])
         .split(inner);
 
     for (i, row_rect) in rows.iter().enumerate() {
