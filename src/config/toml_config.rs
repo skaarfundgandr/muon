@@ -52,11 +52,18 @@ impl MuonConfig {
             Ok(c) => c,
             Err(_) => return Self::default(),
         };
-        let cfg: Self = match toml::from_str(&content) {
+        match toml::from_str(&content) {
             Ok(c) => c,
-            Err(_) => return Self::default(),
-        };
-        cfg
+            Err(e) => {
+                tracing::error!(
+                    target: "muon::config",
+                    path = %path.display(),
+                    error = %e,
+                    "failed to parse config.toml; using defaults"
+                );
+                Self::default()
+            }
+        }
     }
 
     pub fn watch() -> impl Stream<Item = MuonConfig> {
@@ -218,6 +225,8 @@ fn default_arxiv_enabled() -> bool {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SearchProviderConfig {
     pub name: String,
+    /// TOML key is `type` (SPEC / examples); `provider_type` accepted for older saves.
+    #[serde(rename = "type", alias = "provider_type")]
     pub provider_type: SearchProviderType,
     #[serde(default)]
     pub api_key: String,
@@ -646,7 +655,7 @@ fn default_ls_endpoint() -> String {
     "https://api.smith.langchain.com/otel/v1/traces".to_string()
 }
 fn default_ls_service() -> String {
-    "agent_rs".to_string()
+    "muon".to_string()
 }
 fn default_true() -> bool {
     true
