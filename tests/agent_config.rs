@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use muon::infrastructure::config::parse_agent_md;
+use muon::application::config::AgentsConfig;
+use muon::infrastructure::config::{load_by_name, parse_agent_md};
 use std::path::PathBuf;
 
 fn example(name: &str) -> PathBuf {
@@ -83,4 +84,66 @@ fn parse_empty_body_ok() {
     let def = parse_agent_md(tmp.path()).unwrap_or_else(|e| panic!("empty body should parse: {e}"));
     assert_eq!(def.name, "x");
     assert!(def.preamble_markdown.is_empty());
+}
+
+#[test]
+fn load_by_name_happy_path() {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents");
+    let def = load_by_name(&dir, "intent-classifier")
+        .unwrap()
+        .expect("intent-classifier.md should exist");
+    assert_eq!(def.name, "intent-classifier");
+    assert!(!def.model.is_empty());
+    assert!(!def.provider.is_empty());
+}
+
+#[test]
+fn load_by_name_missing_returns_none() {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents");
+    let got = load_by_name(&dir, "does-not-exist-agent").unwrap();
+    assert!(got.is_none());
+}
+
+#[test]
+fn load_by_name_parse_error_returns_err() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("broken.md"),
+        "---\nname: : :\n---\nbody\n",
+    )
+    .unwrap();
+    let err = load_by_name(dir.path(), "broken").unwrap_err();
+    assert!(
+        err.to_string().contains("invalid YAML") || err.to_string().contains("broken"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn legacy_toml_agent_model_provider_keys_ignored() {
+    let raw = r#"
+[clarifier]
+max_turns = 7
+plan_approval = false
+max_iterations = 4
+model = "should-be-ignored"
+provider = "also-ignored"
+
+[shallow_researcher]
+max_llm_turns = 11
+max_tool_iters = 6
+model = "ignored"
+provider = "ignored"
+
+[deep_researcher]
+iterations = 3
+"#;
+    let agents: AgentsConfig =
+        toml::from_str(raw).expect("legacy model/provider keys must not fail deserialize");
+    assert_eq!(agents.clarifier.max_turns, 7);
+    assert!(!agents.clarifier.plan_approval);
+    assert_eq!(agents.clarifier.max_iterations, 4);
+    assert_eq!(agents.shallow_researcher.max_llm_turns, 11);
+    assert_eq!(agents.shallow_researcher.max_tool_iters, 6);
+    assert_eq!(agents.deep_researcher.iterations, 3);
 }
