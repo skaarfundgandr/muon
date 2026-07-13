@@ -23,28 +23,7 @@ impl Observability {
             None => return Ok(Self { handle: None }),
         };
 
-        let mut agent_cfg = agent_rs::domain::observability::LangSmithConfig::from_env();
-        agent_cfg.service_name = service.to_string();
-        agent_cfg.api_key = api_key;
-        if !cfg.project.is_empty() {
-            agent_cfg.project = cfg.project.clone();
-        }
-        if !cfg.endpoint.is_empty() {
-            agent_cfg.endpoint = cfg.endpoint.clone();
-        }
-        agent_cfg.console = cfg.console;
-        agent_cfg.batch = cfg.batch;
-
-        if cfg.batch_delay_ms != 0 && std::env::var("LANGSMITH_OTEL_BATCH_DELAY_MS").is_err() {
-            // SAFETY: called once at process start before any threads are spawned.
-            unsafe {
-                std::env::set_var(
-                    "LANGSMITH_OTEL_BATCH_DELAY_MS",
-                    cfg.batch_delay_ms.to_string(),
-                );
-            }
-        }
-
+        let agent_cfg = map_langsmith_config(service, cfg, api_key);
         let handle = init_tracing(&agent_cfg).map_err(|e| MuonError::Pipeline(e.to_string()))?;
         Ok(Self {
             handle: Some(handle),
@@ -65,4 +44,33 @@ impl Observability {
         }
         Ok(())
     }
+}
+
+/// Map muon TOML LangSmith settings onto agent_rs config.
+///
+/// `service` is the call-site fallback when `cfg.service_name` is empty.
+/// Starts from `from_env()` so remaining OTEL/LangSmith env vars still apply,
+/// then overlays explicit TOML fields.
+pub fn map_langsmith_config(
+    service: &str,
+    cfg: &LangSmithConfig,
+    api_key: String,
+) -> agent_rs::domain::observability::LangSmithConfig {
+    let mut agent_cfg = agent_rs::domain::observability::LangSmithConfig::from_env();
+    agent_cfg.api_key = api_key;
+    agent_cfg.service_name = if !cfg.service_name.is_empty() {
+        cfg.service_name.clone()
+    } else {
+        service.to_string()
+    };
+    if !cfg.project.is_empty() {
+        agent_cfg.project = cfg.project.clone();
+    }
+    if !cfg.endpoint.is_empty() {
+        agent_cfg.endpoint = cfg.endpoint.clone();
+    }
+    agent_cfg.console = cfg.console;
+    agent_cfg.batch = cfg.batch;
+    agent_cfg.batch_delay_ms = cfg.batch_delay_ms;
+    agent_cfg
 }
