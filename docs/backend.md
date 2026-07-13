@@ -277,7 +277,7 @@ LLM providers are declared via `[[providers]]` entries with `name`, `base_url`, 
 
 ### 10.6 TUI
 
-The Settings view has 6 tabs (in order): `Providers`, `Agents`, `Tools`, `Data Sources`, `Display`, `Advanced`. The `Providers` tab is a dynamic row editor over `cfg.providers`; the `Tools` tab renders `cfg.search.providers` rows + the arXiv toggle. The `Agents` tab's provider/model dropdowns are derived live from `cfg.providers` (no static provider list) — changing a provider row in the Providers tab immediately updates the Agents dropdown options on the next open.
+The Settings view has 6 tabs (in order): `Providers`, `Agents`, `Tools`, `Data Sources`, `Display`, `Advanced`. The `Providers` tab is a dynamic row editor over `cfg.providers`; the `Tools` tab renders `cfg.search.providers` rows + the arXiv toggle. The `Agents` tab edits pipeline orchestration knobs only (clarifier / shallow / deep budgets and flags). Per-agent model, provider, temperature, max_tokens, and timeout_secs live in `agents/*.md` YAML frontmatter — edit those files outside the TUI.
 
 ### 10.7 Removed (per SPEC)
 

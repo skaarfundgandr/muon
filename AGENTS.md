@@ -20,7 +20,7 @@ CLEAN layered architecture. Presentation → Application → Domain → Infrastr
 - `src/lib.rs` flatly re-exports top-level modules: `application`, `presentation`, `cli`, `domain`, `infrastructure`.
 - Each directory has a `mod.rs` that re-exports its children — no implementation in `mod.rs`.
 - `thiserror` for errors: `MuonError` enum in `src/error.rs`, type alias `Result<T>`.
-- TOML config (serde): `MuonConfig` loads from `~/.config/muon/config.toml` with `Default` fallback. Sub-configs: Agents, DataSources, Display, Advanced.
+- Config: pure settings types in `application::config` (`MuonConfig` + nested); load/save/watch/scaffold + agent markdown parse + env expansion in `infrastructure::config`. TOML (`~/.config/muon/config.toml`) holds providers, pipeline knobs, display, advanced. Per-agent model/provider/temperature/max_tokens/timeout_secs SSOT is YAML frontmatter under `agents/*.md`.
 - Edition 2024. Clippy denies `unwrap_used`, `expect_used`, `panic`; forbids `todo`, `unimplemented`.
 
 ## Key Patterns

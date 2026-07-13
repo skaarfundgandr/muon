@@ -17,7 +17,7 @@ Each agent file starts with YAML frontmatter delimited by `---`:
 | `provider` | string | yes | — | LLM provider (`"openai"` supported) |
 | `temperature` | f64 | no | 0.0 | Sampling temperature (0.0–2.0). Lower = more deterministic. |
 | `max_tokens` | u32 | no | 2048 | Maximum tokens in the LLM response. |
-| `timeout_secs` | u64 | no | 60 | Timeout for a single prompt call in seconds. |
+| `timeout_secs` | u64 | no | 60 | Timeout for a single prompt call in seconds. Applied to ReAct agents; ignored for the researcher (`ManagedAgent` has no timeout arg). |
 
 ### Minimal Example
 
@@ -81,4 +81,6 @@ See `examples/muon.toml` for the full configuration schema.
 
 ## 6. Agent Loading
 
-`InfrastructureContext::new_live()` builds real `ReActAgent` wrappers using agent_rs. The system prompt from the agent definition file is used as the rig agent's preamble. The load path uses `infrastructure::config::load_by_name(dir, name)`, searching first `~/.config/muon/agents/` (user overrides) then `examples/agents/` (repo fallback). The **filename** is the load key (not the YAML `name` field). If no matching agent definition file is found, `new_live` returns a hard `MuonError::Config`. Providers are configured in `config.toml`; an empty provider list degrades to `ConfigRequiredAgent` stubs that return `MuonError::Config` on every call.
+`InfrastructureContext::new_live()` builds real `ReActAgent` wrappers using agent_rs. The system prompt from the agent definition file is used as the rig agent's preamble. The load path uses `infrastructure::config::load_by_name(dir, name)`, searching first the resolved `agents_dir` (default `~/.config/muon/agents/`) then `examples/agents/` (repo fallback). The **filename** is the load key (not the YAML `name` field). Missing files fall through to the next directory; a file that exists but fails to parse returns a hard `MuonError::Config` (no silent fallthrough to the bundled example). If no matching agent definition is found in either directory, `new_live` also returns `MuonError::Config` with both search paths in the message. Providers are configured in `config.toml`; an empty provider list degrades to `ConfigRequiredAgent` stubs that return `MuonError::Config` on every call.
+
+Existing installs: scaffold never overwrites `config.toml` or existing `agents/*.md`. After the YAML SSoT change, model/provider no longer come from TOML — edit `~/.config/muon/agents/*.md` (or delete individual agent files so scaffold can recopy examples on next launch).
