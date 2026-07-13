@@ -75,10 +75,10 @@ Each agent maps to a specific pipeline stage:
 
 ## 5. Configuration Override
 
-Agent parameters can also be set in `config.toml` under `[agents.*]`. When both a config file and an agent definition file exist, the config file values take precedence for model/provider/timeout, while the agent definition's system prompt is used as-is.
+TOML `[agents.*]` sections hold **pipeline orchestration knobs only** (e.g., `max_turns`, `plan_approval`, `max_iterations` for clarifier; `max_llm_turns`, `max_tool_iters` for shallow researcher; 9 fields for deep researcher). TOML does not store per-agent model/provider/temperature/max_tokens/timeout — those live exclusively in `agents/*.md` YAML frontmatter.
 
 See `examples/muon.toml` for the full configuration schema.
 
 ## 6. Agent Loading
 
-`InfrastructureContext::new_live()` builds real `ReActAgent` wrappers using agent_rs. The system prompt from the agent definition file is used as the rig agent's preamble. Providers are configured in `config.toml`; an empty provider list degrades to `ConfigRequiredAgent` stubs that return `MuonError::Config` on every call. Agent definition files are always loaded from `~/.config/muon/agents/` (user) and `examples/agents/` (repo fallback).
+`InfrastructureContext::new_live()` builds real `ReActAgent` wrappers using agent_rs. The system prompt from the agent definition file is used as the rig agent's preamble. The load path uses `infrastructure::config::load_by_name(dir, name)`, searching first `~/.config/muon/agents/` (user overrides) then `examples/agents/` (repo fallback). The **filename** is the load key (not the YAML `name` field). If no matching agent definition file is found, `new_live` returns a hard `MuonError::Config`. Providers are configured in `config.toml`; an empty provider list degrades to `ConfigRequiredAgent` stubs that return `MuonError::Config` on every call.

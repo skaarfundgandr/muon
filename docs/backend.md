@@ -230,10 +230,12 @@ description = "Full GLM 5.2, 1M context"
 
 Agent configuration references a provider by `name`:
 
-```toml
-[agents.intent_classifier]
-model = "glm-5.2-short"
-provider = "opencode-go"
+```yaml
+---
+name: intent-classifier
+model: glm-5.2-short
+provider: opencode-go
+---
 ```
 
 Resolution: `ResolvedClient::for_named_provider(name, &cfg.providers)` looks up the `name` in `cfg.providers` and builds an `openai::Client` from `api_key` + `base_url`. If `name` is empty, `for_default_provider` returns the first entry.
@@ -242,7 +244,7 @@ Resolution: `ResolvedClient::for_named_provider(name, &cfg.providers)` looks up 
 
 Provider `api_key` and search provider `api_key` fields support `${ENV_VAR}` placeholders. At resolution time, the literal `${VAR}` is replaced by `std::env::var("VAR")`. If the variable is unset or empty, a `MuonError::Config` is raised before any HTTP call.
 
-The `expand_env(value: &str) -> Result<String, MuonError>` helper in `src/config/mod.rs` does the substitution and is reused by both LLM and search providers.
+The `expand_env(value: &str) -> Result<String, MuonError>` helper in `src/infrastructure/config/env.rs` does the substitution and is reused by both LLM and search providers.
 
 ### 10.3 Search providers (`[[search.providers]]` + fan-out)
 
@@ -270,6 +272,8 @@ Currently arXiv only (`arxiv_enabled: bool`). Semantic Scholar was removed per t
 ### 10.5 Provider configuration model
 
 LLM providers are declared via `[[providers]]` entries with `name`, `base_url`, and `api_key`; search providers via `[[search.providers]]` entries with `type` in {tavily, firecrawl, brave, serper}. There is no legacy `[tools]` table or backfill — the `ToolsConfig` struct and `backfill_legacy_providers()` were removed in the config audit.
+
+**CLEAN layout:** Application owns pure settings types (`application::config::{types, agent_def}`). Infrastructure owns load/save/watch/scaffold, agent `.md` parse, and `${ENV}` expansion (`infrastructure::config::{load, env, agent_md}`). Consumers call `infrastructure::config::resolve_api_key(&provider)` directly; `ProviderConfig::resolved_api_key()` is removed.
 
 ### 10.6 TUI
 

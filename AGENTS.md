@@ -7,9 +7,9 @@ Terminal-based deep research agent TUI. Rust, ratatui, crossterm, tokio.
 CLEAN layered architecture. Presentation → Application → Domain → Infrastructure.
 
 - **Presentation** (`src/presentation/`): TUI shell + ratatui rendering. Terminal setup, event loop (`run`), `AppState`, handlers (key/mouse/scroll/settings), components (chrome, inputs, panels, cards, graphs), 5 views (Welcome, Dashboard, Progress, Results, Settings), form system, click-target registry.
-- **Application** (`src/application/`): pipeline state machine (`PipelineStage` idle → intent → clarify → shallow → deep → complete/cancelled), use cases, export services, agent bridge.
+- **Application** (`src/application/`): pipeline state machine (`PipelineStage` idle → intent → clarify → shallow → deep → complete/cancelled), use cases, export services, agent bridge, settings types (`application::config`).
 - **Domain** (`src/domain/`): pure models and port traits (MuonAgent, SearchProvider, VectorStore, SessionStore).
-- **Infrastructure** (`src/infrastructure/`): agent_rs ReAct wrappers, Diesel storage (SQLite), RAG (TurboVec + FastEmbed), search providers (Tavily/Firecrawl/Brave/Serper web search + arXiv papers).
+- **Infrastructure** (`src/infrastructure/`): agent_rs ReAct wrappers, Diesel storage (SQLite), RAG (TurboVec + FastEmbed), search providers (Tavily/Firecrawl/Brave/Serper web search + arXiv papers), config loaders (`infrastructure::config` — load/save/watch/scaffold + `parse_agent_md`/`load_by_name` + env expansion).
 
 **Bootstrap:** `src/main.rs` calls `presentation::run()` (TUI) or `cli::` helpers (headless/export). Presentation owns terminal setup (`presentation/terminal.rs`) and the main event loop.
 
@@ -17,7 +17,7 @@ CLEAN layered architecture. Presentation → Application → Domain → Infrastr
 
 ## Module Conventions
 
-- `src/lib.rs` flatly re-exports top-level modules: `application`, `presentation`, `cli`, `config`, `domain`, `infrastructure`.
+- `src/lib.rs` flatly re-exports top-level modules: `application`, `presentation`, `cli`, `domain`, `infrastructure`.
 - Each directory has a `mod.rs` that re-exports its children — no implementation in `mod.rs`.
 - `thiserror` for errors: `MuonError` enum in `src/error.rs`, type alias `Result<T>`.
 - TOML config (serde): `MuonConfig` loads from `~/.config/muon/config.toml` with `Default` fallback. Sub-configs: Agents, DataSources, Display, Advanced.
