@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use muon::config::MuonConfig;
+use muon::config::{MuonConfig, SearchProviderType};
+use muon::infrastructure::observability::map_langsmith_config;
 use std::path::Path;
 
 #[test]
@@ -27,22 +28,66 @@ fn scaffold_writes_config_and_agents_when_missing() {
 }
 
 #[test]
+fn scaffolded_config_toml_deserializes_with_providers() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir: &Path = tmp.path();
+    MuonConfig::ensure_scaffolded_in(dir);
+    let cfg = MuonConfig::load_from_path(&dir.join("config.toml"));
+    assert!(
+        !cfg.providers.is_empty(),
+        "scaffolded config should retain [[providers]] (got empty Default?)"
+    );
+    assert!(
+        !cfg.search.providers.is_empty(),
+        "scaffolded config should retain [[search.providers]]"
+    );
+    assert!(
+        cfg.search
+            .providers
+            .iter()
+            .any(|p| p.provider_type == SearchProviderType::Tavily),
+        "expected tavily search provider from type = \"tavily\""
+    );
+    assert!(
+        cfg.search
+            .providers
+            .iter()
+            .any(|p| p.provider_type == SearchProviderType::Brave),
+        "expected brave search provider from type = \"brave\""
+    );
+    assert_ne!(
+        cfg.agents.intent_classifier.model,
+        MuonConfig::default().agents.intent_classifier.model
+    );
+}
+
+#[test]
+fn examples_muon_toml_round_trips() {
+    let raw = include_str!("../examples/muon.toml");
+    let cfg: MuonConfig = toml::from_str(raw).expect("examples/muon.toml must parse as MuonConfig");
+    assert_eq!(cfg.search.providers.len(), 2);
+    assert_eq!(
+        cfg.search.providers[0].provider_type,
+        SearchProviderType::Tavily
+    );
+    assert_eq!(
+        cfg.search.providers[1].provider_type,
+        SearchProviderType::Brave
+    );
+    assert!(!cfg.providers.is_empty());
+}
+
+#[test]
 fn scaffold_is_idempotent_and_does_not_overwrite_edits() {
     let tmp = tempfile::tempdir().unwrap();
     let dir: &Path = tmp.path();
     MuonConfig::ensure_scaffolded_in(dir);
     let cfg_path = dir.join("config.toml");
-    let original = std::fs::read_to_string(&cfg_path).unwrap();
     let edited = "# user edit\n".to_string();
     std::fs::write(&cfg_path, &edited).unwrap();
     MuonConfig::ensure_scaffolded_in(dir);
     let after = std::fs::read_to_string(&cfg_path).unwrap();
     assert_eq!(after, edited, "second scaffold overwrote user edit");
-    assert_eq!(
-        std::fs::read_to_string(dir.join("config.toml")).unwrap(),
-        edited
-    );
-    let _ = original; // anchor
 }
 
 #[test]
@@ -60,4 +105,23 @@ fn scaffold_skips_existing_agent_files() {
         agents_dir.join("intent-classifier.md").exists(),
         "other files still scaffolded"
     );
+}
+
+#[test]
+fn map_langsmith_prefers_toml_service_name() {
+    let mut cfg = muon::config::LangSmithConfig::default();
+    cfg.service_name = "from-toml".into();
+    cfg.batch_delay_ms = 250;
+    let mapped = map_langsmith_config("muon", &cfg, "key".into());
+    assert_eq!(mapped.service_name, "from-toml");
+    assert_eq!(mapped.batch_delay_ms, 250);
+    assert_eq!(mapped.api_key, "key");
+}
+
+#[test]
+fn map_langsmith_falls_back_service_when_empty() {
+    let mut cfg = muon::config::LangSmithConfig::default();
+    cfg.service_name.clear();
+    let mapped = map_langsmith_config("muon", &cfg, "key".into());
+    assert_eq!(mapped.service_name, "muon");
 }
