@@ -32,6 +32,10 @@ pub struct MuonConfig {
     pub data_sources: DataSourcesConfig,
     pub display: DisplayConfig,
     pub advanced: AdvancedConfig,
+    #[serde(default)]
+    pub obsidian: ObsidianConfig,
+    #[serde(default)]
+    pub observability: ObservabilityConfig,
 }
 
 impl MuonConfig {
@@ -120,9 +124,8 @@ impl MuonConfig {
     }
 
     pub fn save(&self) -> Result<(), MuonError> {
-        let path = config_path().ok_or_else(|| {
-            MuonError::Config("cannot resolve config path (HOME unset?)".into())
-        })?;
+        let path = config_path()
+            .ok_or_else(|| MuonError::Config("cannot resolve config path (HOME unset?)".into()))?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -590,4 +593,64 @@ impl AdvancedConfig {
     pub fn agents_dir(&self) -> std::path::PathBuf {
         crate::infrastructure::util::expand_tilde(self.agents_dir.clone())
     }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ObsidianConfig {
+    #[serde(default)]
+    pub vault_path: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ObservabilityConfig {
+    #[serde(default)]
+    pub langsmith: LangSmithConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LangSmithConfig {
+    #[serde(default)]
+    pub api_key: String,
+    #[serde(default = "default_ls_project")]
+    pub project: String,
+    #[serde(default = "default_ls_endpoint")]
+    pub endpoint: String,
+    #[serde(default = "default_ls_service")]
+    pub service_name: String,
+    #[serde(default)]
+    pub console: bool,
+    #[serde(default = "default_true")]
+    pub batch: bool,
+    #[serde(default = "default_batch_delay")]
+    pub batch_delay_ms: u64,
+}
+
+impl Default for LangSmithConfig {
+    fn default() -> Self {
+        Self {
+            api_key: String::new(),
+            project: default_ls_project(),
+            endpoint: default_ls_endpoint(),
+            service_name: default_ls_service(),
+            console: false,
+            batch: default_true(),
+            batch_delay_ms: default_batch_delay(),
+        }
+    }
+}
+
+fn default_ls_project() -> String {
+    "default".to_string()
+}
+fn default_ls_endpoint() -> String {
+    "https://api.smith.langchain.com/otel/v1/traces".to_string()
+}
+fn default_ls_service() -> String {
+    "agent_rs".to_string()
+}
+fn default_true() -> bool {
+    true
+}
+fn default_batch_delay() -> u64 {
+    1000
 }

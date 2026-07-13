@@ -121,3 +121,19 @@ max_search_items = 15
 embedding_model = "Xenova/bge-small-en-v1.5"
 rag_top_k = 5
 similarity_threshold = 0.70
+
+# Obsidian export target. Leave vault_path empty to fall back to the
+# MUON_OBSIDIAN_VAULT environment variable.
+[obsidian]
+vault_path = ""
+
+# LangSmith / OpenTelemetry export. Leave api_key empty to disable tracing;
+# the ${LANGSMITH_API_KEY} env var is also honored if set.
+[observability.langsmith]
+api_key = ""
+project = "default"
+endpoint = "https://api.smith.langchain.com/otel/v1/traces"
+service_name = "agent_rs"
+console = false
+batch = true
+batch_delay_ms = 1000

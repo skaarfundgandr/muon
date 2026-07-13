@@ -7,12 +7,12 @@ use crate::application::pipeline::PipelineState;
 use crate::application::pipeline_runner::run_pipeline;
 use crate::application::services::{ExportFormat, ObsidianExporter};
 use crate::config::MuonConfig;
+use crate::domain::error::{MuonError, Result};
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::{Session, SessionId, SessionStatus};
 use crate::domain::traits::session_store::{SessionStore, SessionSummary};
-use crate::domain::error::{MuonError, Result};
 use crate::infrastructure::context::InfrastructureContext;
-use crate::infrastructure::storage::{init_pool, DieselSessionStore};
+use crate::infrastructure::storage::{DieselSessionStore, init_pool};
 
 fn render_markdown(report: &ResearchReport, query: &str) -> String {
     let mut out = String::from("---\n");
@@ -29,7 +29,10 @@ fn render_markdown(report: &ResearchReport, query: &str) -> String {
     if !report.citations.is_empty() {
         out.push_str("\n## References\n\n");
         for c in &report.citations {
-            out.push_str(&format!("{}. {} — {}\n", c.reference_number, c.title, c.url));
+            out.push_str(&format!(
+                "{}. {} — {}\n",
+                c.reference_number, c.title, c.url
+            ));
         }
     }
     out
@@ -46,17 +49,23 @@ fn render_obsidian(report: &ResearchReport) -> String {
     if !report.citations.is_empty() {
         out.push_str("\n## References\n\n");
         for c in &report.citations {
-            out.push_str(&format!("{}. {} — {}\n", c.reference_number, c.title, c.url));
+            out.push_str(&format!(
+                "{}. {} — {}\n",
+                c.reference_number, c.title, c.url
+            ));
         }
     }
     out
 }
 
 pub async fn run_headless(query: &str, output: Option<&Path>) -> Result<()> {
-    let obs = crate::infrastructure::observability::Observability::init("muon")?;
+    let config = MuonConfig::load();
+    let obs = crate::infrastructure::observability::Observability::init(
+        "muon",
+        &config.observability.langsmith,
+    )?;
 
     let result = async {
-        let config = MuonConfig::load();
         let (tx, _rx) = mpsc::unbounded_channel();
         let bridge = BridgeChannels::new(tx);
 
@@ -100,9 +109,9 @@ pub async fn export_session(
     let config = MuonConfig::load();
     let pool = init_pool(&config.advanced.session_db_path).await?;
 
-    let sid: SessionId = session_id
-        .parse()
-        .map_err(|e: uuid::Error| MuonError::Session(format!("invalid session ID: {session_id}: {e}")))?;
+    let sid: SessionId = session_id.parse().map_err(|e: uuid::Error| {
+        MuonError::Session(format!("invalid session ID: {session_id}: {e}"))
+    })?;
 
     let session_store = DieselSessionStore::new(pool);
 
@@ -121,9 +130,19 @@ pub async fn export_session(
     let content = match format {
         ExportFormat::Markdown => render_markdown(&report, &summary.query),
         ExportFormat::Obsidian => {
-            let vault = std::env::var("MUON_OBSIDIAN_VAULT")
-                .map_err(|_| MuonError::Config("MUON_OBSIDIAN_VAULT not set".to_string()))?;
-            let vault_path = std::path::PathBuf::from(vault);
+            let vault_str = if !config.obsidian.vault_path.is_empty() {
+                crate::infrastructure::util::expand_tilde(&config.obsidian.vault_path)
+                    .to_string_lossy()
+                    .into_owned()
+            } else {
+                std::env::var("MUON_OBSIDIAN_VAULT").map_err(|_| {
+                    MuonError::Config(
+                        "Obsidian vault not configured: set [obsidian] vault_path in config.toml or MUON_OBSIDIAN_VAULT env"
+                            .into(),
+                    )
+                })?
+            };
+            let vault_path = std::path::PathBuf::from(vault_str);
             ObsidianExporter::export(&report, &session, &vault_path)?;
             render_obsidian(&report)
         }

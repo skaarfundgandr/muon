@@ -6,6 +6,7 @@ use tokio::sync::mpsc;
 use crate::application::bridge::{AgentEvent, BridgeChannels};
 use crate::application::pipeline::{PipelineStage, PipelineState};
 use crate::application::services::{ExportFormat, ExportRequest, ExportService};
+use crate::application::session::SessionService;
 use crate::config::MuonConfig;
 use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogEntry, LogLevel};
@@ -15,9 +16,8 @@ use crate::presentation::click::ClickTarget;
 use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::form::FormState;
 use crate::presentation::views::{View, ViewRouter};
-use crate::application::session::SessionService;
 
-use super::clipboard::{copy_text_to_clipboard, HeldClipboard};
+use super::clipboard::{HeldClipboard, copy_text_to_clipboard};
 use super::types::{ActivePopup, ClarifierPending, Event, PlanPending};
 
 const LIVE_FEED_MAX: usize = 50;
@@ -118,7 +118,11 @@ impl AppState {
         let Some(infra) = self.infra.as_ref().map(Arc::clone) else {
             return;
         };
-        let session_id = self.sessions.active().map(|s| s.id).or(self.export_session_id);
+        let session_id = self
+            .sessions
+            .active()
+            .map(|s| s.id)
+            .or(self.export_session_id);
         if let Some(id) = session_id {
             self.export_session_id = Some(id);
         }
@@ -283,7 +287,12 @@ impl AppState {
         };
         let session_id = summary.id;
         tokio::spawn(async move {
-            let report = infra.session_store.get_report(session_id).await.ok().flatten();
+            let report = infra
+                .session_store
+                .get_report(session_id)
+                .await
+                .ok()
+                .flatten();
             let sources = infra
                 .session_store
                 .get_sources(session_id)
@@ -313,11 +322,9 @@ impl AppState {
         let excess = self.live_feed_entries.len().saturating_sub(LIVE_FEED_MAX);
         if excess > 0 {
             self.live_feed_entries.drain(0..excess);
-            self.live_feed_scroll = self.live_feed_scroll.min(
-                self.live_feed_entries
-                    .len()
-                    .saturating_sub(1),
-            );
+            self.live_feed_scroll = self
+                .live_feed_scroll
+                .min(self.live_feed_entries.len().saturating_sub(1));
         }
     }
 
@@ -339,10 +346,7 @@ impl AppState {
             (
                 id,
                 self.query_input.buffer.clone(),
-                self.last_report
-                    .as_ref()
-                    .map(|_| now)
-                    .unwrap_or(now),
+                self.last_report.as_ref().map(|_| now).unwrap_or(now),
             )
         } else {
             let id = uuid::Uuid::new_v4();
@@ -405,13 +409,17 @@ impl AppState {
             self.push_sys_log("Sync Obsidian failed: no report", LogLevel::Error);
             return;
         };
-        let vault = match std::env::var("MUON_OBSIDIAN_VAULT") {
-            Ok(v) if !v.trim().is_empty() => std::path::PathBuf::from(v),
-            _ => {
-                let msg = "MUON_OBSIDIAN_VAULT not set";
-                self.set_status_flash(msg, ToastKind::Error);
-                self.push_sys_log(msg, LogLevel::Error);
-                return;
+        let vault = if !self.config.obsidian.vault_path.is_empty() {
+            crate::infrastructure::util::expand_tilde(&self.config.obsidian.vault_path)
+        } else {
+            match std::env::var("MUON_OBSIDIAN_VAULT") {
+                Ok(v) if !v.trim().is_empty() => std::path::PathBuf::from(v),
+                _ => {
+                    let msg = "Obsidian vault not configured: set [obsidian] vault_path in config.toml or MUON_OBSIDIAN_VAULT env";
+                    self.set_status_flash(msg, ToastKind::Error);
+                    self.push_sys_log(msg, LogLevel::Error);
+                    return;
+                }
             }
         };
         let session = self.session_stub_for_export();
@@ -467,10 +475,7 @@ impl AppState {
         self.clarifier_focused = false;
         self.full_report_mode = false;
         self.router.transition(View::Dashboard);
-        self.set_status_flash(
-            "Refine search — edit query and submit",
-            ToastKind::Info,
-        );
+        self.set_status_flash("Refine search — edit query and submit", ToastKind::Info);
     }
 
     pub fn action_toggle_full_report(&mut self) {
@@ -501,4 +506,3 @@ impl AppState {
         }
     }
 }
-

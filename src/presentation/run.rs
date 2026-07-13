@@ -2,20 +2,20 @@ use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crossterm::event::{poll, read, Event as CrosstermEvent};
+use crossterm::event::{Event as CrosstermEvent, poll, read};
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use tokio::sync::mpsc;
 
 use crate::application::bridge::{AgentEvent, BridgeChannels};
 use crate::application::pipeline::PipelineState;
+use crate::application::session::SessionService;
 use crate::config::MuonConfig;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::infrastructure::context::InfrastructureContext;
-use crate::presentation::form::FormState;
 use crate::presentation::components::query_input::QueryInput;
+use crate::presentation::form::FormState;
 use crate::presentation::views::ViewRouter;
-use crate::application::session::SessionService;
 
 use crate::presentation::handlers::events::handle_event;
 use crate::presentation::render::render;
@@ -45,7 +45,7 @@ async fn run_loop(
     let config = MuonConfig::load();
 
     let mut config_reload_rx = {
-                let mut stream = MuonConfig::watch();
+        let mut stream = MuonConfig::watch();
         let (tx, rx) = mpsc::channel(4);
         tokio::spawn(async move {
             while let Some(cfg) = stream.next().await {
@@ -178,7 +178,11 @@ async fn run_loop(
 }
 
 pub async fn run() -> crate::domain::error::Result<()> {
-    let observability = crate::infrastructure::observability::Observability::init("muon")?;
+    let config = MuonConfig::load();
+    let observability = crate::infrastructure::observability::Observability::init(
+        "muon",
+        &config.observability.langsmith,
+    )?;
     let mut terminal = setup_terminal()?;
     let result = run_loop(&mut terminal).await;
     restore_terminal(&mut terminal);
