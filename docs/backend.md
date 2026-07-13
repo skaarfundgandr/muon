@@ -172,9 +172,22 @@ Three export components in `src/application/services/`:
 
 ## 8. LangSmith Tracing
 
-Enable distributed tracing via LangSmith by setting the `LANGSMITH_API_KEY` environment variable. When set, μon initializes OpenTelemetry tracing at bootstrap (`src/infrastructure/observability.rs`) and emits ReAct spans (thoughts, actions, observations) to LangSmith for monitoring and debugging.
+μon initializes OpenTelemetry tracing at process start (`src/infrastructure/observability.rs`) and emits ReAct spans (thoughts, actions, observations) to LangSmith. Configuration is process-start only — restart the process to apply changes (config hot-reload does not re-init the tracer).
 
-The `LANGSMITH_API_KEY` is optional — when unset, tracing initializes as a no-op.
+### Config (`[observability.langsmith]`)
+
+```toml
+[observability.langsmith]
+api_key = ""                # or "${LANGSMITH_API_KEY}"
+project = "default"
+endpoint = "https://api.smith.langchain.com/otel/v1/traces"
+service_name = "muon"
+console = false
+batch = true
+batch_delay_ms = 1000
+```
+
+**API key precedence:** TOML `api_key` (with optional `${ENV}` expansion) → else `LANGSMITH_API_KEY` env. Empty / unset key disables export (no-op handle). Other fields overlay agent_rs defaults / remaining OTEL env vars (`LANGSMITH_PROJECT`, `OTEL_EXPORTER_OTLP_ENDPOINT`, etc.).
 
 ## 9. Headless CLI
 
@@ -190,7 +203,8 @@ muon run --headless "What is async Rust?"
 
 # Export a completed session
 muon export <session-id> markdown -o report.md
-muon export <session-id> obsidian --vault ~/my-vault
+# Obsidian: set [obsidian] vault_path in config.toml or MUON_OBSIDIAN_VAULT
+muon export <session-id> obsidian -o report.md
 ```
 
 Headless mode always uses live infrastructure (`InfrastructureContext::new_live`). Zero `[[providers]]` configured degrades to `ConfigRequiredAgent` stubs (see §Constructor).
