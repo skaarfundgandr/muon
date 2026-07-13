@@ -6,7 +6,6 @@ use crate::application::bridge::BridgeChannels;
 use crate::application::pipeline::PipelineState;
 use crate::application::pipeline_runner::run_pipeline;
 use crate::application::services::{ExportFormat, ObsidianExporter};
-use crate::config::MuonConfig;
 use crate::domain::error::{MuonError, Result};
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::{Session, SessionId, SessionStatus};
@@ -59,7 +58,7 @@ fn render_obsidian(report: &ResearchReport) -> String {
 }
 
 pub async fn run_headless(query: &str, output: Option<&Path>) -> Result<()> {
-    let config = MuonConfig::load();
+    let config = crate::infrastructure::config::load();
     let obs = crate::infrastructure::observability::Observability::init(
         "muon",
         &config.observability.langsmith,
@@ -106,7 +105,7 @@ pub async fn export_session(
     format: ExportFormat,
     output: Option<&Path>,
 ) -> Result<()> {
-    let config = MuonConfig::load();
+    let config = crate::infrastructure::config::load();
     let pool = init_pool(&config.advanced.session_db_path).await?;
 
     let sid: SessionId = session_id.parse().map_err(|e: uuid::Error| {

@@ -7,7 +7,7 @@ use crate::application::bridge::{AgentEvent, BridgeChannels};
 use crate::application::pipeline::{PipelineStage, PipelineState};
 use crate::application::services::{ExportFormat, ExportRequest, ExportService};
 use crate::application::session::SessionService;
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogEntry, LogLevel};
 use crate::domain::models::session::{Session, SessionStatus};

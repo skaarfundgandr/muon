@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use muon::config::ClarifierConfig;
+use muon::application::config::ClarifierConfig;
 
 #[test]
 fn clarifier_default_plan_approval_is_true() {

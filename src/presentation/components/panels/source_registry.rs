@@ -3,7 +3,7 @@ use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::presentation::theme;
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig) {

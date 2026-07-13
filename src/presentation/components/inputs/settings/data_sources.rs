@@ -1,4 +1,4 @@
-use crate::config::{DataSourcesConfig, MuonConfig};
+use crate::application::config::{DataSourcesConfig, MuonConfig};
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};

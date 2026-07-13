@@ -73,7 +73,7 @@ impl InfrastructureContext {
     }
 
     pub async fn new_live(
-        cfg: &crate::config::MuonConfig,
+        cfg: &crate::application::config::MuonConfig,
         bridge: &crate::application::bridge::BridgeChannels,
     ) -> Result<Self, MuonError> {
         use crate::infrastructure::providers::ProviderClient;
@@ -123,7 +123,7 @@ impl InfrastructureContext {
             ));
         }
         fn resolve_model_id(
-            providers: &[crate::config::ProviderConfig],
+            providers: &[crate::application::config::ProviderConfig],
             provider_name: &str,
             model_name: &str,
         ) -> String {
@@ -172,13 +172,14 @@ impl InfrastructureContext {
             crate::infrastructure::search::provider::resolve_paper_providers(cfg);
         let fetch_http = reqwest::Client::new();
 
-        let user_agents_dir: std::path::PathBuf = cfg.advanced.agents_dir();
+        let user_agents_dir: std::path::PathBuf =
+            crate::infrastructure::util::expand_tilde(cfg.advanced.agents_dir.clone());
         let repo_agents_dir: std::path::PathBuf =
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents");
 
         let load_preamble = |name: &str, fallback: &str| -> String {
             for dir in [user_agents_dir.as_path(), repo_agents_dir.as_path()] {
-                match crate::config::agent_config::load_by_name(dir, name) {
+                match crate::infrastructure::config::load_by_name(dir, name) {
                     Ok(Some(def)) if !def.preamble_markdown.is_empty() => {
                         return def.preamble_markdown;
                     }

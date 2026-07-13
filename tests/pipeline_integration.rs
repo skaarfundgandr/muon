@@ -7,7 +7,7 @@ use muon::application::bridge::{AgentEvent, BridgeChannels};
 use muon::application::deps::PipelineDeps;
 use muon::application::pipeline::{PipelineStage, PipelineState};
 use muon::application::pipeline_runner::run_pipeline;
-use muon::config::MuonConfig;
+use muon::application::config::MuonConfig;
 use muon::domain::models::log_entry::AgentTag;
 use muon::infrastructure::context::InfrastructureContext;
 use muon::infrastructure::storage::open_pool;

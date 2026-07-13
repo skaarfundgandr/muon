@@ -234,12 +234,12 @@ impl MuonAgent for ReActAgent {
 }
 
 pub struct ReActFactory<'a> {
-    pub cfg: &'a crate::config::MuonConfig,
+    pub cfg: &'a crate::application::config::MuonConfig,
     pub bridge: BridgeChannels,
 }
 
 impl<'a> ReActFactory<'a> {
-    pub fn new(cfg: &'a crate::config::MuonConfig, bridge: BridgeChannels) -> Self {
+    pub fn new(cfg: &'a crate::application::config::MuonConfig, bridge: BridgeChannels) -> Self {
         Self { cfg, bridge }
     }
 

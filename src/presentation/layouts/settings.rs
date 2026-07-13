@@ -3,7 +3,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::settings::dropdown_overlay::PendingDropdown;

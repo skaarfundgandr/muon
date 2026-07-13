@@ -2,7 +2,7 @@
 
 use muon::application::bridge::BridgeChannels;
 use muon::application::deps::PipelineDeps;
-use muon::config::MuonConfig;
+use muon::application::config::MuonConfig;
 use muon::infrastructure::context::InfrastructureContext;
 
 #[tokio::test]

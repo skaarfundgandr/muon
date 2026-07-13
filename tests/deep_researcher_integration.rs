@@ -3,7 +3,7 @@
 use muon::application::bridge::{AgentEvent, BridgeChannels};
 use muon::application::deep_researcher::DeepResearcher;
 use muon::application::deps::PipelineDeps;
-use muon::config::MuonConfig;
+use muon::application::config::MuonConfig;
 use muon::domain::agents::clarifier::ClarifierResult;
 use tokio::sync::mpsc;
 

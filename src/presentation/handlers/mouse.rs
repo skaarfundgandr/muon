@@ -68,7 +68,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         }
                         ClickAction::AddModel => {
                             app.config.providers[*provider_idx].models.push(
-                                crate::config::ProviderModel {
+                                crate::application::config::ProviderModel {
                                     name: String::new(),
                                     model_id: String::new(),
                                     description: String::new(),
@@ -267,7 +267,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                 let path = app.config.data_sources.source_path.clone();
                                 let kind = app.config.data_sources.source_type.to_uppercase();
                                 app.config.data_sources.rag_indexes.push(
-                                    crate::config::RagIndexConfig {
+                                    crate::application::config::RagIndexConfig {
                                         path,
                                         kind,
                                         status: "○ pending".to_string(),
@@ -280,12 +280,12 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         SettingsTab::Providers => {
                             let n = app.config.providers.len();
                             if *idx == 5 * n {
-                                app.config.providers.push(crate::config::ProviderConfig {
+                                app.config.providers.push(crate::application::config::ProviderConfig {
                                     name: String::new(),
                                     base_url: String::new(),
                                     api_key: String::new(),
                                     models: Vec::new(),
-                                    provider_type: crate::config::ProviderType::OpenAICompatible,
+                                    provider_type: crate::application::config::ProviderType::OpenAICompatible,
                                 });
                                 app.forms[tab_idx].focus = 5 * app.config.providers.len() - 5;
                                 app.forms[tab_idx].dirty = true;
@@ -295,9 +295,9 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                             let n = app.config.search.providers.len();
                             if *idx == 5 * n + 1 {
                                 app.config.search.providers.push(
-                                    crate::config::SearchProviderConfig {
+                                    crate::application::config::SearchProviderConfig {
                                         name: String::new(),
-                                        provider_type: crate::config::SearchProviderType::Tavily,
+                                        provider_type: crate::application::config::SearchProviderType::Tavily,
                                         api_key: String::new(),
                                         max_results: None,
                                         tavily: Default::default(),
@@ -474,7 +474,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 app.clarifier_focused = true;
             }
             ClickAction::AddProvider => {
-                use crate::config::{ProviderConfig, ProviderType};
+                use crate::application::config::{ProviderConfig, ProviderType};
                 app.config.providers.push(ProviderConfig {
                     name: String::new(),
                     base_url: String::new(),
@@ -503,7 +503,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 }
             }
             ClickAction::AddSearchProvider => {
-                use crate::config::{SearchProviderConfig, SearchProviderType};
+                use crate::application::config::{SearchProviderConfig, SearchProviderType};
                 app.config.search.providers.push(SearchProviderConfig {
                     name: String::new(),
                     provider_type: SearchProviderType::Tavily,
@@ -544,7 +544,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     return;
                 }
                 let provider = &app.config.providers[idx];
-                let api_key = match provider.resolved_api_key() {
+                let api_key = match crate::infrastructure::config::resolve_api_key(provider) {
                     Ok(k) => k,
                     Err(e) => {
                         app.status_flash = Some((
@@ -588,7 +588,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                 Ok(parsed) => Ok(parsed
                                     .data
                                     .into_iter()
-                                    .map(|m| crate::config::ProviderModel {
+                                    .map(|m| crate::application::config::ProviderModel {
                                         name: m.id.clone(),
                                         model_id: m.id,
                                         description: String::new(),

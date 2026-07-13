@@ -1,4 +1,4 @@
-use crate::config::AdvancedConfig;
+use crate::application::config::AdvancedConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};

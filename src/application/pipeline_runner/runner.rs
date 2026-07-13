@@ -3,7 +3,7 @@ use crate::application::deps::PipelineDeps;
 use crate::application::pipeline::{PipelineStage, PipelineState};
 use crate::application::pipeline_runner::citation_verifier;
 use crate::application::pipeline_runner::finalize::finalize_session;
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::domain::models::query::Intent;

@@ -5,7 +5,7 @@ use crate::application::pipeline_runner::citation_verifier::{
     self, ValidCitation, VerificationOutput,
 };
 use crate::application::services::report_builder;
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::domain::agents::clarifier::ClarifierResult;
 use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};

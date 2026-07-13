@@ -1,5 +1,6 @@
 pub mod agent_rs;
 pub mod agent_stubs;
+pub mod config;
 pub mod context;
 pub mod models;
 pub mod observability;

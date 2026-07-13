@@ -1,4 +1,4 @@
-use crate::config::{MuonConfig, SearchProviderConfig, SearchProviderType};
+use crate::application::config::{MuonConfig, SearchProviderConfig, SearchProviderType};
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};

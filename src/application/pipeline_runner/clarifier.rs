@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::application::bridge::{AgentEvent, BridgeChannels, PlanDecision};
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::domain::agents::clarifier::{ClarifierResult, ClarifierState};
 use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};

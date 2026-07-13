@@ -1,4 +1,4 @@
-use crate::config::{AgentsConfig, DeepResearcherConfig, MuonConfig};
+use crate::application::config::{AgentsConfig, DeepResearcherConfig, MuonConfig};
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};
@@ -473,7 +473,7 @@ fn checkbox_line(label: &str, checked: bool, focused: bool, hovered: bool) -> Li
 fn render_intent_classifier(
     f: &mut ratatui::Frame,
     area: Rect,
-    cfg: &crate::config::AgentEntryConfig,
+    cfg: &crate::application::config::AgentEntryConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     config: &MuonConfig,
@@ -555,7 +555,7 @@ fn render_intent_classifier(
 fn render_clarifier(
     f: &mut ratatui::Frame,
     area: Rect,
-    cfg: &crate::config::ClarifierConfig,
+    cfg: &crate::application::config::ClarifierConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     config: &MuonConfig,
@@ -649,7 +649,7 @@ fn render_clarifier(
 fn render_shallow_researcher(
     f: &mut ratatui::Frame,
     area: Rect,
-    cfg: &crate::config::ShallowResearcherConfig,
+    cfg: &crate::application::config::ShallowResearcherConfig,
     form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     config: &MuonConfig,

@@ -1,4 +1,5 @@
 pub mod bridge;
+pub mod config;
 pub mod deep_researcher;
 pub mod deps;
 pub mod pipeline;

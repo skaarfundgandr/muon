@@ -346,12 +346,12 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                         SettingsTab::Providers => {
                             let n = app.config.providers.len();
                             if focused == 5 * n {
-                                app.config.providers.push(crate::config::ProviderConfig {
+                                app.config.providers.push(crate::application::config::ProviderConfig {
                                     name: String::new(),
                                     base_url: String::new(),
                                     api_key: String::new(),
                                     models: Vec::new(),
-                                    provider_type: crate::config::ProviderType::OpenAICompatible,
+                                    provider_type: crate::application::config::ProviderType::OpenAICompatible,
                                 });
                                 app.forms[tab_idx].focus = 5 * app.config.providers.len() - 5;
                                 app.forms[tab_idx].dirty = true;
@@ -373,9 +373,9 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                             let n = app.config.search.providers.len();
                             if focused == 5 * n {
                                 app.config.search.providers.push(
-                                    crate::config::SearchProviderConfig {
+                                    crate::application::config::SearchProviderConfig {
                                         name: String::new(),
-                                        provider_type: crate::config::SearchProviderType::Tavily,
+                                        provider_type: crate::application::config::SearchProviderType::Tavily,
                                         api_key: String::new(),
                                         max_results: None,
                                         tavily: Default::default(),
@@ -414,7 +414,7 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                             let path = app.config.data_sources.source_path.clone();
                             let kind = app.config.data_sources.source_type.to_uppercase();
                             app.config.data_sources.rag_indexes.push(
-                                crate::config::RagIndexConfig {
+                                crate::application::config::RagIndexConfig {
                                     path,
                                     kind,
                                     status: "○ pending".to_string(),
@@ -436,7 +436,7 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                     crate::presentation::components::chrome::toast::ToastKind::Info,
                 ));
             } else {
-                match app.config.save() {
+                match crate::infrastructure::config::save(&app.config) {
                     Ok(()) => {
                         for form in &mut app.forms {
                             form.dirty = false;
@@ -724,7 +724,7 @@ fn handle_popup_key(app: &mut AppState, key: KeyEvent) -> bool {
                     } else if *focus_idx == 3 * m {
                         // [+ Add Model]
                         app.config.providers[*provider_idx].models.push(
-                            crate::config::ProviderModel {
+                            crate::application::config::ProviderModel {
                                 name: String::new(),
                                 model_id: String::new(),
                                 description: String::new(),

@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use crate::application::bridge::{AgentEvent, BridgeChannels};
 use crate::application::pipeline::PipelineState;
 use crate::application::session::SessionService;
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::infrastructure::context::InfrastructureContext;
 use crate::presentation::components::query_input::QueryInput;
@@ -42,10 +42,10 @@ async fn build_infrastructure(
 async fn run_loop(
     terminal: &mut Terminal<CrosstermBackend<std::io::Stdout>>,
 ) -> crate::domain::error::Result<()> {
-    let config = MuonConfig::load();
+    let config = crate::infrastructure::config::load();
 
     let mut config_reload_rx = {
-        let mut stream = MuonConfig::watch();
+        let mut stream = crate::infrastructure::config::watch();
         let (tx, rx) = mpsc::channel(4);
         tokio::spawn(async move {
             while let Some(cfg) = stream.next().await {
@@ -178,7 +178,7 @@ async fn run_loop(
 }
 
 pub async fn run() -> crate::domain::error::Result<()> {
-    let config = MuonConfig::load();
+    let config = crate::infrastructure::config::load();
     let observability = crate::infrastructure::observability::Observability::init(
         "muon",
         &config.observability.langsmith,

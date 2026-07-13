@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use muon::config::MuonConfig;
+use muon::application::config::MuonConfig;
 use muon::domain::error::MuonError;
 use muon::domain::models::source::{Source, SourceType, VerificationStatus};
 use muon::domain::traits::vector_store::VectorStore;

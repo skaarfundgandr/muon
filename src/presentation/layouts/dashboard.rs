@@ -4,7 +4,7 @@ use ratatui::widgets::Block;
 
 use crate::application::pipeline::PipelineState;
 use crate::application::session::SessionSummary;
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::presentation::click::{ClickAction, ClickTarget};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::query_input::QueryInput;

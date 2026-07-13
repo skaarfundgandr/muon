@@ -39,7 +39,7 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> muon::domain::error::Result<()> {
-    muon::config::MuonConfig::ensure_scaffolded();
+    muon::infrastructure::config::ensure_scaffolded();
     let cli = Cli::parse();
     match cli.command {
         Some(Commands::Tui) | None => muon::presentation::run().await,

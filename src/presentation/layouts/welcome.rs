@@ -6,7 +6,7 @@ use ratatui::widgets::{Block, Paragraph};
 use crate::presentation::components::*;
 use crate::presentation::theme;
 
-pub fn render(f: &mut ratatui::Frame, area: Rect, config: &crate::config::MuonConfig) {
+pub fn render(f: &mut ratatui::Frame, area: Rect, config: &crate::application::config::MuonConfig) {
     let bg = Block::default().style(Style::default().bg(theme::bg_main()));
     f.render_widget(bg, area);
 

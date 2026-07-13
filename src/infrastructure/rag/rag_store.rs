@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::domain::error::MuonError;
 use crate::infrastructure::util::expand_tilde;
 use agent_rs::agent::embeddings::EmbeddingService;

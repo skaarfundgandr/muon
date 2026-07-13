@@ -1,6 +1,6 @@
 use agent_rs::observability::{TracerHandle, init_tracing, shutdown_tracing};
 
-use crate::config::LangSmithConfig;
+use crate::application::config::LangSmithConfig;
 use crate::domain::error::{MuonError, Result};
 
 /// Manages OpenTelemetry tracing lifecycle for LangSmith export.
@@ -12,7 +12,7 @@ impl Observability {
     /// Initialize tracing at process start. Reads config + `LANGSMITH_API_KEY` env; no hot-reload
     /// — restart the process to apply changes.
     pub fn init(service: &str, cfg: &LangSmithConfig) -> Result<Self> {
-        let api_key = crate::config::expand_env(&cfg.api_key)
+        let api_key = crate::infrastructure::config::expand_env(&cfg.api_key)
             .ok()
             .filter(|k| !k.is_empty())
             .or_else(|| std::env::var("LANGSMITH_API_KEY").ok())
@@ -71,6 +71,5 @@ pub fn map_langsmith_config(
     }
     agent_cfg.console = cfg.console;
     agent_cfg.batch = cfg.batch;
-    agent_cfg.batch_delay_ms = cfg.batch_delay_ms;
     agent_cfg
 }

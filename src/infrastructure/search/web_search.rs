@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::config::{FirecrawlOptions, SerperOptions, TavilyOptions};
+use crate::application::config::{FirecrawlOptions, SerperOptions, TavilyOptions};
 use crate::domain::error::MuonError;
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::search_provider::SearchProvider;

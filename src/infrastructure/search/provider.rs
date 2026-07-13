@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::config::MuonConfig;
+use crate::application::config::MuonConfig;
 use crate::domain::traits::search_provider::SearchProvider;
 
 use super::CompositeSearchProvider;
@@ -23,15 +23,15 @@ pub fn resolve_web_provider(cfg: &MuonConfig) -> Option<Arc<dyn SearchProvider>>
     Some(Arc::new(CompositeSearchProvider::new(providers)) as Arc<dyn SearchProvider>)
 }
 
-fn build_one_web(p: &crate::config::SearchProviderConfig) -> Option<Arc<dyn SearchProvider>> {
-    let key = match crate::config::expand_env(&p.api_key) {
+fn build_one_web(p: &crate::application::config::SearchProviderConfig) -> Option<Arc<dyn SearchProvider>> {
+    let key = match crate::infrastructure::config::expand_env(&p.api_key) {
         Ok(k) => k,
         Err(e) => {
             tracing::warn!(target: "muon::search", "skipping '{}': {e}", p.name);
             return None;
         }
     };
-    use crate::config::SearchProviderType::*;
+    use crate::application::config::SearchProviderType::*;
     let provider: Arc<dyn SearchProvider> = match p.provider_type {
         Tavily => Arc::new(TavilyProvider::new(key, p.max_results, p.tavily.clone())),
         Firecrawl => Arc::new(FirecrawlProvider::new(

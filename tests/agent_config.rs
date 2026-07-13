@@ -1,6 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
-use muon::config::agent_config::parse_agent_md;
+use muon::infrastructure::config::parse_agent_md;
 use std::path::PathBuf;
 
 fn example(name: &str) -> PathBuf {

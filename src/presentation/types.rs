@@ -55,7 +55,7 @@ pub enum Event {
     AgentEvent(AgentEvent),
     ModelsFetched {
         provider_index: usize,
-        result: Result<Vec<crate::config::ProviderModel>, String>,
+        result: Result<Vec<crate::application::config::ProviderModel>, String>,
     },
     InfraRebuilt(Result<Arc<InfrastructureContext>, String>),
     SessionDeleteResult {

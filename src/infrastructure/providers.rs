@@ -1,6 +1,6 @@
 use rig_core::providers::{anthropic, gemini, openai};
 
-use crate::config::{ProviderConfig, ProviderType};
+use crate::application::config::{ProviderConfig, ProviderType};
 use crate::domain::error::MuonError;
 
 pub enum ProviderClient {
@@ -24,7 +24,7 @@ impl ResolvedClient {
     }
 
     pub fn for_provider_config(provider: &ProviderConfig) -> Result<Self, MuonError> {
-        let api_key = provider.resolved_api_key()?;
+        let api_key = crate::infrastructure::config::resolve_api_key(provider)?;
         let client = match provider.provider_type {
             ProviderType::OpenAI | ProviderType::OpenAICompatible => {
                 let c = openai::Client::builder()

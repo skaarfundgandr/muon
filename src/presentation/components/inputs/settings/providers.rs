@@ -1,4 +1,4 @@
-use crate::config::{MuonConfig, ProviderConfig};
+use crate::application::config::{MuonConfig, ProviderConfig};
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::components::inputs::settings::dropdown_overlay::PendingDropdown;
 use crate::presentation::form::{FieldDef, FormState};
@@ -32,10 +32,10 @@ pub fn get_field(config: &MuonConfig, index: usize) -> String {
         let provider = &config.providers[provider_idx];
         match sub_idx {
             0 => match provider.provider_type {
-                crate::config::ProviderType::OpenAI => "openai".to_string(),
-                crate::config::ProviderType::Gemini => "gemini".to_string(),
-                crate::config::ProviderType::Anthropic => "anthropic".to_string(),
-                crate::config::ProviderType::OpenAICompatible => "openai_compatible".to_string(),
+                crate::application::config::ProviderType::OpenAI => "openai".to_string(),
+                crate::application::config::ProviderType::Gemini => "gemini".to_string(),
+                crate::application::config::ProviderType::Anthropic => "anthropic".to_string(),
+                crate::application::config::ProviderType::OpenAICompatible => "openai_compatible".to_string(),
             },
             1 => provider.name.clone(),
             2 => provider.base_url.clone(),
@@ -56,10 +56,10 @@ pub fn set_field(config: &mut MuonConfig, index: usize, value: &str) {
         match sub_idx {
             0 => {
                 provider.provider_type = match value {
-                    "openai" => crate::config::ProviderType::OpenAI,
-                    "gemini" => crate::config::ProviderType::Gemini,
-                    "anthropic" => crate::config::ProviderType::Anthropic,
-                    _ => crate::config::ProviderType::OpenAICompatible,
+                    "openai" => crate::application::config::ProviderType::OpenAI,
+                    "gemini" => crate::application::config::ProviderType::Gemini,
+                    "anthropic" => crate::application::config::ProviderType::Anthropic,
+                    _ => crate::application::config::ProviderType::OpenAICompatible,
                 };
             }
             1 => provider.name = value.to_string(),
@@ -275,10 +275,10 @@ fn render_provider_row(
     let type_focused = focused_sub_idx == Some(0);
     let type_hover = is_hovering(rows[0], mouse_col, mouse_row);
     let type_str = match provider.provider_type {
-        crate::config::ProviderType::OpenAI => "openai",
-        crate::config::ProviderType::Gemini => "gemini",
-        crate::config::ProviderType::Anthropic => "anthropic",
-        crate::config::ProviderType::OpenAICompatible => "openai_compatible",
+        crate::application::config::ProviderType::OpenAI => "openai",
+        crate::application::config::ProviderType::Gemini => "gemini",
+        crate::application::config::ProviderType::Anthropic => "anthropic",
+        crate::application::config::ProviderType::OpenAICompatible => "openai_compatible",
     };
     f.render_widget(
         Paragraph::new(dropdown_line("Type", type_str, type_focused, type_hover)),
