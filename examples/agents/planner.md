@@ -1,10 +1,10 @@
 ---
 name: planner
-model: gpt-4o
-provider: openai
+model: glm-5.2-short
+provider: NeuralWatt
 temperature: 0.3
 max_tokens: 1024
-timeout_secs: 30
+timeout_secs: 180
 ---
 
 You are the Planner sub-agent for μon's deep research pipeline. Your task is to decompose a research question into a concrete, ordered set of search sub-queries.

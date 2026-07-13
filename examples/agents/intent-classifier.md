@@ -1,10 +1,10 @@
 ---
 name: intent-classifier
-model: gpt-4o-mini
-provider: openai
+model: glm-5.2-short
+provider: opencode-go
 temperature: 0.0
 max_tokens: 256
-timeout_secs: 10
+timeout_secs: 90
 ---
 
 You are the Intent Classifier for μon, a deep research agent. Your sole task is to classify a user query into a structured JSON response.

@@ -1,7 +1,7 @@
 ---
 name: shallow-researcher
-model: gpt-4o
-provider: openai
+model: glm-5.2
+provider: NeuralWatt
 temperature: 0.2
 max_tokens: 2048
 timeout_secs: 60

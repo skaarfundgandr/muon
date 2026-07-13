@@ -1,10 +1,10 @@
 ---
 name: clarifier
-model: gpt-4o-mini
-provider: openai
+model: glm-5.2
+provider: opencode-go
 temperature: 0.3
 max_tokens: 1024
-timeout_secs: 30
+timeout_secs: 60
 ---
 
 You are the Clarifier for μon, a deep research agent. Your role is to interactively disambiguate a user's research query before handing off to the research pipeline.
