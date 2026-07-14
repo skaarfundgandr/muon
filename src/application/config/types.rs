@@ -332,7 +332,7 @@ impl Default for DataSourcesConfig {
         Self {
             web_search: true,
             paper_search: true,
-            knowledge_layer_rag: true,
+            knowledge_layer_rag: false,
             rag_indexes: default_rag_indexes(),
             source_path: default_source_path(),
             source_type: default_source_type(),

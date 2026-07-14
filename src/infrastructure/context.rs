@@ -238,6 +238,39 @@ impl InfrastructureContext {
         let intent_preamble = &intent_def.preamble_markdown;
         let shallow_preamble = &shallow_def.preamble_markdown;
 
+        // RAG — optional, gated on config toggle.
+        let (dynamic_index, vector_store): (
+            Option<crate::infrastructure::rag::RagToRigIndex>,
+            Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>>,
+        ) = if cfg.data_sources.knowledge_layer_rag {
+            match crate::infrastructure::rag::RagContext::open(cfg).await {
+                Ok(rag) => {
+                    use crate::domain::models::log_entry::{AgentTag, LogLevel};
+                    bridge.log(
+                        AgentTag::Sys,
+                        LogLevel::Info,
+                        "RAG context initialized",
+                    );
+                    let rag = Arc::new(rag);
+                    let idx = crate::infrastructure::rag::RagToRigIndex::new(Arc::clone(&rag));
+                    (Some(idx), Some(rag))
+                }
+                Err(e) => {
+                    use crate::domain::models::log_entry::{AgentTag, LogLevel};
+                    bridge.log(
+                        AgentTag::Sys,
+                        LogLevel::Warn,
+                        format!("RAG init failed, continuing without: {e}"),
+                    );
+                    (None, None)
+                }
+            }
+        } else {
+            use crate::domain::models::log_entry::{AgentTag, LogLevel};
+            bridge.log(AgentTag::Sys, LogLevel::Info, "RAG disabled by config");
+            (None, None)
+        };
+
         // Intent Classifier — no tools.
         let intent_classifier: Arc<dyn MuonAgent> =
             Arc::new(crate::infrastructure::agent_rs::ReActAgent::new(
@@ -304,6 +337,23 @@ impl InfrastructureContext {
                             b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
                                 wp.clone(),
                             ))
+                        } else {
+                            b
+                        };
+                        let b = if let Some(ref idx) = dynamic_index {
+                            b.dynamic_context(
+                                cfg.advanced.rag_top_k as usize,
+                                idx.clone(),
+                            )
+                        } else {
+                            b
+                        };
+                        let b = if let Some(ref vs) = vector_store {
+                            b.tool(
+                                crate::infrastructure::agent_rs::tools::KnowledgeSearchTool::new(
+                                    vs.clone(),
+                                ),
+                            )
                         } else {
                             b
                         };
@@ -486,6 +536,23 @@ impl InfrastructureContext {
                 } else {
                     b
                 };
+                let b = if let Some(ref idx) = dynamic_index {
+                    b.dynamic_context(
+                        cfg.advanced.rag_top_k as usize,
+                        idx.clone(),
+                    )
+                } else {
+                    b
+                };
+                let b = if let Some(ref vs) = vector_store {
+                    b.tool(
+                        crate::infrastructure::agent_rs::tools::KnowledgeSearchTool::new(
+                            vs.clone(),
+                        ),
+                    )
+                } else {
+                    b
+                };
                 let agent = b
                     .default_max_turns(researcher_max_turns)
                     .hook(researcher_hook.clone())
@@ -576,25 +643,6 @@ impl InfrastructureContext {
         let session_store: Arc<dyn SessionStore> = Arc::new(
             crate::infrastructure::storage::DieselSessionStore::new(pool),
         );
-
-        // RAG — optional, fails open (no RAG) if the model/index can't init.
-        let vector_store: Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>> =
-            match crate::infrastructure::rag::RagContext::open(cfg).await {
-                Ok(rag) => {
-                    use crate::domain::models::log_entry::{AgentTag, LogLevel};
-                    bridge.log(AgentTag::Sys, LogLevel::Info, "RAG context initialized");
-                    Some(Arc::new(rag))
-                }
-                Err(e) => {
-                    use crate::domain::models::log_entry::{AgentTag, LogLevel};
-                    bridge.log(
-                        AgentTag::Sys,
-                        LogLevel::Warn,
-                        format!("RAG init failed, continuing without: {e}"),
-                    );
-                    None
-                }
-            };
 
         Ok(Self::with_sink(
             intent_classifier,

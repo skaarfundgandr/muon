@@ -76,7 +76,7 @@ citation_verify = true
 [data_sources]
 web_search = true
 paper_search = true
-knowledge_layer_rag = true
+knowledge_layer_rag = false
 
 # Display preferences.
 [display]
