@@ -3,7 +3,7 @@ use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph};
 
-use crate::application::config::MuonConfig;
+use crate::application::config::{AgentSettings, MuonConfig};
 use crate::presentation::click::{ClickAction, ClickTarget, is_hovering};
 use crate::presentation::components::header::HeaderConfig;
 use crate::presentation::components::settings::dropdown_overlay::PendingDropdown;
@@ -21,6 +21,7 @@ pub fn render(
     area: Rect,
     tab: SettingsTab,
     config: &MuonConfig,
+    agent_settings: &AgentSettings,
     _form: &FormState,
     hit_registry: &mut Vec<ClickTarget>,
     mouse_col: u16,
@@ -64,6 +65,7 @@ pub fn render(
                 f,
                 chunks[2],
                 config,
+                agent_settings,
                 _form,
                 hit_registry,
                 mouse_col,

@@ -58,11 +58,20 @@ async fn run_loop(
     };
     let _ = config_reload_rx.try_recv();
 
+    let agents_dir =
+        crate::infrastructure::util::expand_tilde(config.advanced.agents_dir.clone());
+    let agent_settings = crate::infrastructure::config::load_agent_settings(&agents_dir)
+        .unwrap_or_else(|e| {
+            tracing::warn!(target: "muon::config", "failed to load agent settings: {e}");
+            crate::application::config::AgentSettings::default()
+        });
+
     let mut app = AppState {
         router: ViewRouter::new(),
         running: true,
         tick_count: 0,
         config: config.clone(),
+        agent_settings,
         forms: std::array::from_fn(|_| FormState::default()),
         query_input: QueryInput::default(),
         sessions: SessionService::new(),

@@ -178,6 +178,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     SettingsTab::Agents => {
                         crate::presentation::components::inputs::settings::agents::get_field(
                             &app.config.agents,
+                            &app.agent_settings,
                             *idx,
                         )
                     }
@@ -253,7 +254,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     crate::presentation::form::FieldKind::Checkbox => {
                         match tab {
                             SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::toggle_field(&mut app.config, *idx),
-                            SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::toggle_field(&mut app.config.agents, *idx),
+                            SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::toggle_field(&mut app.config.agents, &mut app.agent_settings, *idx),
                             SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::toggle_field(&mut app.config, *idx),
                             SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::toggle_field(&mut app.config, *idx),
                             SettingsTab::Display => crate::presentation::components::inputs::settings::display::toggle_field(&mut app.config.display, *idx),
@@ -322,7 +323,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 app.forms[tab_idx].reset_edit();
                 match tab {
                     SettingsTab::Providers => crate::presentation::components::inputs::settings::providers::toggle_field(&mut app.config, *idx),
-                    SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::toggle_field(&mut app.config.agents, *idx),
+                    SettingsTab::Agents => crate::presentation::components::inputs::settings::agents::toggle_field(&mut app.config.agents, &mut app.agent_settings, *idx),
                     SettingsTab::Tools => crate::presentation::components::inputs::settings::tools::toggle_field(&mut app.config, *idx),
                     SettingsTab::DataSources => crate::presentation::components::inputs::settings::data_sources::toggle_field(&mut app.config, *idx),
                     SettingsTab::Display => crate::presentation::components::inputs::settings::display::toggle_field(&mut app.config.display, *idx),
@@ -377,6 +378,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         crate::presentation::components::inputs::settings::agents::options_for(
                             app.forms[tab_idx].focus,
                             &app.config,
+                            &app.agent_settings,
                         )
                     }
                     SettingsTab::Tools => {
@@ -432,6 +434,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         SettingsTab::Agents => {
                             crate::presentation::components::inputs::settings::agents::set_field(
                                 &mut app.config.agents,
+                                &mut app.agent_settings,
                                 app.forms[tab_idx].focus,
                                 &val,
                             );

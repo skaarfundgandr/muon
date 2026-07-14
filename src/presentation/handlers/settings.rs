@@ -48,7 +48,12 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                     providers::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
                 }
                 SettingsTab::Agents => {
-                    agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
+                    agents::set_field(
+                        &mut app.config.agents,
+                        &mut app.agent_settings,
+                        app.forms[tab_idx].focus,
+                        &val,
+                    );
                 }
                 SettingsTab::Tools => {
                     tools::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
@@ -74,7 +79,9 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-            SettingsTab::Agents => agents::options_for(app.forms[tab_idx].focus, &app.config),
+            SettingsTab::Agents => {
+                agents::options_for(app.forms[tab_idx].focus, &app.config, &app.agent_settings)
+            }
             SettingsTab::Tools => tools::fields(&app.config)[app.forms[tab_idx].focus]
                 .options
                 .iter()
@@ -124,7 +131,12 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                         providers::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
                     }
                     SettingsTab::Agents => {
-                        agents::set_field(&mut app.config.agents, app.forms[tab_idx].focus, &val);
+                        agents::set_field(
+                        &mut app.config.agents,
+                        &mut app.agent_settings,
+                        app.forms[tab_idx].focus,
+                        &val,
+                    );
                     }
                     SettingsTab::Tools => {
                         tools::set_field(&mut app.config, app.forms[tab_idx].focus, &val);
@@ -298,7 +310,9 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                     FieldKind::Text | FieldKind::Number => {
                         let val = match tab {
                             SettingsTab::Providers => providers::get_field(&app.config, focused),
-                            SettingsTab::Agents => agents::get_field(&app.config.agents, focused),
+                            SettingsTab::Agents => {
+                                agents::get_field(&app.config.agents, &app.agent_settings, focused)
+                            }
                             SettingsTab::Tools => tools::get_field(&app.config, focused),
                             SettingsTab::DataSources => {
                                 data_sources::get_field(&app.config, focused)
@@ -325,7 +339,11 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                                 providers::toggle_field(&mut app.config, focused);
                             }
                             SettingsTab::Agents => {
-                                agents::toggle_field(&mut app.config.agents, focused);
+                                agents::toggle_field(
+                                    &mut app.config.agents,
+                                    &mut app.agent_settings,
+                                    focused,
+                                );
                             }
                             SettingsTab::Tools => {
                                 tools::toggle_field(&mut app.config, focused);
@@ -436,7 +454,16 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                     crate::presentation::components::chrome::toast::ToastKind::Info,
                 ));
             } else {
-                match crate::infrastructure::config::save(&app.config) {
+                let agents_dir = crate::infrastructure::util::expand_tilde(
+                    app.config.advanced.agents_dir.clone(),
+                );
+                let save_result = crate::infrastructure::config::save(&app.config).and_then(|_| {
+                    crate::infrastructure::config::save_agent_settings(
+                        &agents_dir,
+                        &app.agent_settings,
+                    )
+                });
+                match save_result {
                     Ok(()) => {
                         for form in &mut app.forms {
                             form.dirty = false;

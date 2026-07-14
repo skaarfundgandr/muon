@@ -49,6 +49,7 @@ pub(crate) fn handle_scroll(app: &mut AppState, delta: i32) {
                     crate::presentation::components::inputs::settings::agents::options_for(
                         app.forms[tab_idx].focus,
                         &app.config,
+                        &app.agent_settings,
                     )
                 }
                 SettingsTab::Tools => {

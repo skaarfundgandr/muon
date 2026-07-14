@@ -23,6 +23,7 @@ pub(crate) fn render(frame: &mut ratatui::Frame, app: &mut AppState) {
             sessions: app.sessions.list(),
             pipeline: &app.pipeline,
             config: &app.config,
+            agent_settings: &app.agent_settings,
             forms: &app.forms,
             settings_tab: app.router.settings_tab(),
             hit_registry: &mut app.hit_registry,

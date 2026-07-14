@@ -7,7 +7,7 @@ use crate::application::bridge::{AgentEvent, BridgeChannels};
 use crate::application::pipeline::{PipelineStage, PipelineState};
 use crate::application::services::{ExportFormat, ExportRequest, ExportService};
 use crate::application::session::SessionService;
-use crate::application::config::MuonConfig;
+use crate::application::config::{AgentSettings, MuonConfig};
 use crate::domain::error::MuonError;
 use crate::domain::models::log_entry::{AgentTag, LogEntry, LogLevel};
 use crate::domain::models::session::{Session, SessionStatus};
@@ -37,6 +37,7 @@ pub struct AppState {
     pub running: bool,
     pub(crate) tick_count: u64,
     pub config: MuonConfig,
+    pub agent_settings: AgentSettings,
     pub forms: [FormState; 6],
     pub query_input: QueryInput,
     pub sessions: SessionService,

@@ -3,7 +3,7 @@ use ratatui::layout::Rect;
 
 use crate::application::pipeline::PipelineState;
 use crate::application::session::SessionSummary;
-use crate::application::config::MuonConfig;
+use crate::application::config::{AgentSettings, MuonConfig};
 use crate::presentation::click::ClickTarget;
 use crate::presentation::components::query_input::QueryInput;
 use crate::presentation::form::FormState;
@@ -25,6 +25,7 @@ pub struct RenderParams<'a> {
     pub sessions: &'a [SessionSummary],
     pub pipeline: &'a PipelineState,
     pub config: &'a MuonConfig,
+    pub agent_settings: &'a AgentSettings,
     pub forms: &'a [FormState; 6],
     pub settings_tab: SettingsTab,
     pub hit_registry: &'a mut Vec<ClickTarget>,
@@ -142,6 +143,7 @@ impl View {
                     area,
                     tab,
                     params.config,
+                    params.agent_settings,
                     form,
                     params.hit_registry,
                     params.mouse_col,

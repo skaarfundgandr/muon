@@ -48,15 +48,13 @@ arxiv_enabled = true
 
 [agents]
 
-# Clarifier — interactive HITL disambiguation before research.
-# Pipeline knobs only; model/provider come from agents/*.md.
+# Pipeline knobs only. Model/provider/timeout live in agents/*.md frontmatter
+# (edit via Settings → Agents or the markdown files directly).
 [agents.clarifier]
 max_turns = 3
 plan_approval = true
 max_iterations = 10
 
-# Shallow researcher — single-pass synthesis of search results.
-# Pipeline knobs only; model/provider come from agents/*.md.
 [agents.shallow_researcher]
 max_llm_turns = 10
 max_tool_iters = 5
@@ -65,7 +63,6 @@ max_tool_iters = 5
 # iterations = ReAct cycle budget (loop owner).
 # orchestrator_max_tool_calls = per-cycle multi-tool turns (keep low, ~1–2).
 # researcher_max_tool_calls = managed multi-turn for search → fetch → synthesize.
-# Pipeline knobs only; model/provider come from agents/*.md.
 [agents.deep_researcher]
 iterations = 8
 max_retries = 3

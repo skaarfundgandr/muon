@@ -210,12 +210,26 @@ impl InfrastructureContext {
         )?;
         let shallow_def = load_agent_def("shallow-researcher", preamble)?;
 
-        let intent_client = resolve_client(&intent_def.provider)?;
-        let shallow_client = resolve_client(&shallow_def.provider)?;
-        let clarifier_client = resolve_client(&clarifier_def.provider)?;
-        let deep_client = resolve_client(&orchestrator_def.provider)?;
-        let planner_client = resolve_client(&planner_def.provider)?;
-        let researcher_client = resolve_client(&researcher_def.provider)?;
+        let intent_provider = intent_def.provider.as_str();
+        let intent_model = intent_def.model.as_str();
+        let intent_timeout = intent_def.timeout_secs;
+        let shallow_provider = shallow_def.provider.as_str();
+        let shallow_model = shallow_def.model.as_str();
+        let clarifier_provider = clarifier_def.provider.as_str();
+        let clarifier_model = clarifier_def.model.as_str();
+        let orchestrator_provider = orchestrator_def.provider.as_str();
+        let orchestrator_model = orchestrator_def.model.as_str();
+        let planner_provider = planner_def.provider.as_str();
+        let planner_model = planner_def.model.as_str();
+        let researcher_provider = researcher_def.provider.as_str();
+        let researcher_model = researcher_def.model.as_str();
+
+        let intent_client = resolve_client(intent_provider)?;
+        let shallow_client = resolve_client(shallow_provider)?;
+        let clarifier_client = resolve_client(clarifier_provider)?;
+        let deep_client = resolve_client(orchestrator_provider)?;
+        let planner_client = resolve_client(planner_provider)?;
+        let researcher_client = resolve_client(researcher_provider)?;
 
         let orchestrator_preamble = &orchestrator_def.preamble_markdown;
         let planner_preamble = &planner_def.preamble_markdown;
@@ -232,15 +246,15 @@ impl InfrastructureContext {
                     &intent_client.client,
                     &resolve_model_id(
                         providers,
-                        &intent_def.provider,
-                        &intent_def.model
+                        &intent_provider,
+                        &intent_model
                     ),
                     |c| {
                         let agent = c
                             .agent(resolve_model_id(
                                 providers,
-                                &intent_def.provider,
-                                &intent_def.model,
+                                &intent_provider,
+                                &intent_model,
                             ))
                             .preamble(intent_preamble)
                             .temperature(intent_def.temperature)
@@ -251,7 +265,7 @@ impl InfrastructureContext {
                             agent,
                             AgentTag::Intent,
                             5,
-                            intent_def.timeout_secs,
+                            intent_timeout,
                             source_sink.clone(),
                             Some(crate::infrastructure::agent_rs::react_agents::REMINDER_FINALIZE),
                             true,
@@ -269,15 +283,15 @@ impl InfrastructureContext {
                     &shallow_client.client,
                     &resolve_model_id(
                         providers,
-                        &shallow_def.provider,
-                        &shallow_def.model
+                        &shallow_provider,
+                        &shallow_model
                     ),
                     |c| {
                         let b = c
                             .agent(resolve_model_id(
                                 providers,
-                                &shallow_def.provider,
-                                &shallow_def.model,
+                                &shallow_provider,
+                                &shallow_model,
                             ))
                             .preamble(shallow_preamble)
                             .temperature(shallow_def.temperature)
@@ -326,15 +340,15 @@ impl InfrastructureContext {
                     &clarifier_client.client,
                     &resolve_model_id(
                         providers,
-                        &clarifier_def.provider,
-                        &clarifier_def.model
+                        &clarifier_provider,
+                        &clarifier_model
                     ),
                     |c| {
                         let agent = if let Some(ref wp) = web_provider {
                             c.agent(resolve_model_id(
                                 providers,
-                                &clarifier_def.provider,
-                                &clarifier_def.model,
+                                &clarifier_provider,
+                                &clarifier_model,
                             ))
                             .preamble(clarifier_preamble)
                             .temperature(clarifier_def.temperature)
@@ -348,8 +362,8 @@ impl InfrastructureContext {
                         } else {
                             c.agent(resolve_model_id(
                                 providers,
-                                &clarifier_def.provider,
-                                &clarifier_def.model,
+                                &clarifier_provider,
+                                &clarifier_model,
                             ))
                             .preamble(clarifier_preamble)
                             .temperature(clarifier_def.temperature)
@@ -379,15 +393,15 @@ impl InfrastructureContext {
                     &planner_client.client,
                     &resolve_model_id(
                         providers,
-                        &planner_def.provider,
-                        &planner_def.model
+                        &planner_provider,
+                        &planner_model
                     ),
                     |c| {
                         let b = c
                             .agent(resolve_model_id(
                                 providers,
-                                &planner_def.provider,
-                                &planner_def.model,
+                                &planner_provider,
+                                &planner_model,
                             ))
                             .preamble(planner_preamble)
                             .temperature(planner_def.temperature)
@@ -439,15 +453,15 @@ impl InfrastructureContext {
             &researcher_client.client,
             &resolve_model_id(
                 providers,
-                &researcher_def.provider,
-                &researcher_def.model
+                &researcher_provider,
+                &researcher_model
             ),
             |c| {
                 let b = c
                     .agent(resolve_model_id(
                         providers,
-                        &researcher_def.provider,
-                        &researcher_def.model,
+                        &researcher_provider,
+                        &researcher_model,
                     ))
                     .preamble(researcher_preamble)
                     .temperature(researcher_def.temperature)
@@ -492,15 +506,15 @@ impl InfrastructureContext {
                     &deep_client.client,
                     &resolve_model_id(
                         providers,
-                        &orchestrator_def.provider,
-                        &orchestrator_def.model
+                        &orchestrator_provider,
+                        &orchestrator_model
                     ),
                     |c| {
                         let b = c
                             .agent(resolve_model_id(
                                 providers,
-                                &orchestrator_def.provider,
-                                &orchestrator_def.model,
+                                &orchestrator_provider,
+                                &orchestrator_model,
                             ))
                             .preamble(orchestrator_preamble)
                             .temperature(orchestrator_def.temperature)
