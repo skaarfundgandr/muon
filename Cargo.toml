@@ -51,6 +51,9 @@ clap = { version = "4", features = ["derive"] }
 notify = "6"
 notify-debouncer-mini = "0.5"
 arboard = { version = "3.6", default-features = true, features = ["wayland-data-control"] }
+tavily = "2.1.0"
+firecrawl = "2.11.0"
+serper-sdk = "0.1.3"
 
 [dev-dependencies]
 tempfile = "3"
