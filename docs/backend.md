@@ -164,11 +164,12 @@ Unmatched citations are removed with a reason: `UrlNotInRegistry`, `CitationKeyN
 
 ## 7. Export
 
-Three export components in `src/application/services/`:
+Four export components in `src/application/services/`:
 
-- **`ExportService`** — routes export requests to the appropriate exporter based on format.
+- **`ExportService`** — routes export requests to the appropriate exporter based on `ExportFormat` (`markdown` / `obsidian` / `pdf`).
 - **`MarkdownExporter`** — writes a report to `~/.local/share/muon/exports/<session_id>.md` with YAML frontmatter (title, query, created_at, source count).
 - **`ObsidianExporter`** — writes the report into `<vault_path>/Muon/<slug>.md` and appends a link to the map of content at `Muon/MOC.md`. Slug is the title lowercased with dashes, max 60 chars.
+- **`PdfExporter`** — renders the same markdown body as `MarkdownExporter` to `~/.local/share/muon/exports/<session_id>.pdf` via `pdf_oxide::api::Pdf::from_markdown` + `save`. Reaches the TUI via the **F2** action-bar button (`[F2] Export PDF`) and via `muon export <session> pdf -o path` on the CLI; F2 has full parity with F1 Export MD (hover, click hit-target, success/error toasts). `pdf_oxide` is also the PDF→Markdown ingest source for RAG directory indexing (multi-page, see §3.9).
 
 ## 8. LangSmith Tracing
 
@@ -279,12 +280,26 @@ LLM providers are declared via `[[providers]]` entries with `name`, `base_url`, 
 
 The Settings view has 6 tabs (in order): `Providers`, `Agents`, `Tools`, `Data Sources`, `Display`, `Advanced`. The `Providers` tab is a dynamic row editor over `cfg.providers`; the `Tools` tab renders `cfg.search.providers` rows + the arXiv toggle. The `Agents` tab edits pipeline orchestration knobs only (clarifier / shallow / deep budgets and flags). Per-agent model, provider, temperature, max_tokens, and timeout_secs live in `agents/*.md` YAML frontmatter — edit those files outside the TUI.
 
-### 10.7 Removed (per SPEC)
+### 10.7 Removed (per SPEC) / per feature-wiring audit
 
 - `SearXNGProvider` — removed; use Brave/Tavily/Firecrawl/Serper instead.
 - `SemanticScholarProvider` — removed; arXiv is the only paper source.
 - The old hardcoded `match provider { "openai" | "opencode-go" | ... }` dispatch in `providers.rs` was replaced by `for_named_provider` / `for_default_provider`.
 - `FetchPageTool` is reqwest-only; the SPEC-mandated Firecrawl/Tavily fallback chain is a follow-up.
+- **Feature-wiring cleanup (branch `feat/feature-wiring-spec-alignment`):**
+  - `enterprise_systems` config field, `SourceType::Enterprise`, `SourceType::Code`, their DB mapping arms, and the Enterprise source-registry UI row — stripped (no producer existed; `try_from_str` maps unknown DB strings to `Web` with `tracing::warn!`).
+  - Hand-rolled Tavily / Firecrawl / Serper HTTP replaced with the `tavily` / `firecrawl` / `serper-sdk` crates; Brave stays hand-rolled (no adequate library SDK).
+
+### 10.8 Knowledge Layer RAG
+
+The RAG layer is **off by default** (`knowledge_layer_rag = false` in `DataSourcesConfig::default()` and `examples/muon.toml`). When enabled:
+
+- `RagContext::open` runs at startup, ahead of agent construction, and logs `Sys` info/warn accordingly (fail-open preserved on init error).
+- **Research agents only** receive RAG context — **Shallow Researcher** and the deep **Researcher** sub-agent get `.dynamic_context(rag_top_k, index)` on the rig builder plus the `KnowledgeSearchTool`. Planner, Orchestrator, Intent Classifier, and Clarifier do **not** receive either (Planner plan decomposition relies on template context, not local corpus retrieval).
+- The thin `RagToRigIndex` adapter (in `src/infrastructure/rag/rag_to_rig_index.rs`) bridges `Arc<RagContext>` to rig's `VectorStoreIndexDyn` via the existing `TurboVectorIndex` query path.
+- Directory indexing is wired through `RagIndexerService` (application layer): walks Directory / File / Glob paths, indexes `.txt` / `.md` directly, and pre-extracts **all pages** of `.pdf` files to markdown via `pdf_oxide` so the agent_rs indexer stays txt/md. The TUI `ClickAction::ReindexRagIndex` action spawns the index job asynchronously and updates status (`○ indexing… → ● indexed / ⚠ error`) and chunk count without blocking the event loop. When RAG is disabled, reindex skips embedding entirely and marks the row `○ disabled`.
+- The post-research embed loop in `deep_researcher.rs` (~142–174) is intentionally retained for corpus growth; it will be revisited if directory indexing fully supersedes it.
+- `SourceType::Knowledge` gets a distinct `📚 knowledge` card badge (cyan) — no longer mapped to Web.
 
 ## 11. Intentional SPEC Drift
 
@@ -326,7 +341,7 @@ Missing or empty `config.toml` (no `[[providers]]`) does NOT crash the TUI. `new
 
 ### 11.8 Non-goals (explicitly out of scope)
 
-- Enterprise search implementation (the `enterprise_systems` config field is reserved/unimplemented).
+- Enterprise search implementation — removed (see §10.7 Removed; `enterprise_systems` config field stripped).
 - Researcher BuiltReAct + `think` tool.
 - Truncation `VerificationLevel` variant.
 - Full CLEAN DI rewrite / removing `InfrastructureContext`.
