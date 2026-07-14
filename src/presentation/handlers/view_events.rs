@@ -74,6 +74,10 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                 app.action_export_markdown();
                 return true;
             }
+            KeyCode::F(2) => {
+                app.action_export_pdf();
+                return true;
+            }
             KeyCode::F(3) => {
                 app.action_sync_obsidian();
                 return true;

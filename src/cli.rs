@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use crate::application::bridge::BridgeChannels;
 use crate::application::pipeline::PipelineState;
 use crate::application::pipeline_runner::run_pipeline;
-use crate::application::services::{ExportFormat, ObsidianExporter};
+use crate::application::services::{ExportFormat, ObsidianExporter, PdfExporter};
 use crate::domain::error::{MuonError, Result};
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::{Session, SessionId, SessionStatus};
@@ -144,6 +144,14 @@ pub async fn export_session(
             let vault_path = std::path::PathBuf::from(vault_str);
             ObsidianExporter::export(&report, &session, &vault_path)?;
             render_obsidian(&report)
+        }
+        ExportFormat::Pdf => {
+            let pdf_path = match output {
+                Some(out) => PdfExporter::export_to_path(&report, &session, out)?,
+                None => PdfExporter::export(&report, &session)?,
+            };
+            eprintln!("PDF export written to {}", pdf_path.display());
+            return Ok(());
         }
     };
 

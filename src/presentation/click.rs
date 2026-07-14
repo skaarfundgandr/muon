@@ -39,6 +39,7 @@ pub enum ClickAction {
     PlanFeedback,
     PlanSelectFeedbackInput,
     ExportMarkdown,
+    ExportPdf,
     SyncObsidian,
     NewQuery,
     RefineSearch,

@@ -375,6 +375,34 @@ impl AppState {
         }
     }
 
+    pub fn action_export_pdf(&mut self) {
+        use crate::presentation::components::chrome::toast::ToastKind;
+        let Some(report) = self.last_report.clone() else {
+            self.set_status_flash("No report to export", ToastKind::Error);
+            self.push_sys_log("Export PDF failed: no report", LogLevel::Error);
+            return;
+        };
+        let session = self.session_stub_for_export();
+        match ExportService::export(ExportRequest {
+            report: &report,
+            session: &session,
+            format: ExportFormat::Pdf,
+            obsidian_vault: None,
+            markdown_dir: None,
+        }) {
+            Ok(path) => {
+                let msg = format!("PDF Exported to {}", path.display());
+                self.set_status_flash(msg.clone(), ToastKind::Success);
+                self.push_sys_log(msg, LogLevel::Info);
+            }
+            Err(e) => {
+                let msg = format!("PDF export failed: {e}");
+                self.set_status_flash(msg.clone(), ToastKind::Error);
+                self.push_sys_log(msg, LogLevel::Error);
+            }
+        }
+    }
+
     pub fn action_export_markdown(&mut self) {
         use crate::presentation::components::chrome::toast::ToastKind;
         let Some(report) = self.last_report.clone() else {

@@ -36,6 +36,7 @@ anyhow = "1"
 url = "2"
 tracing = "0.1"
 agent_rs = { path = "../agent_rs", features = ["rag", "opentelemetry"] }
+pdf_oxide = "0.3"
 diesel = { version = "2.3", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
 diesel-async = { version = "0.9", features = ["sqlite", "deadpool"] }
 diesel_migrations = "2.3"

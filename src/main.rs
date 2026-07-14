@@ -27,7 +27,7 @@ enum Commands {
     Export {
         /// Session ID (UUID)
         session: String,
-        /// Output format: markdown | obsidian
+        /// Output format: markdown | obsidian | pdf
         format: ExportFormat,
         /// Output file path
         #[arg(short = 'o', long)]

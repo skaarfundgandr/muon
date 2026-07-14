@@ -111,9 +111,9 @@ pub fn render(
             crossed: false,
         },
         ActionBtn {
-            label: "[F2] Export PDF (v0.2)",
-            action: None,
-            crossed: true,
+            label: "[F2] Export PDF",
+            action: Some(ClickAction::ExportPdf),
+            crossed: false,
         },
         ActionBtn {
             label: "[F3] Sync Obsidian",

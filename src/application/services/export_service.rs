@@ -8,11 +8,13 @@ use crate::domain::models::session::Session;
 
 use super::markdown_exporter::MarkdownExporter;
 use super::obsidian_exporter::ObsidianExporter;
+use super::pdf_exporter::PdfExporter;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExportFormat {
     Markdown,
     Obsidian,
+    Pdf,
 }
 
 impl fmt::Display for ExportFormat {
@@ -20,6 +22,7 @@ impl fmt::Display for ExportFormat {
         match self {
             ExportFormat::Markdown => write!(f, "markdown"),
             ExportFormat::Obsidian => write!(f, "obsidian"),
+            ExportFormat::Pdf => write!(f, "pdf"),
         }
     }
 }
@@ -31,6 +34,7 @@ impl FromStr for ExportFormat {
         match s.to_lowercase().as_str() {
             "markdown" => Ok(ExportFormat::Markdown),
             "obsidian" => Ok(ExportFormat::Obsidian),
+            "pdf" => Ok(ExportFormat::Pdf),
             other => Err(MuonError::Config(format!("unknown export format: {other}"))),
         }
     }
@@ -60,6 +64,10 @@ impl ExportService {
                     .ok_or_else(|| MuonError::Config("obsidian_vault missing".into()))?;
                 ObsidianExporter::export(req.report, req.session, vault)
             }
+            ExportFormat::Pdf => match req.markdown_dir {
+                Some(dir) => PdfExporter::export_to(req.report, req.session, dir),
+                None => PdfExporter::export(req.report, req.session),
+            },
         }
     }
 }

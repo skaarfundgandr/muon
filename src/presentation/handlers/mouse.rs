@@ -631,6 +631,9 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 app.config.data_sources.rag_indexes.remove(*idx);
                 app.forms[SettingsTab::DataSources as usize].dirty = true;
             }
+            ClickAction::ExportPdf => {
+                app.action_export_pdf();
+            }
             ClickAction::ExportMarkdown => {
                 app.action_export_markdown();
             }
