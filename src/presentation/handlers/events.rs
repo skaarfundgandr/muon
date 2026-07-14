@@ -250,5 +250,26 @@ pub(crate) fn handle_event(app: &mut AppState, event: Event) {
                 crate::presentation::components::chrome::toast::ToastKind::Error,
             ));
         }
+        Event::RagIndexed { idx, summary } => {
+            if let Some(entry) = app.config.data_sources.rag_indexes.get_mut(idx) {
+                if summary.errors.is_empty() {
+                    entry.status = "● indexed".to_string();
+                    app.status_flash = Some((
+                        Instant::now(),
+                        format!("Indexed {} files ({} chunks)", summary.total_files, summary.total_chunks),
+                        crate::presentation::components::chrome::toast::ToastKind::Success,
+                    ));
+                } else {
+                    entry.status = "⚠ error".to_string();
+                    app.status_flash = Some((
+                        Instant::now(),
+                        format!("Index completed with {} errors", summary.errors.len()),
+                        crate::presentation::components::chrome::toast::ToastKind::Error,
+                    ));
+                }
+                entry.chunks = summary.total_chunks.to_string();
+                app.forms[crate::presentation::views::SettingsTab::DataSources as usize].dirty = true;
+            }
+        }
     }
 }

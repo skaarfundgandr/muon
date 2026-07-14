@@ -64,4 +64,8 @@ pub enum Event {
         error: Option<String>,
         restored: Option<crate::application::session::SessionSummary>,
     },
+    RagIndexed {
+        idx: usize,
+        summary: crate::application::services::IndexSummary,
+    },
 }

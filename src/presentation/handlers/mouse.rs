@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::application::bridge::PlanDecision;
@@ -619,11 +621,69 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
             ClickAction::ReindexRagIndex(idx)
                 if *idx < app.config.data_sources.rag_indexes.len() =>
             {
-                app.status_flash = Some((
-                    Instant::now(),
-                    "RAG reindex is not implemented yet".into(),
-                    crate::presentation::components::chrome::toast::ToastKind::Info,
-                ));
+                let config_entry = app.config.data_sources.rag_indexes[*idx].clone();
+                if !app.config.data_sources.knowledge_layer_rag {
+                    app.config.data_sources.rag_indexes[*idx].status = "○ disabled".to_string();
+                    app.config.data_sources.rag_indexes[*idx].chunks = "-".to_string();
+                    app.forms[SettingsTab::DataSources as usize].dirty = true;
+                    app.status_flash = Some((
+                        Instant::now(),
+                        "RAG is disabled — enable in Data Sources".into(),
+                        crate::presentation::components::chrome::toast::ToastKind::Info,
+                    ));
+                } else {
+                    app.config.data_sources.rag_indexes[*idx].status = "○ indexing…".to_string();
+                    app.forms[SettingsTab::DataSources as usize].dirty = true;
+
+                    let event_tx = app.event_tx.clone();
+                    let idx_val = *idx;
+                    if let Some(infra) = app.infra.as_ref().map(Arc::clone) {
+                        tokio::spawn(async move {
+                            let result = if let Some(ref vs) = infra.vector_store {
+                                let path = PathBuf::from(&config_entry.path);
+                                let summary = crate::application::services::RagIndexerService::index(
+                                    vs.as_ref(),
+                                    &path,
+                                    &config_entry.kind,
+                                )
+                                .await;
+                                Ok(summary)
+                            } else {
+                                let mut s = crate::application::services::IndexSummary::default();
+                                s.errors.push("RAG context not available".to_string());
+                                Err(s)
+                            };
+                            match result {
+                                Ok(summary) => {
+                                    if let Some(ref tx) = event_tx {
+                                        let _ = tx.send(Event::RagIndexed {
+                                            idx: idx_val,
+                                            summary,
+                                        });
+                                    }
+                                }
+                                Err(mut summary) => {
+                                    summary.errors.push("RAG context not available, retry after restart".to_string());
+                                    if let Some(ref tx) = event_tx {
+                                        let _ = tx.send(Event::RagIndexed {
+                                            idx: idx_val,
+                                            summary,
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    } else {
+                        app.config.data_sources.rag_indexes[*idx].status = "● indexed".to_string();
+                        app.config.data_sources.rag_indexes[*idx].chunks = "0".to_string();
+                        app.forms[SettingsTab::DataSources as usize].dirty = true;
+                        app.status_flash = Some((
+                            Instant::now(),
+                            "No research infra — row updated without embedding".into(),
+                            crate::presentation::components::chrome::toast::ToastKind::Info,
+                        ));
+                    }
+                }
             }
             ClickAction::RemoveRagIndex(idx)
                 if *idx < app.config.data_sources.rag_indexes.len() =>
