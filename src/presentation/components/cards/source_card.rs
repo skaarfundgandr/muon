@@ -46,7 +46,6 @@ struct SourceEntry {
 enum SourceType {
     Web,
     Paper,
-    Code,
 }
 
 impl SourceType {
@@ -54,7 +53,6 @@ impl SourceType {
         match self {
             SourceType::Web => "🌐 web",
             SourceType::Paper => "📄 paper",
-            SourceType::Code => "💻 code",
         }
     }
 
@@ -62,7 +60,6 @@ impl SourceType {
         match self {
             SourceType::Web => theme::accent(),
             SourceType::Paper => theme::purple(),
-            SourceType::Code => theme::cyan(),
         }
     }
 }
@@ -116,8 +113,6 @@ pub fn render(
             let source_type = match s.source_type {
                 crate::domain::models::source::SourceType::Web => SourceType::Web,
                 crate::domain::models::source::SourceType::Paper => SourceType::Paper,
-                crate::domain::models::source::SourceType::Code => SourceType::Code,
-                crate::domain::models::source::SourceType::Enterprise => SourceType::Web,
                 crate::domain::models::source::SourceType::Knowledge => SourceType::Web,
             };
             SourceEntry {

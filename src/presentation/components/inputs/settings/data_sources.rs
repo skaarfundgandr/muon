@@ -13,7 +13,6 @@ pub fn fields(config: &MuonConfig) -> Vec<FieldDef> {
     vec![
         FieldDef::checkbox("Web Search"),
         FieldDef::checkbox("Paper Search"),
-        FieldDef::checkbox("Enterprise Systems (reserved)"),
         FieldDef::checkbox("Knowledge Layer (RAG)"),
         FieldDef::text("Source Path"),
         FieldDef::dropdown("Source Type", &["Directory", "File", "Glob"]),
@@ -25,10 +24,9 @@ pub fn get_field(config: &MuonConfig, index: usize) -> String {
     match index {
         0 => config.data_sources.web_search.to_string(),
         1 => config.data_sources.paper_search.to_string(),
-        2 => config.data_sources.enterprise_systems.to_string(),
-        3 => config.data_sources.knowledge_layer_rag.to_string(),
-        4 => config.data_sources.source_path.clone(),
-        5 => config.data_sources.source_type.clone(),
+        2 => config.data_sources.knowledge_layer_rag.to_string(),
+        3 => config.data_sources.source_path.clone(),
+        4 => config.data_sources.source_type.clone(),
         _ => String::new(),
     }
 }
@@ -37,10 +35,9 @@ pub fn set_field(config: &mut MuonConfig, index: usize, value: &str) {
     match index {
         0 => config.data_sources.web_search = value == "true",
         1 => config.data_sources.paper_search = value == "true",
-        2 => config.data_sources.enterprise_systems = value == "true",
-        3 => config.data_sources.knowledge_layer_rag = value == "true",
-        4 => config.data_sources.source_path = value.to_string(),
-        5 => config.data_sources.source_type = value.to_string(),
+        2 => config.data_sources.knowledge_layer_rag = value == "true",
+        3 => config.data_sources.source_path = value.to_string(),
+        4 => config.data_sources.source_type = value.to_string(),
         _ => {}
     }
 }
@@ -49,8 +46,7 @@ pub fn toggle_field(config: &mut MuonConfig, index: usize) {
     match index {
         0 => config.data_sources.web_search = !config.data_sources.web_search,
         1 => config.data_sources.paper_search = !config.data_sources.paper_search,
-        2 => config.data_sources.enterprise_systems = !config.data_sources.enterprise_systems,
-        3 => config.data_sources.knowledge_layer_rag = !config.data_sources.knowledge_layer_rag,
+        2 => config.data_sources.knowledge_layer_rag = !config.data_sources.knowledge_layer_rag,
         _ => {}
     }
 }
@@ -125,7 +121,7 @@ fn render_source_providers(
     mouse_row: u16,
 ) {
     let any_focused =
-        is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2) || is_focused(form, 3);
+        is_focused(form, 0) || is_focused(form, 1) || is_focused(form, 2);
     let block = section_block(
         "SOURCE PROVIDERS",
         any_focused,
@@ -142,7 +138,6 @@ fn render_source_providers(
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(2),
             Constraint::Length(2),
             Constraint::Length(2),
             Constraint::Length(2),
@@ -166,11 +161,6 @@ fn render_source_providers(
             "Paper Search",
             "Search arXiv paper archives",
             config.paper_search,
-        ),
-        (
-            "Enterprise Systems",
-            "Index internal Wikis, Confluence & Slack channels",
-            config.enterprise_systems,
         ),
         (
             "Knowledge Layer (RAG)",
@@ -250,7 +240,7 @@ fn render_rag_indexes(
     mouse_row: u16,
     pending_dropdown: &mut Option<PendingDropdown>,
 ) {
-    let any_focused = is_focused(form, 4) || is_focused(form, 5) || is_focused(form, 6);
+    let any_focused = is_focused(form, 3) || is_focused(form, 4) || is_focused(form, 5);
     let block = section_block(
         "KNOWLEDGE LAYER / RAG INDEXES",
         any_focused,
@@ -261,7 +251,7 @@ fn render_rag_indexes(
 
     hit_registry.push(ClickTarget {
         rect: area,
-        action: ClickAction::FocusField(4),
+        action: ClickAction::FocusField(3),
     });
 
     let sections = Layout::default()
@@ -280,7 +270,7 @@ fn render_rag_indexes(
     );
     render_source_table(f, sections[1], config, hit_registry, mouse_col, mouse_row);
 
-    if form.dropdown_open && form.focus == 5 {
+    if form.dropdown_open && form.focus == 4 {
         let form_cols = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
@@ -323,19 +313,19 @@ fn render_add_source_form(
 
     hit_registry.push(ClickTarget {
         rect: form_cols[0],
-        action: ClickAction::ActivateField(4),
+        action: ClickAction::ActivateField(3),
     });
     hit_registry.push(ClickTarget {
         rect: form_cols[1],
-        action: ClickAction::ActivateField(5),
+        action: ClickAction::ActivateField(4),
     });
     hit_registry.push(ClickTarget {
         rect: form_cols[2],
-        action: ClickAction::ActivateField(6),
+        action: ClickAction::ActivateField(5),
     });
 
-    let path_prefix = if is_focused(form, 4) { "> " } else { "  " };
-    let path_value: String = if is_focused(form, 4) && form.is_editing() {
+    let path_prefix = if is_focused(form, 3) { "> " } else { "  " };
+    let path_value: String = if is_focused(form, 3) && form.is_editing() {
         if let Some(buf) = &form.edit_buffer {
             let cur = form.edit_cursor.min(buf.len());
             format!("{}{}{}", &buf[..cur], "\u{2588}", &buf[cur..])
@@ -345,7 +335,7 @@ fn render_add_source_form(
     } else {
         config.data_sources.source_path.clone()
     };
-    let path_value_style = if is_focused(form, 4) {
+    let path_value_style = if is_focused(form, 3) {
         Style::new()
             .fg(theme::border_focus())
             .add_modifier(Modifier::BOLD)
@@ -365,8 +355,8 @@ fn render_add_source_form(
     ]);
     f.render_widget(Paragraph::new(path_line), form_cols[0]);
 
-    let type_prefix = if is_focused(form, 5) { "> " } else { "  " };
-    let type_label_style = if is_focused(form, 5) {
+    let type_prefix = if is_focused(form, 4) { "> " } else { "  " };
+    let type_label_style = if is_focused(form, 4) {
         Style::new()
             .fg(theme::border_focus())
             .add_modifier(Modifier::BOLD)
@@ -375,7 +365,7 @@ fn render_add_source_form(
     } else {
         Style::new().fg(theme::text_dim())
     };
-    let type_val_style = if is_focused(form, 5) {
+    let type_val_style = if is_focused(form, 4) {
         Style::new()
             .fg(theme::border_focus())
             .add_modifier(Modifier::BOLD)
@@ -398,8 +388,8 @@ fn render_add_source_form(
     ]);
     f.render_widget(Paragraph::new(type_line), form_cols[1]);
 
-    let btn_prefix = if is_focused(form, 6) { "> " } else { "  " };
-    let btn_style = if is_focused(form, 6) {
+    let btn_prefix = if is_focused(form, 5) { "> " } else { "  " };
+    let btn_style = if is_focused(form, 5) {
         Style::new()
             .fg(theme::border_focus())
             .add_modifier(Modifier::BOLD)

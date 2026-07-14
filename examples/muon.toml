@@ -76,7 +76,6 @@ citation_verify = true
 [data_sources]
 web_search = true
 paper_search = true
-enterprise_systems = false
 knowledge_layer_rag = true
 
 # Display preferences.

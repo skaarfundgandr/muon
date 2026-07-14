@@ -318,7 +318,6 @@ fn default_source_type() -> String {
 pub struct DataSourcesConfig {
     pub web_search: bool,
     pub paper_search: bool,
-    pub enterprise_systems: bool,
     pub knowledge_layer_rag: bool,
     #[serde(default = "default_rag_indexes")]
     pub rag_indexes: Vec<RagIndexConfig>,
@@ -333,7 +332,6 @@ impl Default for DataSourcesConfig {
         Self {
             web_search: true,
             paper_search: true,
-            enterprise_systems: false,
             knowledge_layer_rag: true,
             rag_indexes: default_rag_indexes(),
             source_path: default_source_path(),

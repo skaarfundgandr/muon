@@ -16,8 +16,6 @@ pub struct Source {
 pub enum SourceType {
     Web,
     Paper,
-    Code,
-    Enterprise,
     Knowledge,
 }
 

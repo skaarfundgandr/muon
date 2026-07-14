@@ -18,17 +18,15 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, config: &MuonConfig) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(25),
-            Constraint::Percentage(25),
-            Constraint::Percentage(25),
+            Constraint::Percentage(33),
+            Constraint::Percentage(33),
+            Constraint::Percentage(34),
         ])
         .split(inner);
 
     let sources = [
         ("Web Search", config.data_sources.web_search),
         ("Paper Search", config.data_sources.paper_search),
-        ("Enterprise", config.data_sources.enterprise_systems),
         ("Knowledge Layer", config.data_sources.knowledge_layer_rag),
     ];
 

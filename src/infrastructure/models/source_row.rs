@@ -71,10 +71,11 @@ impl SourceType {
         match s {
             "Web" => Ok(Self::Web),
             "Paper" => Ok(Self::Paper),
-            "Code" => Ok(Self::Code),
-            "Enterprise" => Ok(Self::Enterprise),
             "Knowledge" => Ok(Self::Knowledge),
-            other => Err(MuonError::Database(format!("unknown source type: {other}"))),
+            other => {
+                tracing::warn!("unknown source_type in DB: \"{other}\", falling back to Web");
+                Ok(Self::Web)
+            }
         }
     }
 
@@ -82,8 +83,6 @@ impl SourceType {
         match self {
             Self::Web => "Web",
             Self::Paper => "Paper",
-            Self::Code => "Code",
-            Self::Enterprise => "Enterprise",
             Self::Knowledge => "Knowledge",
         }
     }
