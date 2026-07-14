@@ -190,12 +190,11 @@ fn html_to_text(html: &str, max_chars: usize) -> (String, Option<String>) {
 
     text = text.trim().to_string();
 
-    // Truncate
     if text.len() > max_chars {
-        text.truncate(max_chars);
-        // Try to break at a sentence boundary
+        let end = text.floor_char_boundary(max_chars);
+        text.truncate(end);
         if let Some(pos) = text.rfind('.')
-            && pos > max_chars / 2
+            && pos > end / 2
         {
             text.truncate(pos + 1);
         }
