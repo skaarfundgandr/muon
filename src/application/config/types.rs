@@ -190,11 +190,13 @@ pub struct SerperOptions {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AgentsConfig {
+    #[serde(default)]
     pub clarifier: ClarifierConfig,
+    #[serde(default)]
     pub shallow_researcher: ShallowResearcherConfig,
+    #[serde(default)]
     pub deep_researcher: DeepResearcherConfig,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClarifierConfig {

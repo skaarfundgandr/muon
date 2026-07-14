@@ -147,3 +147,46 @@ iterations = 3
     assert_eq!(agents.shallow_researcher.max_tool_iters, 6);
     assert_eq!(agents.deep_researcher.iterations, 3);
 }
+
+#[test]
+fn save_agent_md_round_trips_frontmatter_and_body() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("intent-classifier.md");
+    let mut def = parse_agent_md(&example("intent-classifier")).unwrap();
+    def.model = "test-model".into();
+    def.provider = "test-provider".into();
+    def.timeout_secs = 42;
+    muon::infrastructure::config::save_agent_md(&path, &def).unwrap();
+
+    let loaded = parse_agent_md(&path).unwrap();
+    assert_eq!(loaded.model, "test-model");
+    assert_eq!(loaded.provider, "test-provider");
+    assert_eq!(loaded.timeout_secs, 42);
+    assert_eq!(loaded.preamble_markdown, def.preamble_markdown);
+    assert_eq!(loaded.name, def.name);
+    assert_eq!(loaded.temperature, def.temperature);
+    assert_eq!(loaded.max_tokens, def.max_tokens);
+}
+
+#[test]
+fn save_agent_settings_writes_all_six() {
+    let dir = tempfile::tempdir().unwrap();
+    let settings = muon::infrastructure::config::load_agent_settings(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents"),
+    )
+    .unwrap();
+    muon::infrastructure::config::save_agent_settings(dir.path(), &settings).unwrap();
+    for name in [
+        "intent-classifier",
+        "clarifier",
+        "shallow-researcher",
+        "deep-orchestrator",
+        "planner",
+        "researcher",
+    ] {
+        assert!(dir.path().join(format!("{name}.md")).exists());
+    }
+    let reloaded = muon::infrastructure::config::load_agent_settings(dir.path()).unwrap();
+    assert_eq!(reloaded.intent_classifier.model, settings.intent_classifier.model);
+    assert_eq!(reloaded.planner.provider, settings.planner.provider);
+}
