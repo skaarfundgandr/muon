@@ -75,7 +75,9 @@ Each agent maps to a specific pipeline stage:
 
 ## 5. Configuration Override
 
-TOML `[agents.*]` sections hold **pipeline orchestration knobs only** (e.g., `max_turns`, `plan_approval`, `max_iterations` for clarifier; `max_llm_turns`, `max_tool_iters` for shallow researcher; 9 fields for deep researcher). TOML does not store per-agent model/provider/temperature/max_tokens/timeout — those live exclusively in `agents/*.md` YAML frontmatter.
+TOML `[agents.*]` sections hold **pipeline orchestration knobs only** (e.g., `max_turns`, `plan_approval`, `max_iterations` for clarifier; `max_llm_turns`, `max_tool_iters` for shallow researcher; deep researcher iteration/tool budgets). Per-agent **model / provider / temperature / max_tokens / timeout** live exclusively in `agents/*.md` YAML frontmatter.
+
+**Settings → Agents** edits both: knobs write to `config.toml`; model/provider/timeout write to the matching agent markdown frontmatter under `agents_dir` (Ctrl+S saves both, then reloads agents).
 
 See `examples/muon.toml` for the full configuration schema.
 
