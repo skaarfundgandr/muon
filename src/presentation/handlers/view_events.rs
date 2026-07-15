@@ -9,7 +9,7 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
     let view = app.router.active();
 
     if key.code == KeyCode::Esc {
-        if view == View::Progress {
+        if view == View::Progress && app.is_pipeline_busy() {
             app.abort_pipeline();
             return true;
         }
