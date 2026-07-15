@@ -292,7 +292,7 @@ impl InfrastructureContext {
                             .preamble(intent_preamble)
                             .temperature(intent_def.temperature)
                             .max_tokens(u64::from(intent_def.max_tokens))
-                            .hook(agent_rs::observability::LangSmithAgentHook)
+                            .add_hook(agent_rs::observability::LangSmithAgentHook)
                             .build();
                         factory.build_runner(
                             agent,
@@ -366,7 +366,7 @@ impl InfrastructureContext {
                             AgentTag::Search,
                             source_sink.clone(),
                         );
-                        let agent = b.default_max_turns(max_turns).hook(shallow_hook).build();
+                        let agent = b.default_max_turns(max_turns).add_hook(shallow_hook).add_hook(agent_rs::observability::LangSmithAgentHook).build();
                         factory.build_runner(
                             agent,
                             AgentTag::Search,
@@ -403,7 +403,7 @@ impl InfrastructureContext {
                             .preamble(clarifier_preamble)
                             .temperature(clarifier_def.temperature)
                             .max_tokens(u64::from(clarifier_def.max_tokens))
-                            .hook(agent_rs::observability::LangSmithAgentHook)
+                            .add_hook(agent_rs::observability::LangSmithAgentHook)
                             .build();
                         factory.build_clarifier_runner(
                             agent,
@@ -460,7 +460,7 @@ impl InfrastructureContext {
                             .default_max_turns(
                                 cfg.agents.deep_researcher.planner_max_tool_calls.max(1) as usize,
                             )
-                            .hook(agent_rs::observability::LangSmithAgentHook)
+                            .add_hook(agent_rs::observability::LangSmithAgentHook)
                             .build();
                         factory.build_planner_runner(
                             agent,
@@ -538,7 +538,8 @@ impl InfrastructureContext {
                 };
                 let agent = b
                     .default_max_turns(researcher_max_turns)
-                    .hook(researcher_hook.clone())
+                    .add_hook(researcher_hook.clone())
+                    .add_hook(agent_rs::observability::LangSmithAgentHook)
                     .build();
                 crate::infrastructure::agent_rs::ManagedAgent::from_rig_agent_with_hook(
                     AgentTag::Search,
@@ -587,7 +588,7 @@ impl InfrastructureContext {
                                     .orchestrator_max_tool_calls
                                     .max(1) as usize,
                             )
-                            .hook(agent_rs::observability::LangSmithAgentHook)
+                            .add_hook(agent_rs::observability::LangSmithAgentHook)
                             .build();
                         factory.build_runner(
                             agent,

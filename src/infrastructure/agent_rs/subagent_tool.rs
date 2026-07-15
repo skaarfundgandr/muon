@@ -2,7 +2,6 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -56,22 +55,17 @@ impl<K: SubagentKind> Tool for SubagentTool<K> {
     type Args = SubagentArgs;
     type Output = SubagentOutput;
 
-    fn definition(
-        &self,
-        _prompt: String,
-    ) -> impl Future<Output = ToolDefinition>
-    + rig_core::wasm_compat::WasmCompatSend
-    + rig_core::wasm_compat::WasmCompatSync {
-        std::future::ready(ToolDefinition {
-            name: K::NAME.to_string(),
-            description: K::DESCRIPTION.to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "prompt": { "type": "string", "description": "The prompt or sub-query to delegate." }
-                },
-                "required": ["prompt"]
-            }),
+    fn description(&self) -> String {
+        K::DESCRIPTION.to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "prompt": { "type": "string", "description": "The prompt or sub-query to delegate." }
+            },
+            "required": ["prompt"]
         })
     }
 

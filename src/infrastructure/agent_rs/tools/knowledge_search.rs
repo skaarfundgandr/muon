@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -49,24 +48,18 @@ impl Tool for KnowledgeSearchTool {
     type Args = KnowledgeSearchArgs;
     type Output = KnowledgeSearchOutput;
 
-    fn definition(
-        &self,
-        _prompt: String,
-    ) -> impl std::future::Future<Output = ToolDefinition>
-    + rig_core::wasm_compat::WasmCompatSend
-    + rig_core::wasm_compat::WasmCompatSync {
-        std::future::ready(ToolDefinition {
-            name: NAME.to_string(),
-            description: "Search the local knowledge base (RAG corpus) for relevant documents. Returns matching snippets and source URLs."
-                .to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "query": { "type": "string", "description": "The search query." },
-                    "top_k": { "type": "integer", "description": "Number of results (default 5).", "default": 5 }
-                },
-                "required": ["query"]
-            }),
+    fn description(&self) -> String {
+        "Search the local knowledge base (RAG corpus) for relevant documents. Returns matching snippets and source URLs.".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "query": { "type": "string", "description": "The search query." },
+                "top_k": { "type": "integer", "description": "Number of results (default 5).", "default": 5 }
+            },
+            "required": ["query"]
         })
     }
 

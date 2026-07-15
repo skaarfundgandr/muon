@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use rig_core::agent::{HookAction, PromptHook, ToolCallHookAction};
+use rig_core::agent::{AgentHook, Flow, HookContext, StepEvent};
 use rig_core::completion::{CompletionModel, PromptError};
 use rig_core::message::{AssistantContent, Message, ToolResultContent, UserContent};
 use rig_core::wasm_compat::{WasmCompatSend, WasmCompatSync};
@@ -20,77 +20,31 @@ pub struct ResearcherHook {
     sink: SourceSink,
 }
 
-impl<M> PromptHook<M> for ResearcherHook
+impl<M> AgentHook<M> for ResearcherHook
 where
     M: CompletionModel,
 {
-    async fn on_completion_call(&self, prompt: &Message, history: &[Message]) -> HookAction {
-        <agent_rs::observability::LangSmithAgentHook as PromptHook<M>>::on_completion_call(
-            &agent_rs::observability::LangSmithAgentHook,
-            prompt,
-            history,
-        )
-        .await
-    }
-
-    async fn on_completion_response(
-        &self,
-        prompt: &Message,
-        resp: &rig_core::completion::CompletionResponse<M::Response>,
-    ) -> HookAction {
-        <agent_rs::observability::LangSmithAgentHook as PromptHook<M>>::on_completion_response(
-            &agent_rs::observability::LangSmithAgentHook,
-            prompt,
-            resp,
-        )
-        .await
-    }
-
-    async fn on_tool_call(
-        &self,
-        tool_name: &str,
-        tool_call_id: Option<String>,
-        internal_call_id: &str,
-        args: &str,
-    ) -> ToolCallHookAction {
-        self.bridge.log(
-            self.tag,
-            LogLevel::Info,
-            format!("action: {tool_name} args={}", feed_snippet(args)),
-        );
-        <agent_rs::observability::LangSmithAgentHook as PromptHook<M>>::on_tool_call(
-            &agent_rs::observability::LangSmithAgentHook,
-            tool_name,
-            tool_call_id,
-            internal_call_id,
-            args,
-        )
-        .await
-    }
-
-    async fn on_tool_result(
-        &self,
-        tool_name: &str,
-        tool_call_id: Option<String>,
-        internal_call_id: &str,
-        args: &str,
-        result: &str,
-    ) -> HookAction {
-        self.bridge.log(
-            self.tag,
-            LogLevel::Info,
-            format!("obs: {tool_name} => {}", feed_snippet(result)),
-        );
-        record_observation_sources(&self.sink, tool_name, result);
-        <agent_rs::observability::LangSmithAgentHook as PromptHook<M>>::on_tool_result(
-            &agent_rs::observability::LangSmithAgentHook,
-            tool_name,
-            tool_call_id,
-            internal_call_id,
-            args,
-            result,
-        )
-        .await
+    async fn on_event(&self, _ctx: &HookContext, event: StepEvent<'_, M>) -> Flow {
+        match event {
+            StepEvent::ToolCall { tool_name, args, .. } => {
+                self.bridge.log(
+                    self.tag,
+                    LogLevel::Info,
+                    format!("action: {tool_name} args={}", feed_snippet(args)),
+                );
+                Flow::Continue
+            }
+            StepEvent::ToolResult { tool_name, result, .. } => {
+                self.bridge.log(
+                    self.tag,
+                    LogLevel::Info,
+                    format!("obs: {tool_name} => {}", feed_snippet(result)),
+                );
+                record_observation_sources(&self.sink, tool_name, result);
+                Flow::Continue
+            }
+            _ => Flow::Continue,
+        }
     }
 }
 
@@ -99,16 +53,14 @@ trait ManagedRunner: Send + Sync {
     async fn run(&self, prompt: &str) -> std::result::Result<String, PromptError>;
 }
 
-struct BuiltManagedRunner<M, P>(agent_rs::agent::BuiltManagedAgent<M, P, ()>)
+struct BuiltManagedRunner<M>(agent_rs::agent::BuiltManagedAgent<M, ()>)
 where
-    M: CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-    P: PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static;
+    M: CompletionModel + WasmCompatSend + WasmCompatSync + 'static;
 
 #[async_trait]
-impl<M, P> ManagedRunner for BuiltManagedRunner<M, P>
+impl<M> ManagedRunner for BuiltManagedRunner<M>
 where
     M: CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-    P: PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
 {
     async fn run(&self, prompt: &str) -> std::result::Result<String, PromptError> {
         self.0.prompt(prompt).await
@@ -124,12 +76,12 @@ pub struct ManagedAgent {
 impl ManagedAgent {
     pub fn from_rig_agent_with_hook<M>(
         tag: AgentTag,
-        agent: rig_core::agent::Agent<M, ResearcherHook>,
+        agent: rig_core::agent::Agent<M>,
         bridge: BridgeChannels,
     ) -> Self
     where
         M: CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-        rig_core::agent::Agent<M, ResearcherHook>: Clone,
+        rig_core::agent::Agent<M>: Clone,
     {
         let managed = agent_rs::agent::ManagedExt::managed(&agent)
             .max_retries(2)

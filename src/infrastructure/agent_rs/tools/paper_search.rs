@@ -1,7 +1,6 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -50,23 +49,18 @@ impl Tool for PaperSearchTool {
     type Args = PaperSearchArgs;
     type Output = PaperSearchOutput;
 
-    fn definition(
-        &self,
-        _prompt: String,
-    ) -> impl Future<Output = ToolDefinition>
-    + rig_core::wasm_compat::WasmCompatSend
-    + rig_core::wasm_compat::WasmCompatSync {
-        std::future::ready(ToolDefinition {
-            name: NAME.to_string(),
-            description: "Search academic papers on arXiv. Returns URLs, titles, and snippets.".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "query": { "type": "string", "description": "The search query for academic papers." },
-                    "max": { "type": "integer", "description": "Max results per provider (default 5).", "default": 5 }
-                },
-                "required": ["query"]
-            }),
+    fn description(&self) -> String {
+        "Search academic papers on arXiv. Returns URLs, titles, and snippets.".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "query": { "type": "string", "description": "The search query for academic papers." },
+                "max": { "type": "integer", "description": "Max results per provider (default 5).", "default": 5 }
+            },
+            "required": ["query"]
         })
     }
 

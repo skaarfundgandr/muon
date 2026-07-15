@@ -106,19 +106,17 @@ pub trait ReActRunner: Send + Sync {
     ) -> std::result::Result<String, agent_rs::domain::errors::ReActError>;
 }
 
-struct NoCompactionRunner<M, P>
+struct NoCompactionRunner<M>
 where
     M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-    P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
 {
-    inner: agent_rs::agent::react::BuiltReAct<M, P, ()>,
+    inner: agent_rs::agent::react::BuiltReAct<M, ()>,
 }
 
 #[async_trait]
-impl<M, P> ReActRunner for NoCompactionRunner<M, P>
+impl<M> ReActRunner for NoCompactionRunner<M>
 where
     M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-    P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
 {
     async fn prompt_trace(
         &self,
@@ -139,20 +137,18 @@ where
     }
 }
 
-struct CompactionRunner<M, P, C>
+struct CompactionRunner<M, C>
 where
     M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-    P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
     C: rig_core::completion::Prompt + WasmCompatSend + WasmCompatSync + 'static,
 {
-    inner: agent_rs::agent::react::BuiltReAct<M, P, C>,
+    inner: agent_rs::agent::react::BuiltReAct<M, C>,
 }
 
 #[async_trait]
-impl<M, P, C> ReActRunner for CompactionRunner<M, P, C>
+impl<M, C> ReActRunner for CompactionRunner<M, C>
 where
     M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-    P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
     C: rig_core::completion::Prompt + WasmCompatSend + WasmCompatSync + 'static,
 {
     async fn prompt_trace(
@@ -243,9 +239,10 @@ impl<'a> ReActFactory<'a> {
         Self { cfg, bridge }
     }
 
-    pub fn build_runner<M, P>(
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_runner<M>(
         &self,
-        agent: rig_core::agent::Agent<M, P>,
+        agent: rig_core::agent::Agent<M>,
         tag: AgentTag,
         max_cycles: usize,
         tool_timeout_secs: u64,
@@ -255,8 +252,7 @@ impl<'a> ReActFactory<'a> {
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-        P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
-        rig_core::agent::Agent<M, P>: Clone,
+        rig_core::agent::Agent<M>: Clone,
     {
         use agent_rs::agent::ReActExt;
 
@@ -333,9 +329,9 @@ impl<'a> ReActFactory<'a> {
         })
     }
 
-    pub fn build_planner_runner<M, P>(
+    pub fn build_planner_runner<M>(
         &self,
-        agent: rig_core::agent::Agent<M, P>,
+        agent: rig_core::agent::Agent<M>,
         tag: AgentTag,
         max_cycles: usize,
         tool_timeout_secs: u64,
@@ -343,8 +339,7 @@ impl<'a> ReActFactory<'a> {
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-        P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
-        rig_core::agent::Agent<M, P>: Clone,
+        rig_core::agent::Agent<M>: Clone,
     {
         self.build_runner(
             agent,
@@ -357,9 +352,9 @@ impl<'a> ReActFactory<'a> {
         )
     }
 
-    pub fn build_researcher_runner<M, P>(
+    pub fn build_researcher_runner<M>(
         &self,
-        agent: rig_core::agent::Agent<M, P>,
+        agent: rig_core::agent::Agent<M>,
         tag: AgentTag,
         max_cycles: usize,
         tool_timeout_secs: u64,
@@ -367,8 +362,7 @@ impl<'a> ReActFactory<'a> {
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-        P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
-        rig_core::agent::Agent<M, P>: Clone,
+        rig_core::agent::Agent<M>: Clone,
     {
         self.build_runner(
             agent,
@@ -381,9 +375,9 @@ impl<'a> ReActFactory<'a> {
         )
     }
 
-    pub fn build_clarifier_runner<M, P>(
+    pub fn build_clarifier_runner<M>(
         &self,
-        agent: rig_core::agent::Agent<M, P>,
+        agent: rig_core::agent::Agent<M>,
         tag: AgentTag,
         max_cycles: usize,
         tool_timeout_secs: u64,
@@ -392,8 +386,7 @@ impl<'a> ReActFactory<'a> {
     ) -> Box<dyn ReActRunner>
     where
         M: rig_core::completion::CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
-        P: rig_core::agent::PromptHook<M> + WasmCompatSend + WasmCompatSync + 'static,
-        rig_core::agent::Agent<M, P>: Clone,
+        rig_core::agent::Agent<M>: Clone,
     {
         use agent_rs::agent::ReActExt;
 

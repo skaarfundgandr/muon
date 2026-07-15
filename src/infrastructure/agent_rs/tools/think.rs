@@ -1,6 +1,5 @@
 use std::future::Future;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 
@@ -25,22 +24,17 @@ impl Tool for ThinkTool {
     type Args = ThinkArgs;
     type Output = ThinkOutput;
 
-    fn definition(
-        &self,
-        _prompt: String,
-    ) -> impl Future<Output = ToolDefinition>
-    + rig_core::wasm_compat::WasmCompatSend
-    + rig_core::wasm_compat::WasmCompatSync {
-        std::future::ready(ToolDefinition {
-            name: NAME.to_string(),
-            description: "Use this tool to think through complex reasoning before acting. Records the thought in the agent's working memory.".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "thought": { "type": "string", "description": "The reasoning or plan to record." }
-                },
-                "required": ["thought"]
-            }),
+    fn description(&self) -> String {
+        "Use this tool to think through complex reasoning before acting. Records the thought in the agent's working memory.".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "thought": { "type": "string", "description": "The reasoning or plan to record." }
+            },
+            "required": ["thought"]
         })
     }
 

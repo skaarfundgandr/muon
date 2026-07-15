@@ -1,7 +1,6 @@
 use std::future::Future;
 use std::net::IpAddr;
 
-use rig_core::completion::ToolDefinition;
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -84,22 +83,17 @@ impl Tool for FetchPageTool {
     type Args = FetchPageArgs;
     type Output = FetchPageOutput;
 
-    fn definition(
-        &self,
-        _prompt: String,
-    ) -> impl Future<Output = ToolDefinition>
-    + rig_core::wasm_compat::WasmCompatSend
-    + rig_core::wasm_compat::WasmCompatSync {
-        std::future::ready(ToolDefinition {
-            name: NAME.to_string(),
-            description: "Fetch a web page and return its text content. HTML tags are stripped and content is truncated.".to_string(),
-            parameters: serde_json::json!({
-                "type": "object",
-                "properties": {
-                    "url": { "type": "string", "description": "The URL to fetch." }
-                },
-                "required": ["url"]
-            }),
+    fn description(&self) -> String {
+        "Fetch a web page and return its text content. HTML tags are stripped and content is truncated.".to_string()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "url": { "type": "string", "description": "The URL to fetch." }
+            },
+            "required": ["url"]
         })
     }
 
