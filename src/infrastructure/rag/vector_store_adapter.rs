@@ -7,37 +7,66 @@ use crate::domain::error::MuonError;
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::vector_store::VectorStore;
 
-const TEMP_SLUG_MAX: usize = 48;
+const META_BEGIN: &str = "<<<muon_rag";
+const META_END: &str = ">>>";
 
-pub fn temp_rag_path(url: &str) -> PathBuf {
-    let mut slug: String = url
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-        .collect();
-    if slug.len() > TEMP_SLUG_MAX {
-        slug.truncate(TEMP_SLUG_MAX);
+pub fn temp_rag_path(_url: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("muon-rag-{}.txt", uuid::Uuid::new_v4()))
+}
+
+pub fn pack_rag_content(url: &str, title: &str, content: &str) -> String {
+    let url = oneline(url);
+    let title = oneline(title);
+    format!("{META_BEGIN}\nurl: {url}\ntitle: {title}\n{META_END}\n{content}")
+}
+
+pub fn unpack_rag_content(content: &str) -> (Option<String>, Option<String>, String) {
+    let trimmed = content.trim_start();
+    if !trimmed.starts_with(META_BEGIN) {
+        return (None, None, content.to_string());
     }
-    while slug.ends_with('_') {
-        slug.pop();
+    let Some(rest) = trimmed.strip_prefix(META_BEGIN) else {
+        return (None, None, content.to_string());
+    };
+    let rest = rest.trim_start_matches(['\r', '\n']);
+    let Some((header, body)) = rest.split_once(META_END) else {
+        return (None, None, content.to_string());
+    };
+    let mut url = None;
+    let mut title = None;
+    for line in header.lines() {
+        if let Some(v) = line.strip_prefix("url:") {
+            url = Some(v.trim().to_string());
+        } else if let Some(v) = line.strip_prefix("title:") {
+            title = Some(v.trim().to_string());
+        }
     }
-    if slug.is_empty() {
-        slug.push_str("src");
-    }
-    std::env::temp_dir().join(format!(
-        "muon-rag-{}-{}.txt",
-        slug,
-        uuid::Uuid::new_v4()
-    ))
+    (url, title, body.trim_start_matches(['\r', '\n']).to_string())
+}
+
+fn oneline(s: &str) -> String {
+    s.chars()
+        .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 #[async_trait]
 impl VectorStore for RagContext {
     async fn add(&self, source: &Source, content: &str) -> Result<Option<String>, MuonError> {
         let path = temp_rag_path(&source.url);
+        let packed = pack_rag_content(&source.url, &source.title, content);
 
-        tokio::fs::write(&path, content)
+        tokio::fs::write(&path, packed)
             .await
             .map_err(|e| MuonError::Database(format!("failed to write temp rag file: {e}")))?;
+
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("unknown")
+            .to_string();
 
         let chunk_count = self
             .indexer
@@ -51,12 +80,20 @@ impl VectorStore for RagContext {
             return Ok(None);
         }
 
-        let file_name = path
-            .file_stem()
-            .and_then(|n| n.to_str())
-            .unwrap_or("unknown");
+        if !source.url.is_empty() {
+            let store = self.indexer.pipeline().store();
+            store
+                .rewrite_source(&file_name, &source.url)
+                .await
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+        }
 
-        Ok(Some(format!("{file_name}-{chunk_count}")))
+        Ok(Some(format!(
+            "{}-{chunk_count}",
+            path.file_stem()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+        )))
     }
 
     async fn query(&self, text: &str, k: usize) -> Result<Vec<Source>, MuonError> {
@@ -102,10 +139,24 @@ impl VectorStore for RagContext {
                 .map_err(|e| MuonError::Database(format!("bad chunk id: {e}")))?;
 
             if let Some(row) = by_id.remove(&id_i64) {
+                let (meta_url, meta_title, body) = unpack_rag_content(&row.content);
+                let url = meta_url
+                    .filter(|u| !u.is_empty())
+                    .unwrap_or_else(|| row.source.clone());
+                let title = meta_title
+                    .filter(|t| !t.is_empty())
+                    .or_else(|| {
+                        if url.starts_with("muon-rag-") {
+                            None
+                        } else {
+                            Some(url.clone())
+                        }
+                    })
+                    .unwrap_or_default();
                 results.push(Source {
-                    url: row.source.clone(),
-                    title: row.source.clone(),
-                    snippet: row.content.clone(),
+                    url,
+                    title,
+                    snippet: body,
                     relevance: *score,
                     source_type: SourceType::Knowledge,
                     verified: false,

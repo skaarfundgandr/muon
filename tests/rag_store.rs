@@ -39,29 +39,33 @@ async fn rag_round_trip() -> Result<(), MuonError> {
 }
 
 #[test]
-fn temp_rag_path_caps_long_url_filename() {
+fn temp_rag_path_is_short() {
     use muon::infrastructure::rag::temp_rag_path;
-
-    let long = format!("https://example.com/{}", "a".repeat(500));
-    let path = temp_rag_path(&long);
+    let path = temp_rag_path(&format!("https://example.com/{}", "a".repeat(500)));
     let name = path.file_name().and_then(|n| n.to_str()).unwrap();
-    assert!(
-        name.len() <= 200,
-        "filename too long for common NAME_MAX: {} ({name})",
-        name.len()
-    );
+    assert!(name.len() < 80, "got {name}");
     assert!(name.starts_with("muon-rag-"));
-    assert!(name.ends_with(".txt"));
-    // write must succeed even when URL is huge
-    std::fs::write(&path, b"x").unwrap();
-    let _ = std::fs::remove_file(&path);
 }
 
 #[test]
-fn temp_rag_path_empty_url_still_valid() {
-    use muon::infrastructure::rag::temp_rag_path;
+fn pack_unpack_rag_content_round_trip() {
+    use muon::infrastructure::rag::{pack_rag_content, unpack_rag_content};
+    let packed = pack_rag_content(
+        "https://example.com/paper",
+        "My Paper Title",
+        "snippet body here",
+    );
+    let (url, title, body) = unpack_rag_content(&packed);
+    assert_eq!(url.as_deref(), Some("https://example.com/paper"));
+    assert_eq!(title.as_deref(), Some("My Paper Title"));
+    assert_eq!(body, "snippet body here");
+}
 
-    let path = temp_rag_path("!!!");
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap();
-    assert!(name.starts_with("muon-rag-src-") || name.contains("muon-rag-"));
+#[test]
+fn unpack_plain_content_unchanged() {
+    use muon::infrastructure::rag::unpack_rag_content;
+    let (url, title, body) = unpack_rag_content("just a snippet");
+    assert!(url.is_none());
+    assert!(title.is_none());
+    assert_eq!(body, "just a snippet");
 }
