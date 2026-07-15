@@ -143,16 +143,7 @@ impl VectorStore for RagContext {
                 let url = meta_url
                     .filter(|u| !u.is_empty())
                     .unwrap_or_else(|| row.source.clone());
-                let title = meta_title
-                    .filter(|t| !t.is_empty())
-                    .or_else(|| {
-                        if url.starts_with("muon-rag-") {
-                            None
-                        } else {
-                            Some(url.clone())
-                        }
-                    })
-                    .unwrap_or_default();
+                let title = meta_title.filter(|t| !t.is_empty()).unwrap_or_default();
                 results.push(Source {
                     url,
                     title,
