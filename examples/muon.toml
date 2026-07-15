@@ -104,6 +104,13 @@ similarity_threshold = 0.70
 [obsidian]
 vault_path = ""
 
+# Observability. `debug = true` never truncates OTEL span attributes (full
+# payloads). When false (default), attributes larger than 16k chars may be
+# capped for export performance. Live TUI feed is always truncated; agent
+# return values (e.g. researcher salvage → orchestrator) are never truncated.
+[observability]
+debug = false
+
 # LangSmith / OpenTelemetry export. Leave api_key empty to disable tracing;
 # the ${LANGSMITH_API_KEY} env var is also honored if set.
 [observability.langsmith]

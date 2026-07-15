@@ -1,41 +1,68 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use agent_rs::observability::{TracerHandle, init_tracing, shutdown_tracing};
 
-use crate::application::config::LangSmithConfig;
+use crate::application::config::{LangSmithConfig, ObservabilityConfig};
 use crate::domain::error::{MuonError, Result};
 
-/// Manages OpenTelemetry tracing lifecycle for LangSmith export.
+static OTEL_DEBUG: AtomicBool = AtomicBool::new(false);
+
+const OTEL_ATTR_MAX_CHARS: usize = 16_384;
+
+pub fn set_otel_debug(debug: bool) {
+    OTEL_DEBUG.store(debug, Ordering::Relaxed);
+}
+
+pub fn otel_debug() -> bool {
+    OTEL_DEBUG.load(Ordering::Relaxed)
+}
+
+pub fn otel_attr_value(s: &str) -> String {
+    otel_attr_value_with(s, otel_debug())
+}
+
+pub fn otel_attr_value_with(s: &str, debug: bool) -> String {
+    if debug {
+        return s.to_string();
+    }
+    let count = s.chars().count();
+    if count <= OTEL_ATTR_MAX_CHARS {
+        return s.to_string();
+    }
+    let mut out: String = s.chars().take(OTEL_ATTR_MAX_CHARS).collect();
+    out.push('…');
+    out
+}
+
 pub struct Observability {
     handle: Option<TracerHandle>,
 }
 
 impl Observability {
-    /// Initialize tracing at process start. Reads config + `LANGSMITH_API_KEY` env; no hot-reload
-    /// — restart the process to apply changes.
-    pub fn init(service: &str, cfg: &LangSmithConfig) -> Result<Self> {
-        let api_key = crate::infrastructure::config::expand_env(&cfg.api_key)
+    pub fn init(service: &str, cfg: &ObservabilityConfig) -> Result<Self> {
+        set_otel_debug(cfg.debug);
+
+        let api_key = crate::infrastructure::config::expand_env(&cfg.langsmith.api_key)
             .ok()
             .filter(|k| !k.is_empty())
             .or_else(|| std::env::var("LANGSMITH_API_KEY").ok())
             .filter(|k| !k.is_empty());
 
-        let api_key = match api_key {
-            Some(k) => k,
-            None => return Ok(Self { handle: None }),
+        let Some(api_key) = api_key else {
+            return Ok(Self { handle: None });
         };
 
-        let agent_cfg = map_langsmith_config(service, cfg, api_key);
+        let agent_cfg = map_langsmith_config(service, &cfg.langsmith, api_key);
         let handle = init_tracing(&agent_cfg).map_err(|e| MuonError::Pipeline(e.to_string()))?;
         Ok(Self {
             handle: Some(handle),
         })
     }
 
-    /// Returns a span emitter for ReAct observability integration.
     pub fn span_emitter() -> std::sync::Arc<dyn agent_rs::agent::react::ReActSpanEmitter> {
         std::sync::Arc::new(agent_rs::observability::react_spans::LangSmithReActEmitter)
     }
 
-    /// Flush pending spans and shut down the tracer provider.
     pub async fn shutdown(self) -> Result<()> {
         if let Some(handle) = self.handle {
             shutdown_tracing(handle)
@@ -46,11 +73,6 @@ impl Observability {
     }
 }
 
-/// Map muon TOML LangSmith settings onto agent_rs config.
-///
-/// `service` is the call-site fallback when `cfg.service_name` is empty.
-/// Starts from `from_env()` so remaining OTEL/LangSmith env vars still apply,
-/// then overlays explicit TOML fields.
 pub fn map_langsmith_config(
     service: &str,
     cfg: &LangSmithConfig,

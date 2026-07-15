@@ -61,7 +61,7 @@ pub async fn run_headless(query: &str, output: Option<&Path>) -> Result<()> {
     let config = crate::infrastructure::config::load();
     let obs = crate::infrastructure::observability::Observability::init(
         "muon",
-        &config.observability.langsmith,
+        &config.observability,
     )?;
 
     let result = async {

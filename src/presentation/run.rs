@@ -190,7 +190,7 @@ pub async fn run() -> crate::domain::error::Result<()> {
     let config = crate::infrastructure::config::load();
     let observability = crate::infrastructure::observability::Observability::init(
         "muon",
-        &config.observability.langsmith,
+        &config.observability,
     )?;
     let mut terminal = setup_terminal()?;
     let result = run_loop(&mut terminal).await;

@@ -120,7 +120,7 @@ fn extract_text_from_history(history: &[Message]) -> String {
                             if let ToolResultContent::Text(t) = part
                                 && !t.text.trim().is_empty()
                             {
-                                tool_bits.push(feed_snippet(&t.text));
+                                tool_bits.push(t.text.clone());
                             }
                         }
                     }
@@ -180,7 +180,9 @@ impl MuonAgent for ManagedAgent {
                 } else {
                     text
                 };
-                span.record("output.value", text.as_str());
+                let otel_out =
+                    crate::infrastructure::observability::otel_attr_value(text.as_str());
+                span.record("output.value", otel_out.as_str());
                 self.bridge
                     .log(self.tag, LogLevel::Info, "final answer".to_string());
                 Ok(text)
@@ -198,7 +200,9 @@ impl MuonAgent for ManagedAgent {
                     ),
                 );
                 let salvaged = extract_text_from_history(&chat_history);
-                span.record("output.value", salvaged.as_str());
+                let otel_out =
+                    crate::infrastructure::observability::otel_attr_value(salvaged.as_str());
+                span.record("output.value", otel_out.as_str());
                 Ok(salvaged)
             }
             Err(e) => {

@@ -175,6 +175,13 @@ Four export components in `src/application/services/`:
 
 μon initializes OpenTelemetry tracing at process start (`src/infrastructure/observability.rs`) and emits ReAct spans (thoughts, actions, observations) to LangSmith. Configuration is process-start only — restart the process to apply changes (config hot-reload does not re-init the tracer).
 
+### Config (`[observability]`)
+
+```toml
+[observability]
+debug = false   # true = never truncate OTEL span attributes; TUI live feed still truncated
+```
+
 ### Config (`[observability.langsmith]`)
 
 ```toml

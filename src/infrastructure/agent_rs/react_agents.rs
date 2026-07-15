@@ -213,7 +213,9 @@ impl MuonAgent for ReActAgent {
         match result {
             Ok(trace) => {
                 let text = trace.final_answer.map(|fa| fa.text).unwrap_or_default();
-                span.record("output.value", text.as_str());
+                let otel_out =
+                    crate::infrastructure::observability::otel_attr_value(text.as_str());
+                span.record("output.value", otel_out.as_str());
                 Ok(text)
             }
             Err(e) => Err(map_react_prompt_error(self.tag, e)),

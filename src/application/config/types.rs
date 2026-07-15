@@ -409,6 +409,8 @@ pub struct ObsidianConfig {
 pub struct ObservabilityConfig {
     #[serde(default)]
     pub langsmith: LangSmithConfig,
+    #[serde(default)]
+    pub debug: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
