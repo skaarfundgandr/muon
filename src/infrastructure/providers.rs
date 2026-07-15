@@ -18,7 +18,22 @@ pub struct ResolvedClient {
 impl ResolvedClient {
     pub fn for_named_provider(name: &str, providers: &[ProviderConfig]) -> Result<Self, MuonError> {
         let provider = providers.iter().find(|p| p.name == name).ok_or_else(|| {
-            MuonError::Config(format!("provider '{name}' not found in [[providers]]"))
+            let available = providers
+                .iter()
+                .map(|p| p.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            let available = if available.is_empty() {
+                "(none — add at least one [[providers]] block in config.toml)".to_string()
+            } else {
+                available
+            };
+            MuonError::Config(format!(
+                "provider '{name}' is not defined in [[providers]]. \
+                 Available [[providers]] names: {available}. \
+                 Fix the agent definition's `provider:` field (agents/*.md frontmatter) to match a \
+                 [[providers]].name, or add a [[providers]] entry with name = \"{name}\" in config.toml"
+            ))
         })?;
         Self::for_provider_config(provider)
     }

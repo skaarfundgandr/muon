@@ -140,16 +140,31 @@ impl InfrastructureContext {
                 })
                 .unwrap_or_else(|| model_name.to_string())
         }
-        let resolve_client = |name: &str| {
+
+        let user_agents_dir: std::path::PathBuf =
+            crate::infrastructure::util::expand_tilde(cfg.advanced.agents_dir.clone());
+        let repo_agents_dir: std::path::PathBuf =
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents");
+
+        let resolve_client = |agent_name: &str, name: &str| {
+            let map_err = |e: MuonError| match e {
+                MuonError::Config(inner) => MuonError::Config(format!(
+                    "config problem for agent '{agent_name}' \
+                     (check `{agent_name}.md` under {} and your config.toml [[providers]]): {inner}",
+                    user_agents_dir.display()
+                )),
+                other => other,
+            };
             if name.is_empty() {
                 crate::infrastructure::providers::ResolvedClient::for_default_provider(providers)
+                    .map_err(map_err)
             } else {
                 crate::infrastructure::providers::ResolvedClient::for_named_provider(
                     name, providers,
                 )
+                .map_err(map_err)
             }
         };
-
 
         macro_rules! build_agent {
             ($client:expr, $model:expr, |$c:ident| $body:expr) => {
@@ -166,11 +181,6 @@ impl InfrastructureContext {
         let paper_providers: Vec<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
             crate::infrastructure::search::provider::resolve_paper_providers(cfg);
         let fetch_http = reqwest::Client::new();
-
-        let user_agents_dir: std::path::PathBuf =
-            crate::infrastructure::util::expand_tilde(cfg.advanced.agents_dir.clone());
-        let repo_agents_dir: std::path::PathBuf =
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents");
 
         let load_agent_def =
             |name: &str, fallback_preamble: &str| -> Result<crate::application::config::AgentDef, MuonError> {
@@ -224,12 +234,12 @@ impl InfrastructureContext {
         let researcher_provider = researcher_def.provider.as_str();
         let researcher_model = researcher_def.model.as_str();
 
-        let intent_client = resolve_client(intent_provider)?;
-        let shallow_client = resolve_client(shallow_provider)?;
-        let clarifier_client = resolve_client(clarifier_provider)?;
-        let deep_client = resolve_client(orchestrator_provider)?;
-        let planner_client = resolve_client(planner_provider)?;
-        let researcher_client = resolve_client(researcher_provider)?;
+        let intent_client = resolve_client("intent-classifier", intent_provider)?;
+        let shallow_client = resolve_client("shallow-researcher", shallow_provider)?;
+        let clarifier_client = resolve_client("clarifier", clarifier_provider)?;
+        let deep_client = resolve_client("deep-orchestrator", orchestrator_provider)?;
+        let planner_client = resolve_client("planner", planner_provider)?;
+        let researcher_client = resolve_client("researcher", researcher_provider)?;
 
         let orchestrator_preamble = &orchestrator_def.preamble_markdown;
         let planner_preamble = &planner_def.preamble_markdown;
