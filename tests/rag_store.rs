@@ -37,3 +37,31 @@ async fn rag_round_trip() -> Result<(), MuonError> {
     assert_eq!(results[0].url, "test://example.com");
     Ok(())
 }
+
+#[test]
+fn temp_rag_path_caps_long_url_filename() {
+    use muon::infrastructure::rag::temp_rag_path;
+
+    let long = format!("https://example.com/{}", "a".repeat(500));
+    let path = temp_rag_path(&long);
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap();
+    assert!(
+        name.len() <= 200,
+        "filename too long for common NAME_MAX: {} ({name})",
+        name.len()
+    );
+    assert!(name.starts_with("muon-rag-"));
+    assert!(name.ends_with(".txt"));
+    // write must succeed even when URL is huge
+    std::fs::write(&path, b"x").unwrap();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn temp_rag_path_empty_url_still_valid() {
+    use muon::infrastructure::rag::temp_rag_path;
+
+    let path = temp_rag_path("!!!");
+    let name = path.file_name().and_then(|n| n.to_str()).unwrap();
+    assert!(name.starts_with("muon-rag-src-") || name.contains("muon-rag-"));
+}

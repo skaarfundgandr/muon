@@ -7,17 +7,33 @@ use crate::domain::error::MuonError;
 use crate::domain::models::source::{Source, SourceType, VerificationStatus};
 use crate::domain::traits::vector_store::VectorStore;
 
+const TEMP_SLUG_MAX: usize = 48;
+
+pub fn temp_rag_path(url: &str) -> PathBuf {
+    let mut slug: String = url
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    if slug.len() > TEMP_SLUG_MAX {
+        slug.truncate(TEMP_SLUG_MAX);
+    }
+    while slug.ends_with('_') {
+        slug.pop();
+    }
+    if slug.is_empty() {
+        slug.push_str("src");
+    }
+    std::env::temp_dir().join(format!(
+        "muon-rag-{}-{}.txt",
+        slug,
+        uuid::Uuid::new_v4()
+    ))
+}
+
 #[async_trait]
 impl VectorStore for RagContext {
     async fn add(&self, source: &Source, content: &str) -> Result<Option<String>, MuonError> {
-        let slug: String = source
-            .url
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .collect();
-
-        let path: PathBuf =
-            std::env::temp_dir().join(format!("muon-rag-{}-{}.txt", slug, uuid::Uuid::new_v4()));
+        let path = temp_rag_path(&source.url);
 
         tokio::fs::write(&path, content)
             .await
