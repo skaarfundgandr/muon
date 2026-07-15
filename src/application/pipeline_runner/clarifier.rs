@@ -32,11 +32,13 @@ fn build_q_prompt(query: &str, state: &ClarifierState) -> String {
 fn parse_clarify_json(text: &str) -> Result<ClarifyDecision, MuonError> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
-        return Err(MuonError::Pipeline("clarifier returned empty".into()));
+        return Err(MuonError::Pipeline(
+            "clarifier: empty response; check max_tokens".into(),
+        ));
     }
     let json_str = crate::domain::extract_json(text).unwrap_or(text);
     let value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
-        MuonError::Pipeline(format!("clarifier returned non-JSON: {e}; raw={trimmed}"))
+        MuonError::Pipeline(format!("clarifier: non-JSON response ({e})"))
     })?;
     let needs = value
         .get("needs_clarification")
@@ -83,11 +85,13 @@ fn build_plan_prompt(query: &str, state: &ClarifierState) -> String {
 fn parse_plan_json(text: &str) -> Result<PlanProposal, MuonError> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
-        return Err(MuonError::Pipeline("planner returned empty".into()));
+        return Err(MuonError::Pipeline(
+            "clarifier plan: empty response; check max_tokens".into(),
+        ));
     }
     let json_str = crate::domain::extract_json(text).unwrap_or(text);
     let value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
-        MuonError::Pipeline(format!("planner returned non-JSON: {e}; raw={trimmed}"))
+        MuonError::Pipeline(format!("clarifier plan: non-JSON response ({e})"))
     })?;
     let title = value
         .get("plan_title")
@@ -128,7 +132,17 @@ pub async fn run_clarifier(
 
     while state.iteration < state.max_turns {
         let prompt = build_q_prompt(query, &state);
-        let raw = agent.prompt_raw(&prompt).await?;
+        let raw = match agent.prompt_raw(&prompt).await {
+            Ok(r) => r,
+            Err(e) => {
+                bridge.log(
+                    AgentTag::Clarify,
+                    LogLevel::Error,
+                    format!("clarifier Q&A failed: {e}"),
+                );
+                return Err(e);
+            }
+        };
         let parsed = parse_clarify_json(&raw)?;
         if !parsed.needs_clarification || parsed.clarification_question.is_empty() {
             break;
@@ -150,7 +164,17 @@ pub async fn run_clarifier(
         let mut approved = false;
         for _ in 0..state.max_plan_iterations {
             let prompt = build_plan_prompt(query, &state);
-            let raw = agent.prompt_raw(&prompt).await?;
+            let raw = match agent.prompt_raw(&prompt).await {
+                Ok(r) => r,
+                Err(e) => {
+                    bridge.log(
+                        AgentTag::Clarify,
+                        LogLevel::Error,
+                        format!("clarifier plan generation failed: {e}"),
+                    );
+                    return Err(e);
+                }
+            };
             let proposal = match parse_plan_json(&raw) {
                 Ok(p) => p,
                 Err(e) => {

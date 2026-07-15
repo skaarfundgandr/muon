@@ -194,7 +194,6 @@ impl MuonAgent for ReActAgent {
     }
 
     async fn prompt_raw(&self, prompt: &str) -> Result<String> {
-        use agent_rs::domain::errors::ReActError;
         use agent_rs::observability::conventions::KIND_AGENT;
         use tracing::Instrument;
 
@@ -217,15 +216,35 @@ impl MuonAgent for ReActAgent {
                 span.record("output.value", text.as_str());
                 Ok(text)
             }
-            Err(ReActError::MaxCyclesExceeded { cycles }) => Err(MuonError::MaxCycles {
-                agent: self.tag.as_str().to_string(),
-                cycles,
-            }),
-            Err(e) => Err(MuonError::Agent {
-                agent: self.tag.as_str().to_string(),
-                message: e.to_string(),
-            }),
+            Err(e) => Err(map_react_prompt_error(self.tag, e)),
         }
+    }
+}
+
+fn map_react_prompt_error(tag: AgentTag, err: agent_rs::domain::errors::ReActError) -> MuonError {
+    use agent_rs::domain::errors::ReActError;
+    match err {
+        ReActError::MaxCyclesExceeded { cycles } => MuonError::MaxCycles {
+            agent: tag.as_str().to_string(),
+            cycles,
+        },
+        ReActError::NoToolCallsAndNoFinalAnswer { cycle } => {
+            let message = format!("empty output (cycle {cycle}); check max_tokens");
+            tracing::warn!(
+                target: "muon::agent",
+                agent = tag.as_str(),
+                cycle,
+                "{message}"
+            );
+            MuonError::Agent {
+                agent: tag.as_str().to_string(),
+                message,
+            }
+        }
+        other => MuonError::Agent {
+            agent: tag.as_str().to_string(),
+            message: other.to_string(),
+        },
     }
 }
 
@@ -281,7 +300,7 @@ impl<'a> ReActFactory<'a> {
             .on_error({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |e: &agent_rs::domain::errors::ReActError| {
-                    let msg = format!("error: {e}");
+                    let msg = format!("error: {}", feed_snippet(&e.to_string()));
                     let level = if is_cycle_limit_error(e) {
                         LogLevel::Warn
                     } else {
@@ -444,7 +463,7 @@ impl<'a> ReActFactory<'a> {
             .on_error({
                 let b = BridgeChannels::new(self.bridge.events.clone());
                 move |e: &agent_rs::domain::errors::ReActError| {
-                    let msg = format!("error: {e}");
+                    let msg = format!("error: {}", feed_snippet(&e.to_string()));
                     let level = if is_cycle_limit_error(e) {
                         LogLevel::Warn
                     } else {
