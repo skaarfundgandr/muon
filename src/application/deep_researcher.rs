@@ -222,16 +222,17 @@ impl<'a> DeepResearcher<'a> {
     ) -> String {
         let mut prompt = format!(
             "You are the Orchestrator for a deep-research pipeline. USE your tools: \
-             call `delegate_planner` to get a research plan, then `delegate_researcher` \
-             (possibly multiple times) to gather findings, and `think` to reason. \
-             You also have `web_search` and `paper_search` if configured.\n\n\
-             Query: {query}\nPrevious draft (refine, don't discard):\n{draft}\n\n\
-             Clarifier sections to cover: {}\n\n\
-             Requirements:\n  \
-             - Begin with a `# Title` line, then a 2-3 sentence summary.\n  \
-             - Body sections under `## Section Title` headings.\n  \
-             - Cite inline as markdown links to source URLs from the Researcher or your web_search.\n  \
-             - Do not invent sources.\n",
+              call `delegate_planner` to get a research plan, then `delegate_researcher` \
+              (possibly multiple times) to gather findings, and `think` to reason. \
+              You do not have web_search, paper_search, or fetch tools — do not attempt them. \
+              The Planner may search while planning; the Researcher owns retrieval for findings and citations.\n\n\
+              Query: {query}\nPrevious draft (refine, don't discard):\n{draft}\n\n\
+              Clarifier sections to cover: {}\n\n\
+              Requirements:\n  \
+              - Begin with a `# Title` line, then a 2-3 sentence summary.\n  \
+              - Body sections under `## Section Title` headings.\n  \
+              - Cite inline as markdown links to source URLs from the Researcher.\n  \
+              - Do not invent sources.\n",
             plan.plan_sections.join(", ")
         );
         if invoke_idx > 0
