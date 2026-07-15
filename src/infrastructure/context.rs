@@ -381,7 +381,7 @@ impl InfrastructureContext {
                 bridge.clone(),
             ));
 
-        // Clarifier — web_search (if configured).
+        // Clarifier — no tools (JSON Q&A / plan decisions only).
         let compaction_threshold = (cfg.advanced.compaction_threshold * 100.0) as usize;
         let clarifier: Arc<dyn MuonAgent> =
             Arc::new(crate::infrastructure::agent_rs::ReActAgent::new(
@@ -394,8 +394,8 @@ impl InfrastructureContext {
                         &clarifier_model
                     ),
                     |c| {
-                        let agent = if let Some(ref wp) = web_provider {
-                            c.agent(resolve_model_id(
+                        let agent = c
+                            .agent(resolve_model_id(
                                 providers,
                                 &clarifier_provider,
                                 &clarifier_model,
@@ -403,25 +403,8 @@ impl InfrastructureContext {
                             .preamble(clarifier_preamble)
                             .temperature(clarifier_def.temperature)
                             .max_tokens(u64::from(clarifier_def.max_tokens))
-                            .tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
-                                wp.clone(),
-                            ))
-                            .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
                             .hook(agent_rs::observability::LangSmithAgentHook)
-                            .build()
-                        } else {
-                            c.agent(resolve_model_id(
-                                providers,
-                                &clarifier_provider,
-                                &clarifier_model,
-                            ))
-                            .preamble(clarifier_preamble)
-                            .temperature(clarifier_def.temperature)
-                            .max_tokens(u64::from(clarifier_def.max_tokens))
-                            .default_max_turns(cfg.advanced.max_tool_calls_per_turn as usize)
-                            .hook(agent_rs::observability::LangSmithAgentHook)
-                            .build()
-                        };
+                            .build();
                         factory.build_clarifier_runner(
                             agent,
                             AgentTag::Clarify,
@@ -435,7 +418,7 @@ impl InfrastructureContext {
                 bridge.clone(),
             ));
 
-        // Planner — think (always), web_search + paper_search (if configured).
+        // Planner — interleaved search: think + web_search + paper_search (if configured).
         let planner: Arc<dyn MuonAgent> =
             Arc::new(crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Plan,
@@ -565,7 +548,7 @@ impl InfrastructureContext {
             }
         ));
 
-        // Deep Orchestrator — think (always), web_search + paper_search (if configured).
+        // Deep Orchestrator — think + delegate_planner/delegate_researcher only.
         let deep_orchestrator: Arc<dyn MuonAgent> = Arc::new(
             crate::infrastructure::agent_rs::ReActAgent::new(
                 AgentTag::Orchestrate,
@@ -597,22 +580,6 @@ impl InfrastructureContext {
                             >::new(std::sync::Arc::clone(
                                 &researcher,
                             )));
-                        let b = if let Some(ref wp) = web_provider {
-                            b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
-                                wp.clone(),
-                            ))
-                        } else {
-                            b
-                        };
-                        let b = if !paper_providers.is_empty() {
-                            b.tool(
-                                crate::infrastructure::agent_rs::tools::PaperSearchTool::new(
-                                    paper_providers.clone(),
-                                ),
-                            )
-                        } else {
-                            b
-                        };
                         let agent = b
                             .default_max_turns(
                                 cfg.agents
