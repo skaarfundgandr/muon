@@ -3,7 +3,7 @@ name: shallow-researcher
 model: glm-5.2
 provider: NeuralWatt
 temperature: 0.2
-max_tokens: 2048
+max_tokens: 6144
 timeout_secs: 60
 ---
 

@@ -3,7 +3,7 @@ name: researcher
 model: glm-5.2-flex
 provider: NeuralWatt
 temperature: 0.2
-max_tokens: 4096
+max_tokens: 12288
 timeout_secs: 90
 ---
 

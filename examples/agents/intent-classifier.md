@@ -3,7 +3,7 @@ name: intent-classifier
 model: glm-5.2-short
 provider: opencode-go
 temperature: 0.0
-max_tokens: 256
+max_tokens: 768
 timeout_secs: 90
 ---
 

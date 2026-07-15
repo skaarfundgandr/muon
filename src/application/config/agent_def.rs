@@ -34,7 +34,7 @@ fn default_temperature() -> f64 {
 }
 
 fn default_max_tokens() -> u32 {
-    2048
+    6144
 }
 
 fn default_timeout_secs() -> u64 {

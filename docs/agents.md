@@ -16,7 +16,7 @@ Each agent file starts with YAML frontmatter delimited by `---`:
 | `model` | string | yes | — | LLM model name (e.g., `"gpt-4o"`, `"gpt-4o-mini"`) |
 | `provider` | string | yes | — | LLM provider (`"openai"` supported) |
 | `temperature` | f64 | no | 0.0 | Sampling temperature (0.0–2.0). Lower = more deterministic. |
-| `max_tokens` | u32 | no | 2048 | Maximum tokens in the LLM response. |
+| `max_tokens` | u32 | no | 6144 | Maximum tokens in the LLM response. |
 | `timeout_secs` | u64 | no | 60 | Timeout for a single prompt call in seconds. Applied to ReAct agents; ignored for the researcher (`ManagedAgent` has no timeout arg). |
 
 ### Minimal Example

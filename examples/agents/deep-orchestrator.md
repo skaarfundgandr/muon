@@ -3,7 +3,7 @@ name: deep-orchestrator
 model: glm-5.2
 provider: opencode-go
 temperature: 0.2
-max_tokens: 2048
+max_tokens: 6144
 timeout_secs: 600
 ---
 

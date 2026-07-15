@@ -16,7 +16,7 @@ fn parse_deep_orchestrator() {
     assert_eq!(def.name, "deep-orchestrator");
     assert!(!def.preamble_markdown.is_empty());
     assert_eq!(def.temperature, 0.2);
-    assert_eq!(def.max_tokens, 2048);
+    assert_eq!(def.max_tokens, 6144);
     assert_eq!(def.timeout_secs, 600);
 }
 
@@ -28,7 +28,7 @@ fn parse_planner() {
     assert_eq!(def.model, "glm-5.2-short");
     assert_eq!(def.provider, "NeuralWatt");
     assert_eq!(def.temperature, 0.3);
-    assert_eq!(def.max_tokens, 1024);
+    assert_eq!(def.max_tokens, 3072);
     assert_eq!(def.timeout_secs, 180);
 }
 
@@ -37,7 +37,7 @@ fn parse_researcher() {
     let def = parse_agent_md(&example("researcher")).unwrap();
     assert_eq!(def.name, "researcher");
     assert!(!def.preamble_markdown.is_empty());
-    assert_eq!(def.max_tokens, 4096);
+    assert_eq!(def.max_tokens, 12288);
     assert_eq!(def.timeout_secs, 90);
 }
 
