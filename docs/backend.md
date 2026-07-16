@@ -77,13 +77,15 @@ The pipeline runner (`src/application/pipeline_runner/runner.rs`) sequences thro
 
 ```rust
 pub struct InfrastructureContext {
-    pub intent_classifier: Box<dyn MuonAgent>,
-    pub shallow: Box<dyn MuonAgent>,
-    pub clarifier: Box<dyn MuonAgent>,
-    pub deep_orchestrator: Box<dyn MuonAgent>,
-    pub planner: Box<dyn MuonAgent>,
-    pub researcher: Box<dyn MuonAgent>,
-    pub session_store: Box<dyn SessionStore>,
+    pub(crate) intent_classifier: Arc<dyn MuonAgent>,
+    pub(crate) shallow: Arc<dyn MuonAgent>,
+    pub(crate) clarifier: Arc<dyn MuonAgent>,
+    pub(crate) deep_orchestrator: Arc<dyn MuonAgent>,
+    pub(crate) planner: Arc<dyn MuonAgent>,
+    pub(crate) researcher: Arc<dyn MuonAgent>,
+    pub(crate) session_store: Arc<dyn SessionStore>,
+    pub(crate) source_sink: Arc<Mutex<SourceRegistry>>,
+    pub(crate) vector_store: Option<Arc<dyn VectorStore>>,
 }
 ```
 
@@ -285,19 +287,9 @@ LLM providers are declared via `[[providers]]` entries with `name`, `base_url`, 
 
 ### 10.6 TUI
 
-The Settings view has 6 tabs (in order): `Providers`, `Agents`, `Tools`, `Data Sources`, `Display`, `Advanced`. The `Providers` tab is a dynamic row editor over `cfg.providers`; the `Tools` tab renders `cfg.search.providers` rows + the arXiv toggle. The `Agents` tab edits pipeline orchestration knobs only (clarifier / shallow / deep budgets and flags). Per-agent model, provider, temperature, max_tokens, and timeout_secs live in `agents/*.md` YAML frontmatter — edit those files outside the TUI.
+The Settings view has 6 tabs (in order): `Providers`, `Agents`, `Tools`, `Data Sources`, `Display`, `Advanced`. The `Providers` tab is a dynamic row editor over `cfg.providers`; the `Tools` tab renders `cfg.search.providers` rows + the arXiv toggle. The `Agents` tab edits pipeline orchestration knobs (clarifier / shallow / deep budgets and flags). Per-agent model, provider, temperature, max_tokens, and timeout_secs live in `agents/*.md` YAML frontmatter — the Agents tab edits these in-place within the TUI; Ctrl+S saves both the YAML frontmatter and the corresponding TOML pipeline knobs, then hot-reloads agents.
 
-### 10.7 Removed (per SPEC) / per feature-wiring audit
-
-- `SearXNGProvider` — removed; use Brave/Tavily/Firecrawl/Serper instead.
-- `SemanticScholarProvider` — removed; arXiv is the only paper source.
-- The old hardcoded `match provider { "openai" | "anthropic" | ... }` dispatch in `providers.rs` was replaced by `for_named_provider` / `for_default_provider`.
-- `FetchPageTool` is reqwest-only; the SPEC-mandated Firecrawl/Tavily fallback chain is a follow-up.
-- **Feature-wiring cleanup (branch `feat/feature-wiring-spec-alignment`):**
-  - `enterprise_systems` config field, `SourceType::Enterprise`, `SourceType::Code`, their DB mapping arms, and the Enterprise source-registry UI row — stripped (no producer existed; `try_from_str` maps unknown DB strings to `Web` with `tracing::warn!`).
-  - Hand-rolled Tavily / Firecrawl / Serper HTTP replaced with the `tavily` / `firecrawl` / `serper-sdk` crates; Brave stays hand-rolled (no adequate library SDK).
-
-### 10.8 Knowledge Layer RAG
+### 10.7 Knowledge Layer RAG
 
 The RAG layer is **off by default** (`knowledge_layer_rag = false` in `DataSourcesConfig::default()` and `examples/muon.toml`). When enabled:
 
@@ -345,13 +337,3 @@ Missing or empty `config.toml` (no `[[providers]]`) does NOT crash the TUI. `new
 ### 11.7 Session plan persistence
 
 `SessionStore::save_clarifier_outcome(id, plan_json, clarifier_result_json)` writes the `plan_json` and `clarifier_result` columns. Called best-effort after a successful deep clarifier run. `ClarifierResult::to_plan()` converts to `ResearchPlan` for serialization. The domain `Session` model has `intent: Option<String>`, `plan: Option<ResearchPlan>`, `clarifier_result: Option<String>` fields. `Session.intent` is a reserved field for future intent-classifier wiring; it is currently left unset. (Tracked as review finding #35.) No schema migration was needed — the columns pre-existed.
-
-### 11.8 Non-goals (explicitly out of scope)
-
-- Enterprise search implementation — removed (see §10.7 Removed; `enterprise_systems` config field stripped).
-- Researcher BuiltReAct + `think` tool.
-- Truncation `VerificationLevel` variant.
-- Full CLEAN DI rewrite / removing `InfrastructureContext`.
-- Top-level TOML rename to `[pipeline]`/`[storage]` (documented mapping only).
-- Auto-provision API keys.
-- App-level SQLite retries as replacement for WAL + busy_timeout + single pool.
