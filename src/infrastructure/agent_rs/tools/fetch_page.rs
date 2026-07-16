@@ -36,7 +36,7 @@ fn looks_like_ip_literal(host: &str) -> bool {
         && host.contains(['.', ':'])
 }
 
-fn is_blocked_ip(ip: IpAddr) -> bool {
+pub fn is_blocked_ip(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {
             v4.is_loopback()
@@ -44,15 +44,35 @@ fn is_blocked_ip(ip: IpAddr) -> bool {
                 || v4.is_link_local()
                 || v4.is_broadcast()
                 || v4.is_unspecified()
+                || v4.is_multicast()
                 || v4.octets()[0] == 169 && v4.octets()[1] == 254
+                || v4.octets()[0] == 100 && (v4.octets()[1] & 0xc0) == 64
         }
         IpAddr::V6(v6) => {
             v6.is_loopback()
                 || v6.is_unique_local()
                 || v6.is_unicast_link_local()
                 || v6.is_unspecified()
+                || v6.is_multicast()
         }
     }
+}
+
+pub async fn ensure_public_resolved(host: &str) -> Result<(), String> {
+    let addrs = tokio::net::lookup_host((host, 0u16))
+        .await
+        .map_err(|e| format!("dns resolution failed: {e}"))?;
+    let mut has_any = false;
+    for addr in addrs {
+        has_any = true;
+        if is_blocked_ip(addr.ip()) {
+            return Err(format!("resolved address {} is blocked", addr.ip()));
+        }
+    }
+    if !has_any {
+        return Err("dns resolution returned no addresses".into());
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,14 +86,22 @@ pub struct FetchPageOutput {
     pub title: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct FetchPageTool {
     http: reqwest::Client,
     max_chars: usize,
 }
 
 impl FetchPageTool {
-    pub fn new(http: reqwest::Client, max_chars: usize) -> Self {
-        Self { http, max_chars }
+    pub fn new(max_chars: usize) -> Result<Self, MuonError> {
+        let http = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .timeout(std::time::Duration::from_secs(60))
+            // Redirects intentionally disabled to prevent SSRF via unchecked Location headers.
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|e| MuonError::Config(format!("failed to build http client: {e}")))?;
+        Ok(Self { http, max_chars })
     }
 }
 
@@ -105,7 +133,24 @@ impl Tool for FetchPageTool {
         let http = self.http.clone();
         let max_chars = self.max_chars;
         async move {
+            // First gate: fast hostname/IP check
             if let Err(reason) = is_public_http_url(&args.url) {
+                return Err(MuonError::Search {
+                    provider: "fetch".into(),
+                    message: format!("url blocked: {reason}"),
+                });
+            }
+
+            // Second gate: DNS resolve-then-validate (guards against DNS rebinding)
+            let url = Url::parse(&args.url).map_err(|e| MuonError::Search {
+                provider: "fetch".into(),
+                message: format!("invalid url: {e}"),
+            })?;
+            let host = url.host_str().ok_or_else(|| MuonError::Search {
+                provider: "fetch".into(),
+                message: "missing host".to_string(),
+            })?;
+            if let Err(reason) = ensure_public_resolved(host).await {
                 return Err(MuonError::Search {
                     provider: "fetch".into(),
                     message: format!("url blocked: {reason}"),

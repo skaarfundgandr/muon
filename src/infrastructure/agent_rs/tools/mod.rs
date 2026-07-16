@@ -4,7 +4,7 @@ pub mod paper_search;
 pub mod think;
 pub mod web_search;
 
-pub use fetch_page::{FetchPageTool, is_public_http_url};
+pub use fetch_page::{FetchPageTool, ensure_public_resolved, is_blocked_ip, is_public_http_url};
 pub use knowledge_search::KnowledgeSearchTool;
 pub use paper_search::PaperSearchTool;
 pub use think::ThinkTool;

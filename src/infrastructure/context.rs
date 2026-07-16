@@ -178,6 +178,8 @@ impl InfrastructureContext {
 
         let fetch_http = crate::infrastructure::util::http_client()
             .map_err(|e| MuonError::Config(format!("http client: {e}")))?;
+        let fetch_tool = crate::infrastructure::agent_rs::tools::FetchPageTool::new(8000)
+            .map_err(|e| MuonError::Config(format!("fetch tool: {e}")))?;
         let web_provider: Option<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
             crate::infrastructure::search::provider::resolve_web_provider(cfg, &fetch_http);
         let paper_providers: Vec<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
@@ -340,10 +342,7 @@ impl InfrastructureContext {
                             .preamble(shallow_preamble)
                             .temperature(shallow_def.temperature)
                             .max_tokens(u64::from(shallow_def.max_tokens))
-                            .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
-                                fetch_http.clone(),
-                                8000,
-                            ));
+                            .tool(fetch_tool.clone());
                         let b = if let Some(ref wp) = web_provider {
                             b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
                                 wp.clone(),
@@ -510,10 +509,7 @@ impl InfrastructureContext {
                     .preamble(researcher_preamble)
                     .temperature(researcher_def.temperature)
                     .max_tokens(u64::from(researcher_def.max_tokens))
-                    .tool(crate::infrastructure::agent_rs::tools::FetchPageTool::new(
-                        fetch_http.clone(),
-                        8000,
-                    ));
+                    .tool(fetch_tool.clone());
                 let b = if let Some(ref wp) = web_provider {
                     b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
                         wp.clone(),

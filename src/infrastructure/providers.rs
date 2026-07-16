@@ -46,9 +46,10 @@ impl ResolvedClient {
                     .api_key(&api_key)
                     .base_url(&provider.base_url)
                     .build()
-                    .map_err(|e| {
+                    .map_err(|_e| {
+                        tracing::debug!(target: "muon::providers", provider = %provider.name, error = %_e, "client build failed");
                         MuonError::Config(format!(
-                            "failed to build client for '{}': {e}",
+                            "failed to build client for '{}'",
                             provider.name
                         ))
                     })?
@@ -64,9 +65,10 @@ impl ResolvedClient {
                     .api_key(&api_key)
                     .base_url(&provider.base_url)
                     .build()
-                    .map_err(|e| {
+                    .map_err(|_e| {
+                        tracing::debug!(target: "muon::providers", provider = %provider.name, error = %_e, "client build failed");
                         MuonError::Config(format!(
-                            "failed to build gemini client for '{}': {e}",
+                            "failed to build gemini client for '{}'",
                             provider.name
                         ))
                     })?;
@@ -77,9 +79,10 @@ impl ResolvedClient {
                     .api_key(&api_key)
                     .base_url(&provider.base_url)
                     .build()
-                    .map_err(|e| {
+                    .map_err(|_e| {
+                        tracing::debug!(target: "muon::providers", provider = %provider.name, error = %_e, "client build failed");
                         MuonError::Config(format!(
-                            "failed to build anthropic client for '{}': {e}",
+                            "failed to build anthropic client for '{}'",
                             provider.name
                         ))
                     })?;
