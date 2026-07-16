@@ -1,3 +1,4 @@
+use diesel::result::Error as DieselError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -59,6 +60,12 @@ impl From<agent_rs::domain::errors::ReActError> for MuonError {
                 message: other.to_string(),
             },
         }
+    }
+}
+
+impl From<DieselError> for MuonError {
+    fn from(e: DieselError) -> Self {
+        Self::Database(e.to_string())
     }
 }
 

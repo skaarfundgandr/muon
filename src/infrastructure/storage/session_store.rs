@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use chrono::Utc;
 use diesel::prelude::*;
+use diesel_async::AsyncConnection;
 use diesel_async::RunQueryDsl;
 use uuid::Uuid;
 
@@ -62,16 +63,6 @@ impl SessionStore for DieselSessionStore {
             .get()
             .await
             .map_err(|e| MuonError::Database(e.to_string()))?;
-        let exists: Option<String> = sessions::table
-            .find(id.to_string())
-            .select(sessions::id)
-            .first(&mut *conn)
-            .await
-            .optional()
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        if exists.is_some() {
-            return Ok(());
-        }
         let now = Utc::now().naive_utc();
         let new_row = NewSessionRow {
             id: id.to_string(),
@@ -86,6 +77,8 @@ impl SessionStore for DieselSessionStore {
         };
         diesel::insert_into(sessions::table)
             .values(&new_row)
+            .on_conflict(sessions::id)
+            .do_nothing()
             .execute(&mut *conn)
             .await
             .map_err(|e| MuonError::Database(e.to_string()))?;
@@ -160,34 +153,38 @@ impl SessionStore for DieselSessionStore {
         let stats_json =
             serde_json::to_string(&report.stats).map_err(|e| MuonError::Database(e.to_string()))?;
         let now = Utc::now().naive_utc();
-        diesel::delete(
-            research_reports::table.filter(research_reports::session_id.eq(id.to_string())),
-        )
-        .execute(&mut *conn)
+        conn.transaction::<_, MuonError, _>(async |conn| {
+            diesel::delete(
+                research_reports::table
+                    .filter(research_reports::session_id.eq(id.to_string())),
+            )
+            .execute(conn)
+            .await
+            .map_err(|e| MuonError::Database(e.to_string()))?;
+            let report_row = crate::infrastructure::models::report_row::NewReportRow {
+                session_id: id.to_string(),
+                title: report.title.clone(),
+                content: content_json.clone(),
+                stats_json: stats_json.clone(),
+                created_at: now,
+            };
+            diesel::insert_into(research_reports::table)
+                .values(&report_row)
+                .execute(conn)
+                .await
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+            diesel::update(sessions::table.find(id.to_string()))
+                .set((
+                    sessions::status.eq("Complete"),
+                    sessions::pipeline_stage.eq("Complete"),
+                    sessions::updated_at.eq(now),
+                ))
+                .execute(conn)
+                .await
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+            Ok(())
+        })
         .await
-        .map_err(|e| MuonError::Database(e.to_string()))?;
-        let report_row = crate::infrastructure::models::report_row::NewReportRow {
-            session_id: id.to_string(),
-            title: report.title.clone(),
-            content: content_json,
-            stats_json,
-            created_at: now,
-        };
-        diesel::insert_into(research_reports::table)
-            .values(&report_row)
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        diesel::update(sessions::table.find(id.to_string()))
-            .set((
-                sessions::status.eq("Complete"),
-                sessions::pipeline_stage.eq("Complete"),
-                sessions::updated_at.eq(now),
-            ))
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        Ok(())
     }
 
     async fn get_report(&self, id: SessionId) -> Result<Option<ResearchReport>, MuonError> {
@@ -234,19 +231,22 @@ impl SessionStore for DieselSessionStore {
             .get()
             .await
             .map_err(|e| MuonError::Database(e.to_string()))?;
-        diesel::delete(sources::table.filter(sources::session_id.eq(id.to_string())))
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        for source in sources {
-            let row = NewSourceRow::from_with_session(id.to_string(), source);
-            diesel::insert_into(sources::table)
-                .values(&row)
-                .execute(&mut *conn)
+        conn.transaction::<_, MuonError, _>(async |conn| {
+            diesel::delete(sources::table.filter(sources::session_id.eq(id.to_string())))
+                .execute(conn)
                 .await
                 .map_err(|e| MuonError::Database(e.to_string()))?;
-        }
-        Ok(())
+            for source in sources {
+                let row = NewSourceRow::from_with_session(id.to_string(), source);
+                diesel::insert_into(sources::table)
+                    .values(&row)
+                    .execute(conn)
+                    .await
+                    .map_err(|e| MuonError::Database(e.to_string()))?;
+            }
+            Ok(())
+        })
+        .await
     }
 
     async fn get_sources(&self, id: SessionId) -> Result<Vec<Source>, MuonError> {
@@ -272,38 +272,40 @@ impl SessionStore for DieselSessionStore {
             .await
             .map_err(|e| MuonError::Database(e.to_string()))?;
         let sid = id.to_string();
-
-        let report_ids: Vec<i32> = research_reports::table
-            .filter(research_reports::session_id.eq(&sid))
-            .select(research_reports::id)
-            .load(&mut *conn)
-            .await
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-
-        if !report_ids.is_empty() {
-            diesel::delete(citations::table.filter(citations::report_id.eq_any(&report_ids)))
-                .execute(&mut *conn)
+        conn.transaction::<_, MuonError, _>(async |conn| {
+            let report_ids: Vec<i32> = research_reports::table
+                .filter(research_reports::session_id.eq(&sid))
+                .select(research_reports::id)
+                .load(conn)
                 .await
                 .map_err(|e| MuonError::Database(e.to_string()))?;
-        }
 
-        diesel::delete(research_reports::table.filter(research_reports::session_id.eq(&sid)))
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        diesel::delete(sources::table.filter(sources::session_id.eq(&sid)))
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        diesel::delete(log_entries::table.filter(log_entries::session_id.eq(&sid)))
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        diesel::delete(sessions::table.find(&sid))
-            .execute(&mut *conn)
-            .await
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        Ok(())
+            if !report_ids.is_empty() {
+                diesel::delete(citations::table.filter(citations::report_id.eq_any(&report_ids)))
+                    .execute(conn)
+                    .await
+                    .map_err(|e| MuonError::Database(e.to_string()))?;
+            }
+
+            diesel::delete(research_reports::table.filter(research_reports::session_id.eq(&sid)))
+                .execute(conn)
+                .await
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+            diesel::delete(sources::table.filter(sources::session_id.eq(&sid)))
+                .execute(conn)
+                .await
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+            diesel::delete(log_entries::table.filter(log_entries::session_id.eq(&sid)))
+                .execute(conn)
+                .await
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+            diesel::delete(sessions::table.find(&sid))
+                .execute(conn)
+                .await
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+            Ok(())
+        })
+        .await
     }
 
     async fn save_clarifier_outcome(

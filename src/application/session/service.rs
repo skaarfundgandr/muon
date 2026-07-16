@@ -103,19 +103,20 @@ impl From<crate::domain::traits::session_store::SessionSummary> for SessionSumma
     }
 }
 
-fn derive_title(query: &str) -> String {
+pub fn derive_title(query: &str) -> String {
     let words: Vec<&str> = query.split_whitespace().take(5).collect();
     let title = words.join(" ");
-    if title.len() > 40 {
-        format!("{}...", &title[..37])
-    } else if title.is_empty() {
-        "Untitled Session".to_string()
-    } else {
-        let mut chars = title.chars();
-        match chars.next() {
-            Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
-            None => title,
-        }
+    if title.is_empty() {
+        return "Untitled Session".to_string();
+    }
+    if title.chars().count() > 40 {
+        let truncated: String = title.chars().take(37).collect();
+        return format!("{truncated}...");
+    }
+    let mut chars = title.chars();
+    match chars.next() {
+        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+        None => title,
     }
 }
 
