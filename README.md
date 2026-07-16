@@ -14,7 +14,7 @@ Install from source:
 ```bash
 git clone https://github.com/skaarfundgandr/muon.git
 cd muon
-cargo build --release
+cargo install --path .
 ```
 
 Requires **Rust 1.87+** (edition 2024) and SQLite development libraries (`sqlite3-dev` / `libsqlite3-dev`).
