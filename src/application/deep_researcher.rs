@@ -100,6 +100,12 @@ impl<'a> DeepResearcher<'a> {
                 }
             }
 
+            if let Ok(sink) = self.deps.source_sink.lock() {
+                for src in sink.sources() {
+                    registry.record_source(src);
+                }
+            }
+
             let (complete, reason) = is_report_complete(
                 &draft,
                 &registry.urls(),

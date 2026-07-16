@@ -119,13 +119,7 @@ impl PipelineState {
     }
 
     pub fn is_running(&self) -> bool {
-        !matches!(
-            self.stage,
-            PipelineStage::Idle
-                | PipelineStage::Complete
-                | PipelineStage::Cancelled
-                | PipelineStage::Failed
-        )
+        self.started_at.is_some() && self.completed_at.is_none()
     }
 
     pub fn clone_state_for_task(&self) -> Self {

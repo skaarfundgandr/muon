@@ -255,6 +255,7 @@ async fn mark_session_terminal(
     } else {
         PipelineStage::Failed
     };
+    bridge.stage(stage);
     if deps
         .session_store
         .update_stage(session_id, stage.as_str())
