@@ -31,6 +31,26 @@ fn test_extract_json_surrounding_prose() {
 }
 
 #[test]
+fn test_extract_json_case_insensitive_fence() {
+    assert_eq!(
+        extract_json("```JSON\n{\"foo\": \"bar\"}\n```"),
+        Some("{\"foo\": \"bar\"}")
+    );
+    assert_eq!(
+        extract_json("```Json\n{\"foo\": \"bar\"}\n```"),
+        Some("{\"foo\": \"bar\"}")
+    );
+    assert_eq!(
+        extract_json("```json\n{\"foo\": \"bar\"}\n```"),
+        Some("{\"foo\": \"bar\"}")
+    );
+    assert_eq!(
+        extract_json("```\n{\"foo\": \"bar\"}\n```"),
+        Some("{\"foo\": \"bar\"}")
+    );
+}
+
+#[test]
 fn test_extract_json_invalid() {
     assert_eq!(extract_json("no json here"), None);
     assert_eq!(extract_json(""), None);

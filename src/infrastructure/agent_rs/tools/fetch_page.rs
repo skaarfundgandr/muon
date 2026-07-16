@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::net::IpAddr;
+use std::sync::LazyLock;
 
 use rig_core::tool::Tool;
 use serde::{Deserialize, Serialize};
@@ -9,6 +10,15 @@ use crate::domain::error::MuonError;
 
 const NAME: &str = "fetch_page";
 const MAX_BODY_BYTES: usize = 2_000_000;
+
+static TITLE_RE: LazyLock<Option<regex::Regex>> =
+    LazyLock::new(|| regex::Regex::new(r"(?is)<title[^>]*>(.*?)</title>").ok());
+static TAG_RE: LazyLock<Option<regex::Regex>> =
+    LazyLock::new(|| regex::Regex::new(r"(?s)<[^>]+>").ok());
+static WS_RE: LazyLock<Option<regex::Regex>> =
+    LazyLock::new(|| regex::Regex::new(r"[ \t]+").ok());
+static NL_RE: LazyLock<Option<regex::Regex>> =
+    LazyLock::new(|| regex::Regex::new(r"\n{3,}").ok());
 
 pub fn is_public_http_url(raw: &str) -> Result<(), String> {
     let url = Url::parse(raw).map_err(|e| format!("invalid url: {e}"))?;
@@ -198,18 +208,14 @@ impl Tool for FetchPageTool {
 
 fn html_to_text(html: &str, max_chars: usize) -> (String, Option<String>) {
     // Extract title from <title>...</title>
-    let title = {
-        let re = regex::Regex::new(r"(?is)<title[^>]*>(.*?)</title>").ok();
-        re.and_then(|r| {
-            r.captures(html)
-                .and_then(|c| c.get(1))
-                .map(|m| strip_tags_single(m.as_str()).trim().to_string())
-        })
-    };
+    let title = TITLE_RE.as_ref().and_then(|r| {
+        r.captures(html)
+            .and_then(|c| c.get(1))
+            .map(|m| strip_tags_single(m.as_str()).trim().to_string())
+    });
 
     // Strip all HTML tags
-    let tag_re = regex::Regex::new(r"(?s)<[^>]+>").ok();
-    let mut text = match tag_re {
+    let mut text = match TAG_RE.as_ref() {
         Some(re) => re.replace_all(html, " ").to_string(),
         None => html.to_string(),
     };
@@ -223,12 +229,10 @@ fn html_to_text(html: &str, max_chars: usize) -> (String, Option<String>) {
     text = text.replace("&nbsp;", " ");
 
     // Collapse whitespace
-    let ws_re = regex::Regex::new(r"[ \t]+").ok();
-    if let Some(re) = ws_re {
+    if let Some(re) = WS_RE.as_ref() {
         text = re.replace_all(&text, " ").to_string();
     }
-    let nl_re = regex::Regex::new(r"\n{3,}").ok();
-    if let Some(re) = nl_re {
+    if let Some(re) = NL_RE.as_ref() {
         text = re.replace_all(&text, "\n\n").to_string();
     }
 
@@ -248,8 +252,7 @@ fn html_to_text(html: &str, max_chars: usize) -> (String, Option<String>) {
 }
 
 fn strip_tags_single(html: &str) -> String {
-    let re = regex::Regex::new(r"(?s)<[^>]+>").ok();
-    match re {
+    match TAG_RE.as_ref() {
         Some(r) => r.replace_all(html, " ").to_string(),
         None => html.to_string(),
     }

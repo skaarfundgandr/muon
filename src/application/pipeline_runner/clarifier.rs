@@ -144,7 +144,12 @@ pub async fn run_clarifier(
             }
         };
         let parsed = parse_clarify_json(&raw)?;
-        if !parsed.needs_clarification || parsed.clarification_question.is_empty() {
+        if parsed.needs_clarification && parsed.clarification_question.trim().is_empty() {
+            return Err(MuonError::Pipeline(
+                "clarifier requested clarification with empty question".into(),
+            ));
+        }
+        if !parsed.needs_clarification {
             break;
         }
         let (tx, rx) = tokio::sync::oneshot::channel::<String>();

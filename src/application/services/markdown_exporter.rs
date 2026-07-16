@@ -1,8 +1,20 @@
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
+
+use noyalib::compat::serde_yaml;
+
 use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
+
+#[derive(Serialize)]
+struct FrontMatter<'a> {
+    title: &'a str,
+    query: &'a str,
+    created_at: String,
+    sources: usize,
+}
 
 pub struct MarkdownExporter;
 
@@ -30,15 +42,15 @@ impl MarkdownExporter {
         std::fs::create_dir_all(dir)?;
         let path = dir.join(format!("{}.md", session.id));
 
-        let mut content = String::from("---\n");
-        content.push_str(&format!("title: {}\n", report.title));
-        content.push_str(&format!("query: {}\n", session.query));
-        content.push_str(&format!(
-            "created_at: {}\n",
-            session.created_at.to_rfc3339()
-        ));
-        content.push_str(&format!("sources: {}\n", report.citations.len()));
-        content.push_str("---\n\n");
+        let fm = FrontMatter {
+            title: &report.title,
+            query: &session.query,
+            created_at: session.created_at.to_rfc3339(),
+            sources: report.citations.len(),
+        };
+        let fm_yaml = serde_yaml::to_string(&fm)
+            .map_err(|e| MuonError::Io(std::io::Error::other(format!("frontmatter yaml: {e}"))))?;
+        let mut content = format!("---\n{fm_yaml}---\n\n");
 
         content.push_str(&report.summary);
         content.push_str("\n\n");

@@ -1,25 +1,36 @@
 use std::path::{Path, PathBuf};
 
 use pdf_oxide::api::Pdf;
+use serde::Serialize;
+
+use noyalib::compat::serde_yaml;
 
 use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
+
+#[derive(Serialize)]
+struct FrontMatter<'a> {
+    title: &'a str,
+    query: &'a str,
+    created_at: String,
+    sources: usize,
+}
 
 fn map_pdf_error(e: impl std::fmt::Display) -> MuonError {
     MuonError::Io(std::io::Error::other(format!("PDF export: {e}")))
 }
 
 fn build_markdown(report: &ResearchReport, session: &Session) -> String {
-    let mut content = String::from("---\n");
-    content.push_str(&format!("title: {}\n", report.title));
-    content.push_str(&format!("query: {}\n", session.query));
-    content.push_str(&format!(
-        "created_at: {}\n",
-        session.created_at.to_rfc3339()
-    ));
-    content.push_str(&format!("sources: {}\n", report.citations.len()));
-    content.push_str("---\n\n");
+    let fm = FrontMatter {
+        title: &report.title,
+        query: &session.query,
+        created_at: session.created_at.to_rfc3339(),
+        sources: report.citations.len(),
+    };
+    let fm_yaml = serde_yaml::to_string(&fm)
+        .unwrap_or_else(|_| String::new());
+    let mut content = format!("---\n{fm_yaml}---\n\n");
 
     content.push_str(&report.summary);
     content.push_str("\n\n");

@@ -1,6 +1,7 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
@@ -9,6 +10,15 @@ use crate::infrastructure::source_registry::SourceRegistry;
 
 pub use crate::domain::models::report::VerificationLevel;
 pub use normalize_url as normalize;
+
+static URL_RE: LazyLock<Option<Regex>> =
+    LazyLock::new(|| Regex::new(r#"(?P<url>https?://[^\s\)\]\}\{\"\'\\<>]+)"#).ok());
+static IPV4_RE: LazyLock<Option<Regex>> =
+    LazyLock::new(|| Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$").ok());
+static NUMBERED_RE: LazyLock<Option<Regex>> =
+    LazyLock::new(|| Regex::new(r"\[(\d+)\]").ok());
+static URL_REF_RE: LazyLock<Option<Regex>> =
+    LazyLock::new(|| Regex::new(r"\[(https?://[^\]]+)\]").ok());
 
 /// Output of the citation verification pipeline.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -181,8 +191,7 @@ pub fn verify(
 }
 
 pub fn extract_urls(markdown: &str) -> Result<Vec<String>, MuonError> {
-    let re = Regex::new(r#"(?P<url>https?://[^\s\)\]\}\{\"\'\\<>]+)"#)
-        .map_err(|e| MuonError::Database(e.to_string()))?;
+    let re = URL_RE.as_ref().ok_or_else(|| MuonError::Database("url regex failed".into()))?;
     let mut out = Vec::new();
     for cap in re.captures_iter(markdown) {
         let Some(m) = cap.name("url") else {
@@ -271,8 +280,7 @@ pub fn normalize_url(url: &str) -> String {
 
 fn is_ip_literal(host: &str) -> Result<bool, MuonError> {
     let h = host.trim_matches('[').trim_matches(']');
-    let ipv4_re = Regex::new(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-        .map_err(|e| MuonError::Database(e.to_string()))?;
+    let ipv4_re = IPV4_RE.as_ref().ok_or_else(|| MuonError::Database("ipv4 regex failed".into()))?;
     if ipv4_re.is_match(h) {
         return Ok(true);
     }
@@ -448,9 +456,8 @@ pub fn report_reflow(
         }
     }
 
-    let numbered_re = Regex::new(r"\[(\d+)\]").map_err(|e| MuonError::Database(e.to_string()))?;
-    let url_re =
-        Regex::new(r"\[(https?://[^\]]+)\]").map_err(|e| MuonError::Database(e.to_string()))?;
+    let numbered_re = NUMBERED_RE.as_ref().ok_or_else(|| MuonError::Database("numbered ref regex failed".into()))?;
+    let url_re = URL_REF_RE.as_ref().ok_or_else(|| MuonError::Database("url ref regex failed".into()))?;
 
     let mut old_to_new: HashMap<String, String> = HashMap::new();
 

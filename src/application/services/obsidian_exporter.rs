@@ -9,10 +9,16 @@ pub struct ObsidianExporter;
 impl ObsidianExporter {
     pub fn export(
         report: &ResearchReport,
-        _session: &Session,
+        session: &Session,
         vault_path: &Path,
     ) -> Result<PathBuf, MuonError> {
         let slug = slugify(&report.title);
+        let slug = if slug.is_empty() {
+            let id = session.id.to_string();
+            format!("session-{}", &id[..id.len().min(8)])
+        } else {
+            slug
+        };
         let dir = vault_path.join("Muon");
         std::fs::create_dir_all(&dir)?;
 
