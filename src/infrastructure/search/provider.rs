@@ -7,7 +7,7 @@ use super::CompositeSearchProvider;
 use super::paper_search::ArxivProvider;
 use super::web_search::{BraveProvider, FirecrawlProvider, SerperProvider, TavilyProvider};
 
-pub fn resolve_web_provider(cfg: &MuonConfig) -> Option<Arc<dyn SearchProvider>> {
+pub fn resolve_web_provider(cfg: &MuonConfig, http: &reqwest::Client) -> Option<Arc<dyn SearchProvider>> {
     if !cfg.data_sources.web_search {
         return None;
     }
@@ -15,7 +15,7 @@ pub fn resolve_web_provider(cfg: &MuonConfig) -> Option<Arc<dyn SearchProvider>>
         .search
         .providers
         .iter()
-        .filter_map(build_one_web)
+        .filter_map(|p| build_one_web(p, http))
         .collect();
     if providers.is_empty() {
         return None;
@@ -23,7 +23,7 @@ pub fn resolve_web_provider(cfg: &MuonConfig) -> Option<Arc<dyn SearchProvider>>
     Some(Arc::new(CompositeSearchProvider::new(providers)) as Arc<dyn SearchProvider>)
 }
 
-fn build_one_web(p: &crate::application::config::SearchProviderConfig) -> Option<Arc<dyn SearchProvider>> {
+fn build_one_web(p: &crate::application::config::SearchProviderConfig, http: &reqwest::Client) -> Option<Arc<dyn SearchProvider>> {
     let key = match crate::infrastructure::config::expand_env(&p.api_key) {
         Ok(k) => k,
         Err(e) => {
@@ -39,19 +39,19 @@ fn build_one_web(p: &crate::application::config::SearchProviderConfig) -> Option
             p.max_results,
             p.firecrawl.clone(),
         )),
-        Brave => Arc::new(BraveProvider::new(key)),
+        Brave => Arc::new(BraveProvider::new(key, http.clone())),
         Serper => Arc::new(SerperProvider::new(key, p.max_results, p.serper.clone())),
     };
     Some(provider)
 }
 
-pub fn resolve_paper_providers(cfg: &MuonConfig) -> Vec<Arc<dyn SearchProvider>> {
+pub fn resolve_paper_providers(cfg: &MuonConfig, http: &reqwest::Client) -> Vec<Arc<dyn SearchProvider>> {
     if !cfg.data_sources.paper_search {
         return Vec::new();
     }
     let mut v: Vec<Arc<dyn SearchProvider>> = Vec::new();
     if cfg.search.papers.arxiv_enabled {
-        v.push(Arc::new(ArxivProvider::new()) as Arc<dyn SearchProvider>);
+        v.push(Arc::new(ArxivProvider::new(http.clone())) as Arc<dyn SearchProvider>);
     }
     v
 }

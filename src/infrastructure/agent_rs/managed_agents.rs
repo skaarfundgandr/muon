@@ -71,6 +71,7 @@ pub struct ManagedAgent {
     tag: AgentTag,
     runner: Box<dyn ManagedRunner>,
     bridge: BridgeChannels,
+    timeout_secs: u64,
 }
 
 impl ManagedAgent {
@@ -78,6 +79,7 @@ impl ManagedAgent {
         tag: AgentTag,
         agent: rig_core::agent::Agent<M>,
         bridge: BridgeChannels,
+        timeout_secs: u64,
     ) -> Self
     where
         M: CompletionModel + WasmCompatSend + WasmCompatSync + 'static,
@@ -90,6 +92,7 @@ impl ManagedAgent {
             tag,
             runner: Box::new(BuiltManagedRunner(managed)),
             bridge,
+            timeout_secs,
         }
     }
 }
@@ -169,50 +172,60 @@ impl MuonAgent for ManagedAgent {
             "agent.tag" = self.tag.as_str(),
         );
 
-        let result = async { self.runner.run(prompt).await }
-            .instrument(span.clone())
-            .await;
+        let timeout_dur = std::time::Duration::from_secs(self.timeout_secs.max(1));
+        match tokio::time::timeout(timeout_dur, async {
+            let result = async { self.runner.run(prompt).await }
+                .instrument(span.clone())
+                .await;
 
-        match result {
-            Ok(text) => {
-                let text = if text.trim().is_empty() {
-                    "## Research findings\n\nNo content returned by the researcher.".to_string()
-                } else {
-                    text
-                };
-                let otel_out =
-                    crate::infrastructure::observability::otel_attr_value(text.as_str());
-                span.record("output.value", otel_out.as_str());
-                self.bridge
-                    .log(self.tag, LogLevel::Info, "final answer".to_string());
-                Ok(text)
+            match result {
+                Ok(text) => {
+                    let text = if text.trim().is_empty() {
+                        "## Research findings\n\nNo content returned by the researcher.".to_string()
+                    } else {
+                        text
+                    };
+                    let otel_out =
+                        crate::infrastructure::observability::otel_attr_value(text.as_str());
+                    span.record("output.value", otel_out.as_str());
+                    self.bridge
+                        .log(self.tag, LogLevel::Info, "final answer".to_string());
+                    Ok(text)
+                }
+                Err(PromptError::MaxTurnsError {
+                    max_turns,
+                    chat_history,
+                    ..
+                }) => {
+                    self.bridge.log(
+                        self.tag,
+                        LogLevel::Warn,
+                        format!(
+                            "researcher hit tool-call limit ({max_turns}); returning partial findings"
+                        ),
+                    );
+                    let salvaged = extract_text_from_history(&chat_history);
+                    let otel_out =
+                        crate::infrastructure::observability::otel_attr_value(salvaged.as_str());
+                    span.record("output.value", otel_out.as_str());
+                    Ok(salvaged)
+                }
+                Err(e) => {
+                    self.bridge
+                        .log(self.tag, LogLevel::Error, format!("error: {e}"));
+                    Err(MuonError::Agent {
+                        agent: self.tag.as_str().to_string(),
+                        message: e.to_string(),
+                    })
+                }
             }
-            Err(PromptError::MaxTurnsError {
-                max_turns,
-                chat_history,
-                ..
-            }) => {
-                self.bridge.log(
-                    self.tag,
-                    LogLevel::Warn,
-                    format!(
-                        "researcher hit tool-call limit ({max_turns}); returning partial findings"
-                    ),
-                );
-                let salvaged = extract_text_from_history(&chat_history);
-                let otel_out =
-                    crate::infrastructure::observability::otel_attr_value(salvaged.as_str());
-                span.record("output.value", otel_out.as_str());
-                Ok(salvaged)
-            }
-            Err(e) => {
-                self.bridge
-                    .log(self.tag, LogLevel::Error, format!("error: {e}"));
-                Err(MuonError::Agent {
-                    agent: self.tag.as_str().to_string(),
-                    message: e.to_string(),
-                })
-            }
+        })
+        .await
+        {
+            Ok(inner) => inner,
+            Err(_) => Err(MuonError::Timeout {
+                agent: self.tag.as_str().to_string(),
+            }),
         }
     }
 }

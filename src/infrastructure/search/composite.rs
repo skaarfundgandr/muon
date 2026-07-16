@@ -45,7 +45,21 @@ impl SearchProvider for CompositeSearchProvider {
             .cloned()
             .map(|p| {
                 let q = q.clone();
-                async move { p.search(&q, max).await }
+                let name = p.provider_name();
+                async move {
+                    match tokio::time::timeout(
+                        std::time::Duration::from_secs(30),
+                        p.search(&q, max),
+                    )
+                    .await
+                    {
+                        Ok(result) => result,
+                        Err(_) => {
+                            tracing::warn!(target: "muon::search", "provider {name} timed out");
+                            Ok(Vec::new())
+                        }
+                    }
+                }
             })
             .collect();
         let results = join_all(handles).await;

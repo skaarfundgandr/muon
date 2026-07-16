@@ -176,11 +176,12 @@ impl InfrastructureContext {
             };
         }
 
+        let fetch_http = crate::infrastructure::util::http_client()
+            .map_err(|e| MuonError::Config(format!("http client: {e}")))?;
         let web_provider: Option<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
-            crate::infrastructure::search::provider::resolve_web_provider(cfg);
+            crate::infrastructure::search::provider::resolve_web_provider(cfg, &fetch_http);
         let paper_providers: Vec<Arc<dyn crate::domain::traits::search_provider::SearchProvider>> =
-            crate::infrastructure::search::provider::resolve_paper_providers(cfg);
-        let fetch_http = reqwest::Client::new();
+            crate::infrastructure::search::provider::resolve_paper_providers(cfg, &fetch_http);
 
         let load_agent_def =
             |name: &str, fallback_preamble: &str| -> Result<crate::application::config::AgentDef, MuonError> {
@@ -555,6 +556,7 @@ impl InfrastructureContext {
                     AgentTag::Search,
                     agent,
                     bridge.clone(),
+                    researcher_def.timeout_secs,
                 )
             }
         ));

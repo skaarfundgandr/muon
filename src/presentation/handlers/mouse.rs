@@ -574,7 +574,16 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                     crate::presentation::components::chrome::toast::ToastKind::Info,
                 ));
                 tokio::spawn(async move {
-                    let client = reqwest::Client::new();
+                    let client = match crate::infrastructure::util::http_client() {
+                        Ok(c) => c,
+                        Err(e) => {
+                            let _ = tx.send(Event::ModelsFetched {
+                                provider_index: idx,
+                                result: Err(format!("http client: {e}")),
+                            });
+                            return;
+                        }
+                    };
                     let mut req = client.get(&url);
                     if !api_key.is_empty() {
                         req = req.header("Authorization", format!("Bearer {api_key}"));

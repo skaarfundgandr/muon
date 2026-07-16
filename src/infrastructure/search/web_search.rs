@@ -15,10 +15,10 @@ pub struct BraveProvider {
 }
 
 impl BraveProvider {
-    pub fn new(api_key: String) -> Self {
+    pub fn new(api_key: String, http: reqwest::Client) -> Self {
         Self {
             api_key,
-            http: reqwest::Client::new(),
+            http,
             base_url: "https://api.search.brave.com".into(),
         }
     }

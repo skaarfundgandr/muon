@@ -11,4 +11,11 @@ pub fn expand_tilde<P: Into<PathBuf>>(p: P) -> PathBuf {
     path
 }
 
+pub fn http_client() -> Result<reqwest::Client, reqwest::Error> {
+    reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+}
+
 pub use crate::domain::extract_json;

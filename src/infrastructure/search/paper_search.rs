@@ -8,17 +8,9 @@ pub struct ArxivProvider {
     http: reqwest::Client,
 }
 
-impl Default for ArxivProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ArxivProvider {
-    pub fn new() -> Self {
-        Self {
-            http: reqwest::Client::new(),
-        }
+    pub fn new(http: reqwest::Client) -> Self {
+        Self { http }
     }
 }
 
