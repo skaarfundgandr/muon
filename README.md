@@ -33,7 +33,7 @@ On first launch, μon scaffolds `~/.config/muon/config.toml` and `~/.config/muon
 
 ### TUI Workspace
 
-Five views — Welcome, Dashboard, Progress, Results, and Settings — built on ratatui + crossterm with keyboard-first navigation, mouse support, a form system, and a click-target registry. Tab or `1`–`4` to switch views.
+Five views — Welcome, Dashboard, Progress, Results, and Settings — built on ratatui + crossterm with keyboard-first navigation, mouse support, a form system, and a click-target registry. Tab or `1`–`4` to switch views. Comes with four bundled themes: **Tokyo Night** (default), **Gruvbox**, **Catppuccin**, and **Nord**.
 
 ### Multi-Provider LLM
 
@@ -135,6 +135,10 @@ Agents are configured per-stage: each can use a different model, provider, tempe
 
 ➡️ [`docs/agents.md`](docs/agents.md) — full agent authoring guide with frontmatter schema and template variables.
 
+> **⚠️ Token Consumption:** Deep research agents run multi-loop ReAct cycles — each with its own search, fetch, and synthesis tool calls — and can consume **a significant number of tokens** per query (especially on the deep research path, where the orchestrator delegates to planner + researcher sub-agents). **Cheap, high-throughput models are recommended for daily use:**
+> - **Cloud:** DeepSeek V4 Flash, MiniMax M3, or other low-cost OpenAI-compatible providers
+> - **Local:** Gemma 4 12B, Llama 4, or any Ollama-hosted model
+
 ## Configuration
 
 Two complementary systems:
@@ -172,6 +176,14 @@ CLEAN layered architecture (Presentation → Application → Domain → Infrastr
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
+
+---
+
+## 📬 Contact
+
+**Maintainer:** skaarfundgandr
+
+**Project Link:** [https://github.com/skaarfundgandr/muon](https://github.com/skaarfundgandr/muon)
 
 ---
 
