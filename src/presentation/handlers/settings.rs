@@ -568,6 +568,20 @@ pub(crate) fn rebuild_all_rag_indexes(app: &mut AppState) {
         .map(|(i, e)| (i, e.path.clone(), e.kind.clone()))
         .collect();
 
+    let Some(infra) = app.infra.as_ref().map(Arc::clone) else {
+        for (i, _, _) in &indexes {
+            app.config.data_sources.rag_indexes[*i].status = "● indexed".to_string();
+            app.config.data_sources.rag_indexes[*i].chunks = 0;
+        }
+        app.forms[SettingsTab::DataSources as usize].dirty = true;
+        app.status_flash = Some((
+            Instant::now(),
+            "No research infra — rows updated without embedding".into(),
+            crate::presentation::components::chrome::toast::ToastKind::Info,
+        ));
+        return;
+    };
+
     for (i, _, _) in &indexes {
         app.config.data_sources.rag_indexes[*i].status = "○ indexing…".to_string();
     }
@@ -579,43 +593,40 @@ pub(crate) fn rebuild_all_rag_indexes(app: &mut AppState) {
         crate::presentation::components::chrome::toast::ToastKind::Info,
     ));
 
-    if let Some(infra) = app.infra.as_ref().map(Arc::clone) {
-        for (idx, path, kind) in indexes {
-            let event_tx = event_tx.clone();
-            let infra = infra.clone();
-            tokio::spawn(async move {
-                let result = if let Some(ref vs) = infra.vector_store {
-                    let path_buf = PathBuf::from(&path);
-                    let summary =
-                        crate::application::services::RagIndexerService::index(
-                            vs.as_ref(),
-                            &path_buf,
-                            &kind,
-                        )
-                        .await;
-                    Ok(summary)
-                } else {
-                    let mut s = crate::application::services::IndexSummary::default();
-                    s.errors.push("RAG context not available".to_string());
-                    Err(s)
-                };
-                match result {
-                    Ok(summary) => {
-                        if let Some(ref tx) = event_tx {
-                            let _ = tx.send(Event::RagIndexed { idx, summary });
-                        }
-                    }
-                    Err(mut summary) => {
-                        summary
-                            .errors
-                            .push("RAG context not available, retry after restart".to_string());
-                        if let Some(ref tx) = event_tx {
-                            let _ = tx.send(Event::RagIndexed { idx, summary });
-                        }
+    for (idx, path, kind) in indexes {
+        let event_tx = event_tx.clone();
+        let infra = infra.clone();
+        tokio::spawn(async move {
+            let result = if let Some(ref vs) = infra.vector_store {
+                let path_buf = PathBuf::from(&path);
+                let summary = crate::application::services::RagIndexerService::index(
+                    vs.as_ref(),
+                    &path_buf,
+                    &kind,
+                )
+                .await;
+                Ok(summary)
+            } else {
+                let mut s = crate::application::services::IndexSummary::default();
+                s.errors.push("RAG context not available".to_string());
+                Err(s)
+            };
+            match result {
+                Ok(summary) => {
+                    if let Some(ref tx) = event_tx {
+                        let _ = tx.send(Event::RagIndexed { idx, summary });
                     }
                 }
-            });
-        }
+                Err(mut summary) => {
+                    summary
+                        .errors
+                        .push("RAG context not available, retry after restart".to_string());
+                    if let Some(ref tx) = event_tx {
+                        let _ = tx.send(Event::RagIndexed { idx, summary });
+                    }
+                }
+            }
+        });
     }
 }
 

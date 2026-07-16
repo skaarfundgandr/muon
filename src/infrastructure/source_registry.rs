@@ -27,11 +27,13 @@ impl SourceRegistry {
         let title: String = title.into();
         let snippet: String = snippet.into();
         if let Some(existing) = self.entries.iter_mut().find(|e| e.url == url) {
-            if existing.title.is_empty() && !title.is_empty() {
-                existing.title = title;
-            }
-            if existing.snippet.is_empty() && !snippet.is_empty() {
+            if !snippet.is_empty() && snippet.len() > existing.snippet.len() {
                 existing.snippet = snippet;
+                if !title.is_empty() {
+                    existing.title = title;
+                }
+            } else if existing.title.is_empty() && !title.is_empty() {
+                existing.title = title;
             }
             if relevance > existing.relevance {
                 existing.relevance = relevance;

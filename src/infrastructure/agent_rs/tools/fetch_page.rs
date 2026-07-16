@@ -26,24 +26,25 @@ pub fn is_public_http_url(raw: &str) -> Result<(), String> {
         "http" | "https" => {}
         other => return Err(format!("scheme not allowed: {other}")),
     }
-    let host = url.host_str().ok_or_else(|| "missing host".to_string())?;
-    if host.eq_ignore_ascii_case("localhost") || host.ends_with(".localhost") {
-        return Err("localhost blocked".into());
-    }
-    if let Ok(ip) = host.parse::<IpAddr>() {
-        if is_blocked_ip(ip) {
-            return Err("private or link-local address blocked".into());
+    match url.host() {
+        Some(url::Host::Domain(host)) => {
+            if host.eq_ignore_ascii_case("localhost") || host.ends_with(".localhost") {
+                return Err("localhost blocked".into());
+            }
         }
-    } else if looks_like_ip_literal(host) {
-        return Err("ip literal host blocked".into());
+        Some(url::Host::Ipv4(v4)) => {
+            if is_blocked_ip(IpAddr::V4(v4)) {
+                return Err("private or link-local address blocked".into());
+            }
+        }
+        Some(url::Host::Ipv6(v6)) => {
+            if is_blocked_ip(IpAddr::V6(v6)) {
+                return Err("private or link-local address blocked".into());
+            }
+        }
+        None => return Err("missing host".into()),
     }
     Ok(())
-}
-
-fn looks_like_ip_literal(host: &str) -> bool {
-    host.chars()
-        .all(|c| c.is_ascii_digit() || c == '.' || c == ':')
-        && host.contains(['.', ':'])
 }
 
 pub fn is_blocked_ip(ip: IpAddr) -> bool {
@@ -55,10 +56,12 @@ pub fn is_blocked_ip(ip: IpAddr) -> bool {
                 || v4.is_broadcast()
                 || v4.is_unspecified()
                 || v4.is_multicast()
-                || v4.octets()[0] == 169 && v4.octets()[1] == 254
                 || v4.octets()[0] == 100 && (v4.octets()[1] & 0xc0) == 64
         }
         IpAddr::V6(v6) => {
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return is_blocked_ip(IpAddr::V4(v4));
+            }
             v6.is_loopback()
                 || v6.is_unique_local()
                 || v6.is_unicast_link_local()

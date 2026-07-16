@@ -103,6 +103,26 @@ fn allowed_public_ip() {
     assert!(!is_blocked_ip(ip));
 }
 
+#[test]
+fn blocked_ip_v4_mapped_loopback() {
+    let ip: IpAddr = "::ffff:127.0.0.1".parse().unwrap();
+    assert!(is_blocked_ip(ip));
+}
+
+#[test]
+fn blocked_ip_v4_mapped_private() {
+    let ip: IpAddr = "::ffff:10.0.0.1".parse().unwrap();
+    assert!(is_blocked_ip(ip));
+    let ip: IpAddr = "::ffff:192.168.1.1".parse().unwrap();
+    assert!(is_blocked_ip(ip));
+}
+
+#[test]
+fn blocks_v4_mapped_url_literal() {
+    assert!(is_public_http_url("http://[::ffff:127.0.0.1]/").is_err());
+    assert!(is_public_http_url("http://[::ffff:10.0.0.1]/").is_err());
+}
+
 // --- ensure_public_resolved ---
 
 #[tokio::test]

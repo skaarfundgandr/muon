@@ -112,13 +112,13 @@ impl AppState {
         self.report_scroll = 0;
         self.source_scroll = 0;
         self.full_report_mode = false;
-        self.pipeline.start();
         let Some(agent_tx) = self.agent_tx.clone() else {
             return;
         };
         let Some(infra) = self.infra.as_ref().map(Arc::clone) else {
             return;
         };
+        self.pipeline.start();
         let session_id = self
             .sessions
             .active()

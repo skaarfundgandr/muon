@@ -231,13 +231,14 @@ impl SessionStore for DieselSessionStore {
             .get()
             .await
             .map_err(|e| MuonError::Database(e.to_string()))?;
+        let sid = id.to_string();
         conn.transaction::<_, MuonError, _>(async |conn| {
-            diesel::delete(sources::table.filter(sources::session_id.eq(id.to_string())))
+            diesel::delete(sources::table.filter(sources::session_id.eq(&sid)))
                 .execute(conn)
                 .await
                 .map_err(|e| MuonError::Database(e.to_string()))?;
             for source in sources {
-                let row = NewSourceRow::from_with_session(id.to_string(), source);
+                let row = NewSourceRow::from_with_session(sid.clone(), source);
                 diesel::insert_into(sources::table)
                     .values(&row)
                     .execute(conn)
