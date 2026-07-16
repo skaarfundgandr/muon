@@ -544,10 +544,17 @@ fn render_source_table(
                 format!("{:<width$}", index_item.status, width = col_status),
                 Style::new().fg(status_color),
             ),
-            Span::styled(
-                format!("{:<width$}", index_item.chunks, width = col_chunks),
-                Style::new().fg(theme::text_main()),
-            ),
+            {
+                let chunks_display = if config.data_sources.knowledge_layer_rag {
+                    index_item.chunks.to_string()
+                } else {
+                    "-".to_string()
+                };
+                Span::styled(
+                    format!("{:<width$}", chunks_display, width = col_chunks),
+                    Style::new().fg(theme::text_main()),
+                )
+            },
             Span::styled("[", Style::new().fg(theme::text_dim())),
             Span::styled("\u{21BB}", ref_style),
             Span::styled("] [", Style::new().fg(theme::text_dim())),

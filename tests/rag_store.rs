@@ -27,10 +27,10 @@ async fn rag_round_trip() -> Result<(), MuonError> {
         embedding_id: None,
     };
 
-    let id = ctx
+    let n = ctx
         .add(&source, "Hello world, this is a test document.")
         .await?;
-    assert!(id.is_some());
+    assert!(n > 0);
 
     let results = ctx.query("test document", 5).await?;
     assert!(!results.is_empty());
@@ -68,4 +68,18 @@ fn unpack_plain_content_unchanged() {
     assert!(url.is_none());
     assert!(title.is_none());
     assert_eq!(body, "just a snippet");
+}
+
+#[test]
+fn pack_rag_escapes_gt_in_url_title() {
+    use muon::infrastructure::rag::{pack_rag_content, unpack_rag_content};
+    let packed = pack_rag_content(
+        "https://example.com/a>>>b",
+        "title with >>> inside",
+        "body with >>> preserved",
+    );
+    let (url, title, body) = unpack_rag_content(&packed);
+    assert_eq!(url.as_deref(), Some("https://example.com/a   b"));
+    assert_eq!(title.as_deref(), Some("title with     inside"));
+    assert_eq!(body, "body with >>> preserved");
 }

@@ -146,18 +146,26 @@ impl<'a> DeepResearcher<'a> {
         let unverified_report = self.to_report(&draft, &registry);
 
         if let Some(ref vs) = self.deps.vector_store {
+            let mut seen_urls = std::collections::HashSet::new();
             for source in registry.sources_mut() {
-                if source.embedding_id.is_none() && !source.snippet.is_empty() {
-                    match vs.add(source, &source.snippet).await {
-                        Ok(Some(id)) => source.embedding_id = Some(id),
-                        Ok(None) => {}
-                        Err(e) => {
-                            self.bridge.log(
-                                AgentTag::Sys,
-                                LogLevel::Warn,
-                                format!("embed failed for {}: {e}", source.url),
-                            );
-                        }
+                if source.embedding_id.is_some() || source.snippet.is_empty() {
+                    continue;
+                }
+                if !seen_urls.insert(source.url.clone()) {
+                    continue;
+                }
+                match vs.add(source, &source.snippet).await {
+                    Ok(0) => {}
+                    Ok(n) => {
+                        // Store chunk count as embedding marker for dedup skip
+                        source.embedding_id = Some(format!("chunks:{}", n));
+                    }
+                    Err(e) => {
+                        self.bridge.log(
+                            AgentTag::Sys,
+                            LogLevel::Warn,
+                            format!("embed failed for {}: {e}", source.url),
+                        );
                     }
                 }
             }

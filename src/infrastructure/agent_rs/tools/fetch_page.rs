@@ -82,6 +82,7 @@ pub struct FetchPageArgs {
 
 #[derive(Debug, Serialize)]
 pub struct FetchPageOutput {
+    pub url: String,
     pub text: String,
     pub title: Option<String>,
 }
@@ -186,7 +187,11 @@ impl Tool for FetchPageTool {
             let html = String::from_utf8_lossy(capped).into_owned();
 
             let (text, title) = html_to_text(&html, max_chars);
-            Ok(FetchPageOutput { text, title })
+            Ok(FetchPageOutput {
+                url: args.url,
+                text,
+                title,
+            })
         }
     }
 }

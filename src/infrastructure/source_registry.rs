@@ -50,6 +50,27 @@ impl SourceRegistry {
         });
     }
 
+    pub fn enrich_page(
+        &mut self,
+        url: impl Into<String>,
+        title: impl Into<String>,
+        body: impl Into<String>,
+    ) {
+        let url = url.into();
+        let title = title.into();
+        let body = body.into();
+        if let Some(existing) = self.entries.iter_mut().find(|e| e.url == url) {
+            if !title.is_empty() {
+                existing.title = title;
+            }
+            if body.len() > existing.snippet.len() {
+                existing.snippet = body;
+            }
+            return;
+        }
+        self.record_with_meta(url, SourceType::Web, title, body, 0.0);
+    }
+
     pub fn record_source(&mut self, source: &Source) {
         self.record_with_meta(
             source.url.clone(),

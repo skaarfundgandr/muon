@@ -73,6 +73,19 @@ pub(crate) fn record_observation_sources(sink: &SourceSink, tool_name: &str, res
         return;
     }
 
+    if tool_name == "fetch_page"
+        && let Ok(v) = serde_json::from_str::<serde_json::Value>(result)
+        && let Some(url) = v.get("url").and_then(|u| u.as_str())
+        && !url.is_empty()
+    {
+        let text = v.get("text").and_then(|t| t.as_str()).unwrap_or("");
+        let title = v.get("title").and_then(|t| t.as_str());
+        if let Ok(mut g) = sink.lock() {
+            g.enrich_page(url, title.unwrap_or(""), text);
+        }
+        return;
+    }
+
     if let Ok(urls) = crate::application::pipeline_runner::citation_verifier::extract_urls(result)
         && let Ok(mut g) = sink.lock()
     {

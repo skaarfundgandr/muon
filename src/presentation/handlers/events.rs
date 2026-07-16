@@ -267,7 +267,7 @@ pub(crate) fn handle_event(app: &mut AppState, event: Event) {
                         crate::presentation::components::chrome::toast::ToastKind::Error,
                     ));
                 }
-                entry.chunks = summary.total_chunks.to_string();
+                entry.chunks = summary.total_chunks as u64;
                 app.forms[crate::presentation::views::SettingsTab::DataSources as usize].dirty = true;
             }
         }

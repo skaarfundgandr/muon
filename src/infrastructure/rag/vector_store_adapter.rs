@@ -46,7 +46,13 @@ pub fn unpack_rag_content(content: &str) -> (Option<String>, Option<String>, Str
 
 fn oneline(s: &str) -> String {
     s.chars()
-        .map(|c| if c == '\n' || c == '\r' { ' ' } else { c })
+        .map(|c| {
+            if c == '\n' || c == '\r' || c == '>' {
+                ' '
+            } else {
+                c
+            }
+        })
         .collect::<String>()
         .trim()
         .to_string()
@@ -54,7 +60,7 @@ fn oneline(s: &str) -> String {
 
 #[async_trait]
 impl VectorStore for RagContext {
-    async fn add(&self, source: &Source, content: &str) -> Result<Option<String>, MuonError> {
+    async fn add(&self, source: &Source, content: &str) -> Result<usize, MuonError> {
         let path = temp_rag_path(&source.url);
         let packed = pack_rag_content(&source.url, &source.title, content);
 
@@ -76,11 +82,7 @@ impl VectorStore for RagContext {
 
         let _ = tokio::fs::remove_file(&path).await;
 
-        if chunk_count == 0 {
-            return Ok(None);
-        }
-
-        if !source.url.is_empty() {
+        if chunk_count > 0 && !source.url.is_empty() {
             let store = self.indexer.pipeline().store();
             store
                 .rewrite_source(&file_name, &source.url)
@@ -88,12 +90,7 @@ impl VectorStore for RagContext {
                 .map_err(|e| MuonError::Database(e.to_string()))?;
         }
 
-        Ok(Some(format!(
-            "{}-{chunk_count}",
-            path.file_stem()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown")
-        )))
+        Ok(chunk_count)
     }
 
     async fn query(&self, text: &str, k: usize) -> Result<Vec<Source>, MuonError> {
@@ -134,6 +131,9 @@ impl VectorStore for RagContext {
 
         let mut results = Vec::with_capacity(hits.len());
         for (score, id_str) in &hits {
+            if *score < self.similarity_threshold {
+                continue;
+            }
             let id_i64 = id_str
                 .parse::<i64>()
                 .map_err(|e| MuonError::Database(format!("bad chunk id: {e}")))?;

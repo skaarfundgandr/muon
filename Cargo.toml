@@ -42,6 +42,7 @@ diesel-async = { version = "0.9", features = ["sqlite", "deadpool"] }
 diesel_migrations = "2.3"
 turbovec = "0.9"
 regex = "1"
+glob = "0.3"
 rig-core = "0.40"
 rig-fastembed = "0.40"
 noyalib = { version = "0.0.13", features = ["compat-serde-yaml"] }

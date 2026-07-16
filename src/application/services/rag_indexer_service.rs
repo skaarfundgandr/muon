@@ -78,8 +78,30 @@ impl RagIndexerService {
         summary
     }
 
-    async fn index_glob(vector_store: &dyn VectorStore, path: &Path) -> IndexSummary {
-        Self::index_directory(vector_store, path).await
+    async fn index_glob(vector_store: &dyn VectorStore, pattern: &Path) -> IndexSummary {
+        let mut summary = IndexSummary::default();
+        let pattern_str = pattern.to_string_lossy();
+        match glob::glob(&pattern_str) {
+            Ok(entries) => {
+                for entry in entries {
+                    match entry {
+                        Ok(p) if p.is_file() => {
+                            Self::index_file_path(vector_store, &p, &mut summary).await;
+                        }
+                        Ok(_) => {} // skip non-files (directories found by glob)
+                        Err(e) => {
+                            summary
+                                .errors
+                                .push(format!("glob entry error: {e}"));
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                summary.errors.push(format!("invalid glob pattern: {e}"));
+            }
+        }
+        summary
     }
 
     async fn index_file_path(vector_store: &dyn VectorStore, path: &Path, summary: &mut IndexSummary) {
@@ -108,13 +130,13 @@ impl RagIndexerService {
                     embedding_id: None,
                 };
                 match vector_store.add(&source, &content).await {
-                    Ok(Some(_id)) => {
-                        tracing::debug!(target: "muon::rag", path = %path.display(), "indexed");
-                        summary.total_chunks += 1;
+                    Ok(0) => {
+                        tracing::debug!(target: "muon::rag", path = %path.display(), "no chunks produced");
                         summary.total_files += 1;
                     }
-                    Ok(None) => {
-                        tracing::debug!(target: "muon::rag", path = %path.display(), "no chunks produced");
+                    Ok(n) => {
+                        tracing::debug!(target: "muon::rag", path = %path.display(), chunks = n, "indexed");
+                        summary.total_chunks += n;
                         summary.total_files += 1;
                     }
                     Err(e) => {
@@ -145,13 +167,13 @@ impl RagIndexerService {
                     embedding_id: None,
                 };
                 match vector_store.add(&source, &md).await {
-                    Ok(Some(_id)) => {
-                        tracing::debug!(target: "muon::rag", path = %path.display(), "indexed (pdf)");
-                        summary.total_chunks += 1;
+                    Ok(0) => {
+                        summary.errors.push(format!("no chunks from PDF {}", path.display()));
                         summary.total_files += 1;
                     }
-                    Ok(None) => {
-                        summary.errors.push(format!("no chunks from PDF {}", path.display()));
+                    Ok(n) => {
+                        tracing::debug!(target: "muon::rag", path = %path.display(), chunks = n, "indexed (pdf)");
+                        summary.total_chunks += n;
                         summary.total_files += 1;
                     }
                     Err(e) => {

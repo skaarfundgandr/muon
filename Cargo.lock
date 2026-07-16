@@ -3429,6 +3429,7 @@ dependencies = [
  "dirs",
  "firecrawl",
  "futures",
+ "glob",
  "notify 6.1.1",
  "notify-debouncer-mini",
  "noyalib",

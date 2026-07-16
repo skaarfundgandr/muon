@@ -299,7 +299,7 @@ pub struct RagIndexConfig {
     pub path: String,
     pub kind: String,
     pub status: String,
-    pub chunks: String,
+    pub chunks: u64,
 }
 
 fn default_rag_indexes() -> Vec<RagIndexConfig> {

@@ -274,7 +274,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                         path,
                                         kind,
                                         status: "○ pending".to_string(),
-                                        chunks: "0".to_string(),
+                                        chunks: 0,
                                     },
                                 );
                                 app.forms[tab_idx].dirty = true;
@@ -313,6 +313,9 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                                     5 * app.config.search.providers.len() - 5;
                                 app.forms[tab_idx].dirty = true;
                             }
+                        }
+                        SettingsTab::Advanced if *idx == 13 => {
+                            crate::presentation::handlers::settings::rebuild_all_rag_indexes(app);
                         }
                         _ => {}
                     },
@@ -633,7 +636,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                 let config_entry = app.config.data_sources.rag_indexes[*idx].clone();
                 if !app.config.data_sources.knowledge_layer_rag {
                     app.config.data_sources.rag_indexes[*idx].status = "○ disabled".to_string();
-                    app.config.data_sources.rag_indexes[*idx].chunks = "-".to_string();
+                    app.config.data_sources.rag_indexes[*idx].chunks = 0;
                     app.forms[SettingsTab::DataSources as usize].dirty = true;
                     app.status_flash = Some((
                         Instant::now(),
@@ -684,7 +687,7 @@ pub(crate) fn handle_mouse_click(app: &mut AppState, col: u16, row: u16) {
                         });
                     } else {
                         app.config.data_sources.rag_indexes[*idx].status = "● indexed".to_string();
-                        app.config.data_sources.rag_indexes[*idx].chunks = "0".to_string();
+                        app.config.data_sources.rag_indexes[*idx].chunks = 0;
                         app.forms[SettingsTab::DataSources as usize].dirty = true;
                         app.status_flash = Some((
                             Instant::now(),

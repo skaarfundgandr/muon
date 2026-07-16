@@ -11,6 +11,7 @@ pub struct RagContext {
     pub indexer: agent_rs::rag::RagIndexer,
     pub embedder: EmbeddingService<rig_fastembed::EmbeddingModel>,
     pub index_path: PathBuf,
+    pub similarity_threshold: f64,
 }
 
 impl RagContext {
@@ -43,6 +44,7 @@ impl RagContext {
             indexer: built.indexer,
             embedder: kept_embedder,
             index_path,
+            similarity_threshold: cfg.advanced.similarity_threshold,
         })
     }
 }

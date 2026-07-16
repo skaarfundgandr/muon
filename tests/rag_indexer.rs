@@ -18,10 +18,10 @@ struct CountingStore {
 
 #[async_trait]
 impl VectorStore for CountingStore {
-    async fn add(&self, source: &Source, content: &str) -> Result<Option<String>, MuonError> {
+    async fn add(&self, source: &Source, content: &str) -> Result<usize, MuonError> {
         let mut calls = self.calls.lock().unwrap();
         calls.push((source.url.clone(), content.to_string()));
-        Ok(Some(format!("fake-{}", calls.len())))
+        Ok(1)
     }
 
     async fn query(&self, _text: &str, _k: usize) -> Result<Vec<Source>, MuonError> {
@@ -157,6 +157,38 @@ fn indexer_skips_unsupported_extensions() {
         assert_eq!(summary.total_chunks, 1);
         assert!(summary.errors.is_empty(), "errors: {:?}", summary.errors);
     });
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn indexer_glob_pattern_indexes_only_matching_files() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let dir = fixture_dir("glob_test");
+    write_file(&dir, "a.md", "# Markdown A");
+    write_file(&dir, "b.txt", "Text B");
+    write_file(&dir, "c.py", "print('hello')");
+
+    let pattern = dir.join("*.md").to_string_lossy().to_string();
+
+    let store = Arc::new(CountingStore::default());
+
+    rt.block_on(async {
+        let summary = RagIndexerService::index(
+            store.as_ref() as &dyn VectorStore,
+            std::path::Path::new(&pattern),
+            "GLOB",
+        )
+        .await;
+
+        assert_eq!(summary.total_files, 1, "only .md should be indexed by glob");
+        assert_eq!(summary.total_chunks, 1, "should produce 1 chunk");
+        assert!(summary.errors.is_empty(), "errors: {:?}", summary.errors);
+    });
+
+    let calls = store.calls.lock().unwrap();
+    assert_eq!(calls.len(), 1, "only one file should have been added");
+    assert!(calls[0].0.contains("a.md"), "should be a.md");
 
     let _ = std::fs::remove_dir_all(&dir);
 }

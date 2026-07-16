@@ -1,9 +1,14 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Instant;
+
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::presentation::components::settings::{
     advanced, agents, data_sources, display, providers, tools,
 };
 use crate::presentation::form::{FieldKind, FormState};
+use crate::presentation::types::Event;
 use crate::presentation::views::SettingsTab;
 use crate::presentation::{ActivePopup, AppState};
 
@@ -436,10 +441,13 @@ pub fn handle(app: &mut AppState, key: KeyEvent) -> bool {
                                     path,
                                     kind,
                                     status: "○ pending".to_string(),
-                                    chunks: "0".to_string(),
+                                    chunks: 0,
                                 },
                             );
                             app.forms[tab_idx].dirty = true;
+                        }
+                        SettingsTab::Advanced if focused == 13 => {
+                            rebuild_all_rag_indexes(app);
                         }
                         _ => {}
                     },
@@ -526,6 +534,88 @@ pub(crate) fn clamp_focus_to_visible(form: &mut FormState, list_len: usize, visi
         form.focus = form.scroll_offset;
     } else if form.focus >= window_end {
         form.focus = window_end.saturating_sub(1);
+    }
+}
+
+/// Rebuild all RAG indexes. Shared by keyboard Enter handler and mouse click handler.
+pub(crate) fn rebuild_all_rag_indexes(app: &mut AppState) {
+    if !app.config.data_sources.knowledge_layer_rag {
+        app.status_flash = Some((
+            Instant::now(),
+            "RAG is disabled — enable in Data Sources".into(),
+            crate::presentation::components::chrome::toast::ToastKind::Info,
+        ));
+        return;
+    }
+
+    let count = app.config.data_sources.rag_indexes.len();
+    if count == 0 {
+        app.status_flash = Some((
+            Instant::now(),
+            "No RAG indexes configured".into(),
+            crate::presentation::components::chrome::toast::ToastKind::Info,
+        ));
+        return;
+    }
+
+    let event_tx = app.event_tx.clone();
+    let indexes: Vec<(usize, String, String)> = app
+        .config
+        .data_sources
+        .rag_indexes
+        .iter()
+        .enumerate()
+        .map(|(i, e)| (i, e.path.clone(), e.kind.clone()))
+        .collect();
+
+    for (i, _, _) in &indexes {
+        app.config.data_sources.rag_indexes[*i].status = "○ indexing…".to_string();
+    }
+    app.forms[SettingsTab::DataSources as usize].dirty = true;
+
+    app.status_flash = Some((
+        Instant::now(),
+        format!("Rebuilding {count} RAG index(es)..."),
+        crate::presentation::components::chrome::toast::ToastKind::Info,
+    ));
+
+    if let Some(infra) = app.infra.as_ref().map(Arc::clone) {
+        for (idx, path, kind) in indexes {
+            let event_tx = event_tx.clone();
+            let infra = infra.clone();
+            tokio::spawn(async move {
+                let result = if let Some(ref vs) = infra.vector_store {
+                    let path_buf = PathBuf::from(&path);
+                    let summary =
+                        crate::application::services::RagIndexerService::index(
+                            vs.as_ref(),
+                            &path_buf,
+                            &kind,
+                        )
+                        .await;
+                    Ok(summary)
+                } else {
+                    let mut s = crate::application::services::IndexSummary::default();
+                    s.errors.push("RAG context not available".to_string());
+                    Err(s)
+                };
+                match result {
+                    Ok(summary) => {
+                        if let Some(ref tx) = event_tx {
+                            let _ = tx.send(Event::RagIndexed { idx, summary });
+                        }
+                    }
+                    Err(mut summary) => {
+                        summary
+                            .errors
+                            .push("RAG context not available, retry after restart".to_string());
+                        if let Some(ref tx) = event_tx {
+                            let _ = tx.send(Event::RagIndexed { idx, summary });
+                        }
+                    }
+                }
+            });
+        }
     }
 }
 
