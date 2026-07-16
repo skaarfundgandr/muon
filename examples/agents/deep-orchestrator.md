@@ -1,7 +1,7 @@
 ---
 name: deep-orchestrator
-model: glm-5.2
-provider: opencode-go
+model: MiniMax M3
+provider: MiniMax
 temperature: 0.2
 max_tokens: 6144
 timeout_secs: 600

@@ -1,7 +1,7 @@
 ---
 name: planner
-model: glm-5.2-short
-provider: NeuralWatt
+model: DeepSeek V4 Pro
+provider: DeepSeek
 temperature: 0.3
 max_tokens: 3072
 timeout_secs: 180

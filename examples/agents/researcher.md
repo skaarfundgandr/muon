@@ -1,7 +1,7 @@
 ---
 name: researcher
-model: glm-5.2-flex
-provider: NeuralWatt
+model: DeepSeek V4 Flash
+provider: DeepSeek
 temperature: 0.2
 max_tokens: 12288
 timeout_secs: 90

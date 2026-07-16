@@ -13,8 +13,8 @@ Each agent file starts with YAML frontmatter delimited by `---`:
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `name` | string | yes | — | Agent identifier (e.g., `"intent-classifier"`) |
-| `model` | string | yes | — | LLM model name (e.g., `"gpt-4o"`, `"gpt-4o-mini"`) |
-| `provider` | string | yes | — | LLM provider (`"openai"` supported) |
+| `model` | string | yes | — | LLM model name (e.g., `"Gemma 4 E2B"`, `"DeepSeek V4 Flash"`) |
+| `provider` | string | yes | — | LLM provider (`"Ollama"`, `"DeepSeek"`, `"MiniMax"` supported) |
 | `temperature` | f64 | no | 0.0 | Sampling temperature (0.0–2.0). Lower = more deterministic. |
 | `max_tokens` | u32 | no | 6144 | Maximum tokens in the LLM response. |
 | `timeout_secs` | u64 | no | 60 | Timeout for a single prompt call in seconds. Applied to ReAct agents; ignored for the researcher (`ManagedAgent` has no timeout arg). |
@@ -24,8 +24,8 @@ Each agent file starts with YAML frontmatter delimited by `---`:
 ```yaml
 ---
 name: my-agent
-model: gpt-4o
-provider: openai
+model: DeepSeek V4 Flash
+provider: DeepSeek
 ---
 ```
 
@@ -51,8 +51,8 @@ Variables not present in the context are rendered as empty strings.
 ```markdown
 ---
 name: clarifier
-model: gpt-4o-mini
-provider: openai
+model: Gemma 4 12B
+provider: Ollama
 ---
 
 You are the Clarifier for μon.

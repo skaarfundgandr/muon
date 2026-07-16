@@ -1,7 +1,7 @@
 ---
 name: intent-classifier
-model: glm-5.2-short
-provider: opencode-go
+model: Gemma 4 E2B
+provider: Ollama
 temperature: 0.0
 max_tokens: 768
 timeout_secs: 90

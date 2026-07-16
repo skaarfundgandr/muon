@@ -1,7 +1,7 @@
 ---
 name: shallow-researcher
-model: glm-5.2
-provider: NeuralWatt
+model: DeepSeek V4 Flash
+provider: DeepSeek
 temperature: 0.2
 max_tokens: 6144
 timeout_secs: 60

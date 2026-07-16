@@ -1,7 +1,7 @@
 ---
 name: clarifier
-model: glm-5.2
-provider: opencode-go
+model: Gemma 4 12B
+provider: Ollama
 temperature: 0.3
 max_tokens: 3072
 timeout_secs: 60

@@ -25,8 +25,8 @@ fn parse_planner() {
     let def = parse_agent_md(&example("planner")).unwrap();
     assert_eq!(def.name, "planner");
     assert!(!def.preamble_markdown.is_empty());
-    assert_eq!(def.model, "glm-5.2-short");
-    assert_eq!(def.provider, "NeuralWatt");
+    assert_eq!(def.model, "DeepSeek V4 Pro");
+    assert_eq!(def.provider, "DeepSeek");
     assert_eq!(def.temperature, 0.3);
     assert_eq!(def.max_tokens, 3072);
     assert_eq!(def.timeout_secs, 180);

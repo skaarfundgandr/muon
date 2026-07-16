@@ -7,30 +7,42 @@
 # Dynamic Provider Model: configure LLM providers in [[providers]] and search
 # providers in [[search.providers]]. Agent `provider` strings look up the
 # `name` field in the [[providers]] list. API key values support ${ENV_VAR}
-# expansion at runtime (e.g. "${OPENCODE_GO_API_KEY}").
+# expansion at runtime (e.g. "${DEEPSEEK_API_KEY}").
 
 [[providers]]
-name = "opencode-go"
-base_url = "https://api.opencode.dev/v1"
-api_key = "${OPENCODE_GO_API_KEY}"
+name = "Ollama"
+base_url = "http://localhost:11434/v1"
+api_key = ""
 
 [[providers.models]]
-name = "glm-5.2"
-description = "Full GLM 5.2, 1M context"
+name = "Gemma 4 E2B"
+description = "Gemma 4 E2B, local via Ollama"
 
 [[providers.models]]
-name = "glm-5.2-short"
-description = "GLM 5.2 Short, 200K context"
+name = "Gemma 4 12B"
+description = "Gemma 4 12B, local via Ollama"
 
 [[providers]]
-name = "NeuralWatt"
-base_url = "https://api.neuralwatt.com/v1"
-api_key = "${NEURALWATT_API_KEY}"
+name = "DeepSeek"
+base_url = "https://api.deepseek.com/v1"
+api_key = "${DEEPSEEK_API_KEY}"
+
+[[providers.models]]
+name = "DeepSeek V4 Flash"
+description = "DeepSeek V4 Flash, fast inference"
+
+[[providers.models]]
+name = "DeepSeek V4 Pro"
+description = "DeepSeek V4 Pro, deep reasoning"
 
 [[providers]]
-name = "cline"
-base_url = "https://api.cline.bot/v1"
-api_key = "${CLINEPASS_API_KEY}"
+name = "MiniMax"
+base_url = "https://api.minimax.chat/v1"
+api_key = "${MINIMAX_API_KEY}"
+
+[[providers.models]]
+name = "MiniMax M3"
+description = "MiniMax M3, balanced performance"
 
 [[search.providers]]
 name = "tavily"

@@ -227,13 +227,13 @@ The runtime configuration model is dynamic — providers are declared as a list 
 
 ```toml
 [[providers]]
-name = "opencode-go"
-base_url = "https://api.opencode.dev/v1"
-api_key = "${OPENCODE_GO_API_KEY}"
+name = "DeepSeek"
+base_url = "https://api.deepseek.com/v1"
+api_key = "${DEEPSEEK_API_KEY}"
 
 [[providers.models]]
-name = "glm-5.2"
-description = "Full GLM 5.2, 1M context"
+name = "DeepSeek V4 Flash"
+description = "DeepSeek V4 Flash, fast inference"
 ```
 
 Agent configuration references a provider by `name`:
@@ -241,8 +241,8 @@ Agent configuration references a provider by `name`:
 ```yaml
 ---
 name: intent-classifier
-model: glm-5.2-short
-provider: opencode-go
+model: Gemma 4 E2B
+provider: Ollama
 ---
 ```
 
@@ -291,7 +291,7 @@ The Settings view has 6 tabs (in order): `Providers`, `Agents`, `Tools`, `Data S
 
 - `SearXNGProvider` — removed; use Brave/Tavily/Firecrawl/Serper instead.
 - `SemanticScholarProvider` — removed; arXiv is the only paper source.
-- The old hardcoded `match provider { "openai" | "opencode-go" | ... }` dispatch in `providers.rs` was replaced by `for_named_provider` / `for_default_provider`.
+- The old hardcoded `match provider { "openai" | "anthropic" | ... }` dispatch in `providers.rs` was replaced by `for_named_provider` / `for_default_provider`.
 - `FetchPageTool` is reqwest-only; the SPEC-mandated Firecrawl/Tavily fallback chain is a follow-up.
 - **Feature-wiring cleanup (branch `feat/feature-wiring-spec-alignment`):**
   - `enterprise_systems` config field, `SourceType::Enterprise`, `SourceType::Code`, their DB mapping arms, and the Enterprise source-registry UI row — stripped (no producer existed; `try_from_str` maps unknown DB strings to `Web` with `tracing::warn!`).
