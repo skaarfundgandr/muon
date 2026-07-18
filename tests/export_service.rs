@@ -3,7 +3,7 @@
 use chrono::Utc;
 use muon::application::pipeline::PipelineStage;
 use muon::application::services::*;
-use muon::domain::models::report::ResearchReport;
+use muon::domain::models::report::{Citation, ReportSection, ResearchReport, VerificationLevel};
 use muon::domain::models::session::{ReportStats, Session, SessionStatus};
 use uuid::Uuid;
 
@@ -29,6 +29,25 @@ fn make_report() -> ResearchReport {
     let mut report = ResearchReport::direct("Test summary content.");
     report.title = "Test Report".to_string();
     report
+}
+
+fn make_report_with_h1_summary(title: &str, h1: &str, body: &str) -> ResearchReport {
+    ResearchReport {
+        title: title.into(),
+        summary: format!("# {}\n\n{}", h1, body),
+        sections: vec![ReportSection {
+            heading: "Section 1".into(),
+            body_markdown: "Section body text.".into(),
+        }],
+        citations: vec![Citation {
+            reference_number: 1,
+            url: "https://example.com/article".into(),
+            title: "Example Article".into(),
+            context_snippet: String::new(),
+            verification_level: VerificationLevel::Exact,
+        }],
+        stats: ReportStats::default(),
+    }
 }
 
 #[test]
@@ -116,4 +135,57 @@ fn export_format_from_str() {
 fn export_format_display() {
     assert_eq!(ExportFormat::Markdown.to_string(), "markdown");
     assert_eq!(ExportFormat::Obsidian.to_string(), "obsidian");
+}
+
+// ---- Phase 3 additions ----
+
+#[test]
+fn markdown_export_strips_leading_body_h1_when_title_differs() {
+    let tmp = tempfile::tempdir().unwrap();
+    let report = make_report_with_h1_summary("Different Plan Title", "Other Title", "Real content.");
+    let session = make_session();
+    let path = MarkdownExporter::export_to(&report, &session, tmp.path()).unwrap();
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    assert!(content.contains("title: Different Plan Title"), "YAML must contain the frontmatter title");
+
+    // Split on closing `---\n` — the part after it is the body
+    let body = content
+        .splitn(3, "---\n")
+        .nth(2)
+        .unwrap_or("");
+    assert!(
+        !body.starts_with("# Other Title"),
+        "body after YAML must not start with the H1 line"
+    );
+    assert!(body.contains("Real content."), "body must contain the real summary content");
+    assert!(body.contains("Section 1"), "body must contain section headings");
+}
+
+#[test]
+fn markdown_export_keeps_sections_and_references() {
+    let tmp = tempfile::tempdir().unwrap();
+    let report = make_report_with_h1_summary("Sections", "Title", "Body content here.");
+    let session = make_session();
+    let path = MarkdownExporter::export_to(&report, &session, tmp.path()).unwrap();
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    assert!(content.contains("## Section 1"), "body must contain section heading");
+    assert!(content.contains("1. Example Article — https://example.com/article"), "body must contain citation with ref number, title, and URL");
+}
+
+#[test]
+fn markdown_export_yaml_keys_present() {
+    let tmp = tempfile::tempdir().unwrap();
+    let report = make_report_with_h1_summary("Test Title", "Some H1", "Body.");
+    let session = make_session();
+    let path = MarkdownExporter::export_to(&report, &session, tmp.path()).unwrap();
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    // Everything before the second `---` is frontmatter
+    let fm = content.splitn(3, "---\n").nth(1).unwrap_or("");
+    assert!(fm.contains("title:"), "frontmatter must contain title:");
+    assert!(fm.contains("query:"), "frontmatter must contain query:");
+    assert!(fm.contains("created_at:"), "frontmatter must contain created_at:");
+    assert!(fm.contains("sources:"), "frontmatter must contain sources:");
 }

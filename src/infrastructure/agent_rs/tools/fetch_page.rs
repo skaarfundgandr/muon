@@ -160,6 +160,40 @@ pub async fn ensure_public_resolved(host: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub fn classify_and_render(
+    content_type: Option<&str>,
+    bytes: &[u8],
+    truncated: bool,
+    max_chars: usize,
+) -> Result<(String, Option<String>), MuonError> {
+    let kind = classify_body(content_type, bytes);
+    if kind == BodyKind::Pdf && truncated {
+        return Err(MuonError::Search {
+            provider: "fetch".into(),
+            message: format!(
+                "PDF too large: response exceeds {} bytes; cannot parse truncated body",
+                MAX_BODY_BYTES
+            ),
+        });
+    }
+    Ok(match kind {
+        BodyKind::Html => html_bytes_to_output(bytes, max_chars),
+        BodyKind::Pdf => {
+            let text = pdf_bytes_to_text(bytes, max_chars)?;
+            (text, None)
+        }
+        BodyKind::Unsupported => {
+            return Err(MuonError::Search {
+                provider: "fetch".into(),
+                message: format!(
+                    "unsupported content type: {}",
+                    content_type.unwrap_or_default()
+                ),
+            });
+        }
+    })
+}
+
 #[derive(Debug, Deserialize)]
 pub struct FetchPageArgs {
     pub url: String,
@@ -275,33 +309,8 @@ impl Tool for FetchPageTool {
                 &bytes
             };
 
-            let kind = classify_body(content_type.as_deref(), capped);
-            if kind == BodyKind::Pdf && truncated {
-                return Err(MuonError::Search {
-                    provider: "fetch".into(),
-                    message: format!(
-                        "PDF too large: response exceeds {} bytes; cannot parse truncated body",
-                        MAX_BODY_BYTES
-                    ),
-                });
-            }
-
-            let (text, title) = match kind {
-                BodyKind::Html => html_bytes_to_output(capped, max_chars),
-                BodyKind::Pdf => {
-                    let text = pdf_bytes_to_text(capped, max_chars)?;
-                    (text, None)
-                }
-                BodyKind::Unsupported => {
-                    return Err(MuonError::Search {
-                        provider: "fetch".into(),
-                        message: format!(
-                            "unsupported content type: {}",
-                            content_type.unwrap_or_default()
-                        ),
-                    });
-                }
-            };
+            let (text, title) =
+                classify_and_render(content_type.as_deref(), capped, truncated, max_chars)?;
 
             Ok(FetchPageOutput {
                 url: args.url,
