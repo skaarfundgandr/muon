@@ -7,6 +7,15 @@ use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
 
+/// Character budget for PDF body soft-wrap. pdf_oxide's `from_markdown`
+/// lays out one source line → one PDF line and never wraps on its own, so a
+/// source line longer than the printable text width overflows the right
+/// margin and clips. Default config is Letter (612 pt) with 72 pt margins
+/// and 12 pt font, giving 468 pt of text width; at ~6 pt per average
+/// Helvetica char that caps a line near 78 chars. Wrap at 72 to leave
+/// headroom for variable-width glyphs and bold runs.
+const PDF_SOFT_WRAP_WIDTH: usize = 72;
+
 fn build_pdf_markdown(report: &ResearchReport, _session: &Session) -> String {
     let mut content = String::new();
     content.push_str(&report.summary);
@@ -71,7 +80,7 @@ impl PdfExporter {
             std::fs::create_dir_all(parent)?;
         }
 
-        let body = soft_wrap_markdown_for_pdf(&build_pdf_markdown(report, session), 96);
+        let body = soft_wrap_markdown_for_pdf(&build_pdf_markdown(report, session), PDF_SOFT_WRAP_WIDTH);
         let mut pdf = PdfBuilder::new()
             .title(report.title.as_str())
             .subject(session.query.as_str())

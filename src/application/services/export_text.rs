@@ -1,5 +1,23 @@
 /// Soft-wrap markdown source at `width` (character budget) for PDF rendering.
-/// Skips fenced code blocks; preserves blank lines and headings unwrapped.
+///
+/// pdf_oxide's `from_markdown` lays out one source line → one PDF line and
+/// never wraps on its own, so any source line longer than the printable text
+/// width overflows the right margin and clips. This helper pre-wraps source
+/// lines to a safe character budget and expands standalone thematic-break
+/// lines (`---`, `----`, …) into a visible horizontal divider.
+///
+/// - Fenced code blocks (lines between ``` fences) are passed through
+///   unwrapped (D18).
+/// - Blank lines and ATX heading lines (`# `, `## `, …) are wrapped in a
+///   heading-aware way: the prefix is preserved on the first wrapped line
+///   and continuation lines are indented under the heading's text column so
+///   they visually continue the heading even though pdf_oxide renders each
+///   source line as its own PDF line.
+/// - Standalone divider lines (3+ dashes, nothing else) are replaced with a
+///   row of em-dashes sized to the width budget, which pdf_oxide renders as
+///   a visible horizontal rule.
+/// - Overlong single tokens (URLs, paths) break on `/ ? & =` then hard-chunk
+///   at the width.
 pub fn soft_wrap_markdown_for_pdf(md: &str, width: usize) -> String {
     if width == 0 {
         return md.to_string();
@@ -22,8 +40,22 @@ pub fn soft_wrap_markdown_for_pdf(md: &str, width: usize) -> String {
             continue;
         }
 
-        if line.trim().is_empty() || is_heading(line) {
-            out.push_str(line);
+        if line.trim().is_empty() {
+            out.push('\n');
+            continue;
+        }
+
+        if is_divider_line(line) {
+            let em_count = (width / 2).max(20);
+            let divider = "\u{2014}".repeat(em_count);
+            out.push_str(&divider);
+            out.push('\n');
+            continue;
+        }
+
+        if let Some(prefix_len) = heading_prefix_len(line) {
+            let wrapped = wrap_heading(line, prefix_len, width);
+            out.push_str(&wrapped);
             out.push('\n');
             continue;
         }
@@ -36,10 +68,92 @@ pub fn soft_wrap_markdown_for_pdf(md: &str, width: usize) -> String {
     out
 }
 
-fn is_heading(line: &str) -> bool {
+/// True if the line is a thematic-break marker: only dashes (≥3), possibly
+/// with leading whitespace, nothing else.
+fn is_divider_line(line: &str) -> bool {
+    let trimmed = line.trim();
+    !trimmed.is_empty()
+        && trimmed.len() >= 3
+        && trimmed.chars().all(|c| c == '-')
+}
+
+/// Number of leading `#` chars plus the following space if the line is an
+/// ATX heading (`# `, `## `, …). Otherwise `None`.
+fn heading_prefix_len(line: &str) -> Option<usize> {
     let trimmed = line.trim_start();
     let hash_count = trimmed.chars().take_while(|c| *c == '#').count();
-    hash_count > 0 && trimmed.chars().nth(hash_count) == Some(' ')
+    if hash_count == 0 {
+        return None;
+    }
+    let mut chars = trimmed.chars();
+    for _ in 0..hash_count {
+        chars.next();
+    }
+    if chars.next() == Some(' ') {
+        let leading_ws = line.len() - trimmed.len();
+        Some(leading_ws + hash_count + 1)
+    } else {
+        None
+    }
+}
+
+/// Wrap an ATX heading line so the heading's text body fits inside `width`.
+/// The `# ` prefix is kept on the first output line; continuation lines are
+/// indented under the heading text so they visually belong to the heading
+/// even though pdf_oxide renders every source line as its own PDF line.
+fn wrap_heading(line: &str, prefix_len: usize, width: usize) -> String {
+    let text = &line[prefix_len.min(line.len())..];
+    let text = text.trim();
+    if text.chars().count() <= width.saturating_sub(prefix_len) {
+        return line.to_string();
+    }
+
+    let indent = " ".repeat(prefix_len);
+    let budget = width.saturating_sub(prefix_len);
+    if budget == 0 {
+        return line.to_string();
+    }
+
+    let tokens: Vec<&str> = text.split_whitespace().collect();
+    let mut result = String::new();
+    let mut current = String::new();
+    let mut current_chars = 0usize;
+    let mut first_line = true;
+
+    for token in tokens {
+        let token_chars = token.chars().count();
+        if current_chars == 0 {
+            current = token.to_string();
+            current_chars = token_chars;
+        } else if current_chars + 1 + token_chars <= budget {
+            current.push(' ');
+            current.push_str(token);
+            current_chars += 1 + token_chars;
+        } else {
+            if first_line {
+                result.push_str(&line[..prefix_len]);
+                result.push_str(&current);
+                first_line = false;
+            } else {
+                result.push_str(&indent);
+                result.push_str(&current);
+            }
+            result.push('\n');
+            current = token.to_string();
+            current_chars = token_chars;
+        }
+    }
+
+    if !current.is_empty() {
+        if first_line {
+            result.push_str(&line[..prefix_len]);
+        } else {
+            result.push_str(&indent);
+        }
+        result.push_str(&current);
+    }
+
+    result
 }
 
 fn wrap_line(line: &str, width: usize) -> String {
