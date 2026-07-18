@@ -166,12 +166,26 @@ Unmatched citations are removed with a reason: `UrlNotInRegistry`, `CitationKeyN
 
 ## 7. Export
 
-Four export components in `src/application/services/`:
+Four export components in `src/application/services/` (plus shared text helpers used by Markdown/PDF):
 
 - **`ExportService`** — routes export requests to the appropriate exporter based on `ExportFormat` (`markdown` / `obsidian` / `pdf`).
-- **`MarkdownExporter`** — writes a report to `~/.local/share/muon/exports/<session_id>.md` with YAML frontmatter (title, query, created_at, source count).
+- **Shared helpers** (`src/application/services/export_text.rs`): `strip_leading_h1(summary) -> String` unconditionally drops the first ATX H1 line (and an immediately following blank) from a report summary — the load-bearing title-SSOT fix for both Markdown and PDF exporters (the YAML/Info title often comes from `plan.plan_title`, not the body H1, so the strip is unconditional rather than title-equality based). `soft_wrap_markdown_for_pdf(md, width) -> String` wraps markdown source at a character budget while skipping fenced code blocks; overlong tokens break on `/ ? & =` then hard-chunk at the width.
+- **`MarkdownExporter`** — writes a report to `~/.local/share/muon/exports/<session_id>.md` with YAML frontmatter (title, query, created_at, source count). The YAML `title:` is the single source of truth for the file title; `strip_leading_h1` is applied to the summary so the body never starts with a duplicate `# …` line even when the LLM-drafted H1 differs from `plan.plan_title`.
 - **`ObsidianExporter`** — writes the report into `<vault_path>/Muon/<slug>.md` and appends a link to the map of content at `Muon/MOC.md`. Slug is the title lowercased with dashes, max 60 chars.
-- **`PdfExporter`** — renders the same markdown body as `MarkdownExporter` to `~/.local/share/muon/exports/<session_id>.pdf` via `pdf_oxide::api::Pdf::from_markdown` + `save`. Reaches the TUI via the **F2** action-bar button (`[F2] Export PDF`) and via `muon export <session> pdf -o path` on the CLI; F2 has full parity with F1 Export MD (hover, click hit-target, success/error toasts). `pdf_oxide` is also the PDF→Markdown ingest source for RAG directory indexing (multi-page, see §3.9).
+- **`PdfExporter`** — writes a PDF to `~/.local/share/muon/exports/<session_id>.pdf` via `pdf_oxide::api::PdfBuilder::new().title(report.title).subject(session.query).from_markdown(&body)` + `save`. The PDF body is **not** identical to the Markdown export: it omits the YAML frontmatter block (title/subject travel in PDF Info metadata, not as page text), applies `strip_leading_h1`, then `soft_wrap_markdown_for_pdf(body, 96)` so paragraphs and long reference URLs fit the page instead of clipping at the right margin (the `from_markdown` renderer maps one source line to one PDF line and never wraps on its own). Reaches the TUI via the **F2** action-bar button (`[F2] Export PDF`) and via `muon export <session> pdf -o path` on the CLI; F2 has full parity with F1 Export MD (hover, click hit-target, success/error toasts). `pdf_oxide` is also the PDF→Markdown ingest source for RAG directory indexing (multi-page, see §3.9).
+
+### 7.1. `fetch_page` Tool
+
+`FetchPageTool` (in `src/infrastructure/agent_rs/tools/fetch_page.rs`) is the agent's URL fetcher. After the SSRF gate (hostname/IP allowlist, then DNS-resolve-then-validate against `is_blocked_ip`), the HTTP response body is routed by content type and magic bytes rather than read as lossy UTF-8:
+
+- **Classification** (`classify_body(content_type, bytes)`): magic-byte precedence — a body starting with `b"%PDF-"` is treated as PDF **regardless of Content-Type**. Otherwise Content-Type `application/pdf` (with `;params` stripped and lowercased) → PDF; `text/html`, any other `text/*`, missing, or empty Content-Type → HTML path; anything else → `Unsupported`.
+- **HTML path** (`html_bytes_to_output`): `String::from_utf8_lossy` → keep the `<title>` (regex) → `html2md::rewrite_html(&html, false)` (the `fast_html2md` crate, lib name `html2md`, second arg is `commonmark: bool`) → `max_chars` truncation at a char boundary with optional sentence trim. `html2md` preserves links, headings, and lists so tool observations stay LLM-friendly.
+- **PDF path** (`pdf_bytes_to_text`): `pdf_oxide::api::Pdf::from_bytes(bytes.to_vec())` → `page_count()` → per-page `to_text(i)` joined with `\n\n` → `max_chars` truncation. Plain text per page (not `to_markdown`) — observations favor dense text; the RAG indexer keeps its own `to_markdown` path and is not changed here.
+- **Truncated PDF fails closed**: if the body is larger than `MAX_BODY_BYTES` (2,000,000) **and** classified as PDF, `classify_and_render` returns `MuonError::Search` with a clear "PDF too large … cannot parse truncated body" message — it never feeds a partial PDF to the parser. HTML bodies at/over the cap are still truncated and returned (lossy truncation is acceptable for prose; PDF parsing on partial bytes is not).
+- **Unsupported types** return `MuonError::Search` (`provider: "fetch"`).
+- SSRF guards (`is_public_http_url` / `is_blocked_ip` / `ensure_public_resolved`) and the redirect-disabled `reqwest::Client` are unchanged. `tempfile` remains dev-only.
+
+`BodyKind`, `classify_body`, `html_bytes_to_output`, `pdf_bytes_to_text`, and `classify_and_render` are `pub` for direct testing and re-exported from `infrastructure::agent_rs`.
 
 ## 8. LangSmith Tracing
 
