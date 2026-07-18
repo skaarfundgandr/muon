@@ -95,3 +95,50 @@ fn wrap_does_not_touch_fenced_code_blocks() {
         "fenced code block content must be left intact, got: {wrapped}"
     );
 }
+
+#[test]
+fn wrap_hard_breaks_overlong_heading_token() {
+    let token = "https://example.com/".to_string() + &"a".repeat(80);
+    let h1 = format!("# {token}");
+    let wrapped = soft_wrap_markdown_for_pdf(&h1, 40);
+    let lines: Vec<&str> = wrapped.lines().collect();
+    assert!(lines.len() >= 2, "overlong heading token must hard-break, got: {wrapped}");
+    assert!(lines[0].starts_with("# "), "first line keeps ATX prefix");
+    for line in &lines {
+        assert!(
+            line.chars().count() <= 40,
+            "no heading line may exceed width 40: {line:?}"
+        );
+    }
+    for cont in &lines[1..] {
+        assert!(!cont.starts_with('#'), "continuation must not re-emit '#': {cont:?}");
+        assert!(
+            cont.starts_with("  "),
+            "continuation must be indented under heading text: {cont:?}"
+        );
+    }
+}
+
+#[test]
+fn wrap_preserves_list_indent_on_continuation() {
+    let body = "word ".repeat(30);
+    let md = format!("- {body}");
+    let wrapped = soft_wrap_markdown_for_pdf(&md, 40);
+    let lines: Vec<&str> = wrapped.lines().collect();
+    assert!(lines.len() >= 2, "long list item must wrap, got: {wrapped}");
+    assert!(
+        lines[0].starts_with("- "),
+        "first line keeps list marker, got: {:?}",
+        lines[0]
+    );
+    for cont in &lines[1..] {
+        assert!(
+            cont.starts_with("  "),
+            "list continuation must keep indent under marker, got: {cont:?}"
+        );
+        assert!(
+            !cont.trim_start().starts_with("- "),
+            "continuation must not re-emit list marker: {cont:?}"
+        );
+    }
+}

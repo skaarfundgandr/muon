@@ -16,12 +16,17 @@ fn test_html_script_style_title_not_in_output() {
     </head><body>
         <script>function() { return 1; }</script>
         <p>Hello World</p>
+        <p><a href=\"https://example.com/docs\">Read the docs</a></p>
     </body></html>";
     let (text, title) = html_bytes_to_output(html, 10_000);
     assert_eq!(title.as_deref(), Some("Foo"));
     assert!(text.contains("Hello World"), "expected markdown text to contain paragraph content");
     assert!(!text.contains("function()"), "script content should not be in output");
     assert!(!text.contains("color: red"), "style content should not be in output");
+    assert!(
+        text.contains("https://example.com/docs"),
+        "anchor href must survive html2md, got: {text}"
+    );
 }
 
 #[test]
@@ -32,6 +37,36 @@ fn test_html_truncation_honors_max_chars() {
     let html = format!("<html><body><p>{}</p></body></html>", long_text);
     let (text, _title) = html_bytes_to_output(html.as_bytes(), 5_000);
     assert!(text.chars().count() <= 5_000, "output should be truncated to at most 5000 chars");
+}
+
+#[test]
+fn test_html_truncation_honors_max_chars_for_multibyte() {
+    // CJK chars are 3 bytes each; a byte-budget truncate would cut far under 5000 chars.
+    let long_text = "测".repeat(8_000);
+    let html = format!("<html><body><p>{}</p></body></html>", long_text);
+    let (text, _title) = html_bytes_to_output(html.as_bytes(), 5_000);
+    let n = text.chars().count();
+    assert!(n <= 5_000, "output should be at most 5000 chars, got {n}");
+    assert!(
+        n >= 4_500,
+        "char-budget truncate should keep most of a 5000-char slice, got {n} (byte budget would be ~1666)"
+    );
+}
+
+#[test]
+fn test_empty_content_type_classifies_as_html() {
+    let bytes = b"<html><body><p>hi</p></body></html>";
+    assert_eq!(
+        classify_body(Some(""), bytes),
+        BodyKind::Html,
+        "empty Content-Type token must take the HTML path (D5)"
+    );
+    assert_eq!(
+        classify_body(Some("  ; charset=utf-8"), bytes),
+        BodyKind::Html,
+        "whitespace-only type before ; must take the HTML path"
+    );
+    assert_eq!(classify_body(None, bytes), BodyKind::Html);
 }
 
 #[test]
