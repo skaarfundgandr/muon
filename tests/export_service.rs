@@ -140,7 +140,7 @@ fn export_format_display() {
 // ---- Phase 3 additions ----
 
 #[test]
-fn markdown_export_strips_leading_body_h1_when_title_differs() {
+fn markdown_export_preserves_llm_h1_in_body() {
     let tmp = tempfile::tempdir().unwrap();
     let report = make_report_with_h1_summary("Different Plan Title", "Other Title", "Real content.");
     let session = make_session();
@@ -149,11 +149,13 @@ fn markdown_export_strips_leading_body_h1_when_title_differs() {
 
     assert!(content.contains("title: Different Plan Title"), "YAML must contain the frontmatter title");
 
-    // Split on closing `---\n` — the part after it is the body
+    // The body (after the closing `---\n`) keeps the LLM-drafted H1 line
+    // rather than stripping it: title SSOT lives in YAML metadata, and the
+    // body mirrors the LLM response verbatim.
     let body = content.split("---\n").nth(2).unwrap_or("");
     assert!(
-        !body.starts_with("# Other Title"),
-        "body after YAML must not start with the H1 line"
+        body.trim_start().starts_with("# Other Title"),
+        "body after YAML must preserve the LLM-drafted H1, got: {body:?}"
     );
     assert!(body.contains("Real content."), "body must contain the real summary content");
     assert!(body.contains("Section 1"), "body must contain section headings");

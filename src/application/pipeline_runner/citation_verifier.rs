@@ -420,9 +420,6 @@ fn is_knowledge_ref(text: &str, knowledge_paths: &[String]) -> bool {
 
 fn report_to_markdown(report: &ResearchReport) -> String {
     let mut parts = Vec::new();
-    if !report.title.is_empty() {
-        parts.push(format!("# {}", report.title));
-    }
     if !report.summary.is_empty() {
         parts.push(report.summary.clone());
     }

@@ -180,7 +180,7 @@ fn make_report_with_title_and_h1_summary(title: &str, h1: &str, body: &str) -> R
 }
 
 #[test]
-fn test_export_pdf_strips_body_h1_when_differs_from_title() {
+fn test_export_pdf_preserves_llm_h1_in_body() {
     let report = make_report_with_title_and_h1_summary(
         "Plan Title",
         "Totally Different H1",
@@ -191,9 +191,13 @@ fn test_export_pdf_strips_body_h1_when_differs_from_title() {
     let path = PdfExporter::export_to(&report, &session, dir.path()).unwrap();
     let text = extract_pdf_text(&path);
 
+    // The LLM-drafted H1 is preserved in the PDF body. The canonical file
+    // title (report.title) lives in PDF Info metadata via PdfBuilder, and
+    // the body mirrors the LLM response rather than re-injecting the
+    // canonical title as a page heading.
     assert!(
-        !text.contains("Totally Different H1"),
-        "extracted PDF text must not contain the H1 header line from summary"
+        text.contains("Totally Different H1"),
+        "extracted PDF text must preserve the LLM-drafted H1 in the body"
     );
     assert!(
         text.contains("Real summary text."),

@@ -2,14 +2,14 @@ use std::path::{Path, PathBuf};
 
 use pdf_oxide::api::PdfBuilder;
 
-use crate::application::services::{soft_wrap_markdown_for_pdf, strip_leading_h1};
+use crate::application::services::soft_wrap_markdown_for_pdf;
 use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
 
 fn build_pdf_markdown(report: &ResearchReport, _session: &Session) -> String {
     let mut content = String::new();
-    content.push_str(&strip_leading_h1(&report.summary));
+    content.push_str(&report.summary);
     content.push_str("\n\n");
 
     for section in &report.sections {
