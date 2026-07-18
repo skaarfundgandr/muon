@@ -101,6 +101,7 @@ fn heading_prefix_len(line: &str) -> Option<usize> {
 /// The `# ` prefix is kept on the first output line; continuation lines are
 /// indented under the heading text so they visually belong to the heading
 /// even though pdf_oxide renders every source line as its own PDF line.
+/// Overlong single tokens hard-break via `wrap_overlong_token`.
 fn wrap_heading(line: &str, prefix_len: usize, width: usize) -> String {
     let text = &line[prefix_len.min(line.len())..];
     let text = text.trim();
@@ -120,9 +121,46 @@ fn wrap_heading(line: &str, prefix_len: usize, width: usize) -> String {
     let mut current_chars = 0usize;
     let mut first_line = true;
 
+    let flush_current = |result: &mut String,
+                         current: &mut String,
+                         current_chars: &mut usize,
+                         first_line: &mut bool| {
+        if current.is_empty() {
+            return;
+        }
+        if *first_line {
+            result.push_str(&line[..prefix_len]);
+            *first_line = false;
+        } else {
+            result.push_str(&indent);
+        }
+        result.push_str(current);
+        result.push('\n');
+        current.clear();
+        *current_chars = 0;
+    };
+
     for token in tokens {
         let token_chars = token.chars().count();
-        if current_chars == 0 {
+        if token_chars > budget {
+            flush_current(
+                &mut result,
+                &mut current,
+                &mut current_chars,
+                &mut first_line,
+            );
+            let sub = wrap_overlong_token(token, budget);
+            for sub_line in sub.lines() {
+                if first_line {
+                    result.push_str(&line[..prefix_len]);
+                    first_line = false;
+                } else {
+                    result.push_str(&indent);
+                }
+                result.push_str(sub_line);
+                result.push('\n');
+            }
+        } else if current_chars == 0 {
             current = token.to_string();
             current_chars = token_chars;
         } else if current_chars + 1 + token_chars <= budget {
@@ -130,15 +168,12 @@ fn wrap_heading(line: &str, prefix_len: usize, width: usize) -> String {
             current.push_str(token);
             current_chars += 1 + token_chars;
         } else {
-            if first_line {
-                result.push_str(&line[..prefix_len]);
-                result.push_str(&current);
-                first_line = false;
-            } else {
-                result.push_str(&indent);
-                result.push_str(&current);
-            }
-            result.push('\n');
+            flush_current(
+                &mut result,
+                &mut current,
+                &mut current_chars,
+                &mut first_line,
+            );
             current = token.to_string();
             current_chars = token_chars;
         }
@@ -153,49 +188,129 @@ fn wrap_heading(line: &str, prefix_len: usize, width: usize) -> String {
         result.push_str(&current);
     }
 
-    result
+    result.trim_end_matches('\n').to_string()
+}
+
+/// Leading whitespace plus optional list/blockquote marker width in bytes.
+/// Continuation lines are indented with this many spaces so wrapped bullets
+/// stay visually nested under the marker.
+fn list_or_indent_prefix_len(line: &str) -> usize {
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t') {
+        i += 1;
+    }
+    let rest = &line[i..];
+    if rest.starts_with("> ") {
+        return i + 2;
+    }
+    if rest.starts_with("- ") || rest.starts_with("* ") || rest.starts_with("+ ") {
+        return i + 2;
+    }
+    let digit_count = rest.chars().take_while(|c| c.is_ascii_digit()).count();
+    if digit_count > 0 {
+        let after = &rest[digit_count..];
+        if after.starts_with(". ") || after.starts_with(") ") {
+            return i + digit_count + 2;
+        }
+    }
+    i
 }
 
 fn wrap_line(line: &str, width: usize) -> String {
-    let tokens: Vec<&str> = line.split_whitespace().collect();
+    if line.chars().count() <= width {
+        return line.to_string();
+    }
+
+    let prefix_len = list_or_indent_prefix_len(line).min(line.len());
+    let prefix = &line[..prefix_len];
+    let body = &line[prefix_len..];
+    let prefix_chars = prefix.chars().count();
+
+    let (first_prefix, cont_indent, budget) = if prefix_chars > 0 && prefix_chars < width {
+        (
+            prefix,
+            " ".repeat(prefix_chars),
+            width - prefix_chars,
+        )
+    } else {
+        ("", String::new(), width)
+    };
+
+    let tokens: Vec<&str> = body.split_whitespace().collect();
     if tokens.is_empty() {
-        return String::new();
+        return line.to_string();
     }
 
     let mut result = String::new();
     let mut current = String::new();
     let mut current_chars = 0usize;
+    let mut first_line = true;
+
+    let flush_current = |result: &mut String,
+                         current: &mut String,
+                         current_chars: &mut usize,
+                         first_line: &mut bool| {
+        if current.is_empty() {
+            return;
+        }
+        if *first_line {
+            result.push_str(first_prefix);
+            *first_line = false;
+        } else {
+            result.push_str(&cont_indent);
+        }
+        result.push_str(current);
+        result.push('\n');
+        current.clear();
+        *current_chars = 0;
+    };
 
     for token in tokens {
         let token_chars = token.chars().count();
-        if token_chars <= width {
-            if current_chars == 0 {
-                current = token.to_string();
-                current_chars = token_chars;
-            } else if current_chars + 1 + token_chars <= width {
-                current.push(' ');
-                current.push_str(token);
-                current_chars += 1 + token_chars;
-            } else {
-                result.push_str(&current);
+        if token_chars > budget {
+            flush_current(
+                &mut result,
+                &mut current,
+                &mut current_chars,
+                &mut first_line,
+            );
+            let sub = wrap_overlong_token(token, budget);
+            for sub_line in sub.lines() {
+                if first_line {
+                    result.push_str(first_prefix);
+                    first_line = false;
+                } else {
+                    result.push_str(&cont_indent);
+                }
+                result.push_str(sub_line);
                 result.push('\n');
-                current = token.to_string();
-                current_chars = token_chars;
             }
+        } else if current_chars == 0 {
+            current = token.to_string();
+            current_chars = token_chars;
+        } else if current_chars + 1 + token_chars <= budget {
+            current.push(' ');
+            current.push_str(token);
+            current_chars += 1 + token_chars;
         } else {
-            if current_chars > 0 {
-                result.push_str(&current);
-                result.push('\n');
-                current.clear();
-                current_chars = 0;
-            }
-            let sub = wrap_overlong_token(token, width);
-            result.push_str(&sub);
-            result.push('\n');
+            flush_current(
+                &mut result,
+                &mut current,
+                &mut current_chars,
+                &mut first_line,
+            );
+            current = token.to_string();
+            current_chars = token_chars;
         }
     }
 
-    if current_chars > 0 {
+    if !current.is_empty() {
+        if first_line {
+            result.push_str(first_prefix);
+        } else {
+            result.push_str(&cont_indent);
+        }
         result.push_str(&current);
     }
 

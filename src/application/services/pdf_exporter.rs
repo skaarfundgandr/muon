@@ -16,7 +16,7 @@ use crate::domain::models::session::Session;
 /// headroom for variable-width glyphs and bold runs.
 const PDF_SOFT_WRAP_WIDTH: usize = 72;
 
-fn build_pdf_markdown(report: &ResearchReport, _session: &Session) -> String {
+fn build_pdf_markdown(report: &ResearchReport) -> String {
     let mut content = String::new();
     content.push_str(&report.summary);
     content.push_str("\n\n");
@@ -80,7 +80,7 @@ impl PdfExporter {
             std::fs::create_dir_all(parent)?;
         }
 
-        let body = soft_wrap_markdown_for_pdf(&build_pdf_markdown(report, session), PDF_SOFT_WRAP_WIDTH);
+        let body = soft_wrap_markdown_for_pdf(&build_pdf_markdown(report), PDF_SOFT_WRAP_WIDTH);
         let mut pdf = PdfBuilder::new()
             .title(report.title.as_str())
             .subject(session.query.as_str())
