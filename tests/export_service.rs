@@ -186,3 +186,20 @@ fn markdown_export_yaml_keys_present() {
     assert!(fm.contains("created_at:"), "frontmatter must contain created_at:");
     assert!(fm.contains("sources:"), "frontmatter must contain sources:");
 }
+
+#[test]
+fn markdown_export_closing_yaml_fence_on_own_line() {
+    let tmp = tempfile::tempdir().unwrap();
+    let report = make_report_with_h1_summary("Title", "H1", "Body.");
+    let session = make_session();
+    let path = MarkdownExporter::export_to(&report, &session, tmp.path()).unwrap();
+    let content = std::fs::read_to_string(&path).unwrap();
+
+    let expected_sources_line = format!("sources: {}\n---\n", report.citations.len());
+    assert!(
+        content.contains(&expected_sources_line),
+        "expected YAML to contain a standalone closing fence after `sources: {}`; got:\n{}",
+        report.citations.len(),
+        content
+    );
+}

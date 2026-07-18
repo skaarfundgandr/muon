@@ -51,7 +51,9 @@ impl MarkdownExporter {
         };
         let fm_yaml = serde_yaml::to_string(&fm)
             .map_err(|e| MuonError::Io(std::io::Error::other(format!("frontmatter yaml: {e}"))))?;
-        let mut content = format!("---\n{fm_yaml}---\n\n");
+        let mut content = String::from("---\n");
+        content.push_str(fm_yaml.trim_end_matches('\n'));
+        content.push_str("\n---\n\n");
 
         content.push_str(&strip_leading_h1(&report.summary));
         content.push_str("\n\n");
