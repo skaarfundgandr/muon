@@ -104,12 +104,13 @@ flowchart TD
             RESEARCHER-DESC["Search → Fetch → Synthesize"]
         end
 
-        DEEP-ORCH --> PLANNER --> RESEARCHER
-        RESEARCHER -.->|"next iteration"| PLANNER
+        DEEP-ORCH --> PLANNER --> DEEP-ORCH
+        DEEP-ORCH --> RESEARCHER
+        RESEARCHER -.->|"next iteration"| DEEP-ORCH
     end
 
     SHALLOW --> VERIFY
-    DEEP-ORCH --> VERIFY
+    DEEP-ORCH -->|"Partial Research Report"| VERIFY
 
     subgraph VERIFY["Citation Verification"]
         VERIFY-DESC["Cross-reference sources<br/>flag unsupported claims"]
