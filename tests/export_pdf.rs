@@ -147,8 +147,7 @@ fn test_export_pdf_long_body_long_url_preserved() {
     let report = ResearchReport {
         title: "URL Test".into(),
         summary: "A paragraph with enough text to fill more than one line in the PDF rendering at 96-character wrap width. This is not a URL. "
-            .repeat(10)
-            .into(),
+            .repeat(10),
         sections: vec![],
         citations: vec![Citation {
             reference_number: 1,

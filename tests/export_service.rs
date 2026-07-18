@@ -150,10 +150,7 @@ fn markdown_export_strips_leading_body_h1_when_title_differs() {
     assert!(content.contains("title: Different Plan Title"), "YAML must contain the frontmatter title");
 
     // Split on closing `---\n` — the part after it is the body
-    let body = content
-        .splitn(3, "---\n")
-        .nth(2)
-        .unwrap_or("");
+    let body = content.split("---\n").nth(2).unwrap_or("");
     assert!(
         !body.starts_with("# Other Title"),
         "body after YAML must not start with the H1 line"
@@ -183,7 +180,7 @@ fn markdown_export_yaml_keys_present() {
     let content = std::fs::read_to_string(&path).unwrap();
 
     // Everything before the second `---` is frontmatter
-    let fm = content.splitn(3, "---\n").nth(1).unwrap_or("");
+    let fm = content.split("---\n").nth(1).unwrap_or("");
     assert!(fm.contains("title:"), "frontmatter must contain title:");
     assert!(fm.contains("query:"), "frontmatter must contain query:");
     assert!(fm.contains("created_at:"), "frontmatter must contain created_at:");
