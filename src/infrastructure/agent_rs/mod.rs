@@ -7,4 +7,8 @@ pub use react_agents::{
     REMINDER_CLARIFIER, REMINDER_FINALIZE, REMINDER_ORCHESTRATOR, ReActAgent, ReActFactory,
 };
 pub use subagent_tool::{PlannerKind, ResearcherKind, SubagentKind, SubagentTool};
-pub use tools::{FetchPageTool, PaperSearchTool, ThinkTool, WebSearchTool, ensure_public_resolved, is_blocked_ip, is_public_http_url};
+pub use tools::{
+    BodyKind, FetchPageTool, PaperSearchTool, ThinkTool, WebSearchTool, classify_body,
+    ensure_public_resolved, html_bytes_to_output, is_blocked_ip, is_public_http_url,
+    pdf_bytes_to_text,
+};

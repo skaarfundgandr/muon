@@ -38,6 +38,7 @@ url = "2"
 tracing = "0.1"
 agent_rs = { git = "https://github.com/skaarfundgandr/agent_rs.git", features = ["rag", "opentelemetry"], version = "0.9.0" }
 pdf_oxide = "0.3"
+fast_html2md = "0.0.62"
 diesel = { version = "2.3", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
 diesel-async = { version = "0.9", features = ["sqlite", "deadpool"] }
 diesel_migrations = "2.3"

@@ -15,10 +15,82 @@ static TITLE_RE: LazyLock<Option<regex::Regex>> =
     LazyLock::new(|| regex::Regex::new(r"(?is)<title[^>]*>(.*?)</title>").ok());
 static TAG_RE: LazyLock<Option<regex::Regex>> =
     LazyLock::new(|| regex::Regex::new(r"(?s)<[^>]+>").ok());
-static WS_RE: LazyLock<Option<regex::Regex>> =
-    LazyLock::new(|| regex::Regex::new(r"[ \t]+").ok());
-static NL_RE: LazyLock<Option<regex::Regex>> =
-    LazyLock::new(|| regex::Regex::new(r"\n{3,}").ok());
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BodyKind {
+    Html,
+    Pdf,
+    Unsupported,
+}
+
+pub fn classify_body(content_type: Option<&str>, bytes: &[u8]) -> BodyKind {
+    if bytes.starts_with(b"%PDF-") {
+        return BodyKind::Pdf;
+    }
+    let ct = content_type
+        .and_then(|v| v.split(';').next())
+        .map(|v| v.trim().to_lowercase());
+    match ct.as_deref() {
+        Some("application/pdf") => BodyKind::Pdf,
+        Some("text/html") | None => BodyKind::Html,
+        Some(t) if t.starts_with("text/") => BodyKind::Html,
+        _ => BodyKind::Unsupported,
+    }
+}
+
+pub fn html_bytes_to_output(bytes: &[u8], max_chars: usize) -> (String, Option<String>) {
+    let html = String::from_utf8_lossy(bytes);
+    let title = TITLE_RE.as_ref().and_then(|r| {
+        r.captures(&html).and_then(|c| c.get(1)).map(|m| {
+            let mut t = m.as_str().trim().to_string();
+            if let Some(re) = TAG_RE.as_ref() {
+                t = re.replace_all(&t, " ").to_string();
+                t = t.trim().to_string();
+            }
+            t
+        })
+    });
+    let md = html2md::rewrite_html(&html, false);
+    let text = truncate_at_chars(&md, max_chars);
+    (text, title)
+}
+
+pub fn pdf_bytes_to_text(bytes: &[u8], max_chars: usize) -> Result<String, MuonError> {
+    let mut pdf = pdf_oxide::api::Pdf::from_bytes(bytes.to_vec()).map_err(|e| {
+        MuonError::Search {
+            provider: "fetch".into(),
+            message: format!("pdf parse failed: {e}"),
+        }
+    })?;
+    let page_count = pdf.page_count().map_err(|e| MuonError::Search {
+        provider: "fetch".into(),
+        message: format!("pdf page count failed: {e}"),
+    })?;
+    let mut texts = Vec::with_capacity(page_count);
+    for i in 0..page_count {
+        let page_text = pdf.to_text(i).map_err(|e| MuonError::Search {
+            provider: "fetch".into(),
+            message: format!("pdf page {i} text extract failed: {e}"),
+        })?;
+        texts.push(page_text);
+    }
+    let full = texts.join("\n\n");
+    Ok(truncate_at_chars(&full, max_chars))
+}
+
+fn truncate_at_chars(text: &str, max_chars: usize) -> String {
+    if text.len() <= max_chars {
+        return text.to_string();
+    }
+    let end = text.floor_char_boundary(max_chars);
+    let mut s = text[..end].to_string();
+    if let Some(pos) = s.rfind('.')
+        && pos > end / 2
+    {
+        s.truncate(pos + 1);
+    }
+    s
+}
 
 pub fn is_public_http_url(raw: &str) -> Result<(), String> {
     let url = Url::parse(raw).map_err(|e| format!("invalid url: {e}"))?;
@@ -111,7 +183,6 @@ impl FetchPageTool {
         let http = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(10))
             .timeout(std::time::Duration::from_secs(60))
-            // Redirects intentionally disabled to prevent SSRF via unchecked Location headers.
             .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|e| MuonError::Config(format!("failed to build http client: {e}")))?;
@@ -126,7 +197,7 @@ impl Tool for FetchPageTool {
     type Output = FetchPageOutput;
 
     fn description(&self) -> String {
-        "Fetch a web page and return its text content. HTML tags are stripped and content is truncated.".to_string()
+        "Fetch a URL and return text. HTML becomes Markdown; PDFs are text-extracted; content is truncated. Unsupported content types are rejected.".to_string()
     }
 
     fn parameters(&self) -> serde_json::Value {
@@ -147,7 +218,6 @@ impl Tool for FetchPageTool {
         let http = self.http.clone();
         let max_chars = self.max_chars;
         async move {
-            // First gate: fast hostname/IP check
             if let Err(reason) = is_public_http_url(&args.url) {
                 return Err(MuonError::Search {
                     provider: "fetch".into(),
@@ -155,7 +225,6 @@ impl Tool for FetchPageTool {
                 });
             }
 
-            // Second gate: DNS resolve-then-validate (guards against DNS rebinding)
             let url = Url::parse(&args.url).map_err(|e| MuonError::Search {
                 provider: "fetch".into(),
                 message: format!("invalid url: {e}"),
@@ -188,75 +257,57 @@ impl Tool for FetchPageTool {
                 });
             }
 
+            let content_type = resp
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_string);
+
             let bytes = resp.bytes().await.map_err(|e| MuonError::Search {
                 provider: "fetch".into(),
                 message: format!("failed to read body from {}: {e}", args.url),
             })?;
-            let capped = if bytes.len() > MAX_BODY_BYTES {
+
+            let truncated = bytes.len() > MAX_BODY_BYTES;
+            let capped: &[u8] = if truncated {
                 &bytes[..MAX_BODY_BYTES]
             } else {
                 &bytes
             };
-            let html = String::from_utf8_lossy(capped).into_owned();
 
-            let (text, title) = html_to_text(&html, max_chars);
+            let kind = classify_body(content_type.as_deref(), capped);
+            if kind == BodyKind::Pdf && truncated {
+                return Err(MuonError::Search {
+                    provider: "fetch".into(),
+                    message: format!(
+                        "PDF too large: response exceeds {} bytes; cannot parse truncated body",
+                        MAX_BODY_BYTES
+                    ),
+                });
+            }
+
+            let (text, title) = match kind {
+                BodyKind::Html => html_bytes_to_output(capped, max_chars),
+                BodyKind::Pdf => {
+                    let text = pdf_bytes_to_text(capped, max_chars)?;
+                    (text, None)
+                }
+                BodyKind::Unsupported => {
+                    return Err(MuonError::Search {
+                        provider: "fetch".into(),
+                        message: format!(
+                            "unsupported content type: {}",
+                            content_type.unwrap_or_default()
+                        ),
+                    });
+                }
+            };
+
             Ok(FetchPageOutput {
                 url: args.url,
                 text,
                 title,
             })
         }
-    }
-}
-
-fn html_to_text(html: &str, max_chars: usize) -> (String, Option<String>) {
-    // Extract title from <title>...</title>
-    let title = TITLE_RE.as_ref().and_then(|r| {
-        r.captures(html)
-            .and_then(|c| c.get(1))
-            .map(|m| strip_tags_single(m.as_str()).trim().to_string())
-    });
-
-    // Strip all HTML tags
-    let mut text = match TAG_RE.as_ref() {
-        Some(re) => re.replace_all(html, " ").to_string(),
-        None => html.to_string(),
-    };
-
-    // Decode common HTML entities
-    text = text.replace("&amp;", "&");
-    text = text.replace("&lt;", "<");
-    text = text.replace("&gt;", ">");
-    text = text.replace("&quot;", "\"");
-    text = text.replace("&#39;", "'");
-    text = text.replace("&nbsp;", " ");
-
-    // Collapse whitespace
-    if let Some(re) = WS_RE.as_ref() {
-        text = re.replace_all(&text, " ").to_string();
-    }
-    if let Some(re) = NL_RE.as_ref() {
-        text = re.replace_all(&text, "\n\n").to_string();
-    }
-
-    text = text.trim().to_string();
-
-    if text.len() > max_chars {
-        let end = text.floor_char_boundary(max_chars);
-        text.truncate(end);
-        if let Some(pos) = text.rfind('.')
-            && pos > end / 2
-        {
-            text.truncate(pos + 1);
-        }
-    }
-
-    (text, title)
-}
-
-fn strip_tags_single(html: &str) -> String {
-    match TAG_RE.as_ref() {
-        Some(r) => r.replace_all(html, " ").to_string(),
-        None => html.to_string(),
     }
 }
