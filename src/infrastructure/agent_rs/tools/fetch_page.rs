@@ -32,7 +32,7 @@ pub fn classify_body(content_type: Option<&str>, bytes: &[u8]) -> BodyKind {
         .map(|v| v.trim().to_lowercase());
     match ct.as_deref() {
         Some("application/pdf") => BodyKind::Pdf,
-        Some("text/html") | None => BodyKind::Html,
+        None | Some("") => BodyKind::Html,
         Some(t) if t.starts_with("text/") => BodyKind::Html,
         _ => BodyKind::Unsupported,
     }
@@ -66,26 +66,38 @@ pub fn pdf_bytes_to_text(bytes: &[u8], max_chars: usize) -> Result<String, MuonE
         provider: "fetch".into(),
         message: format!("pdf page count failed: {e}"),
     })?;
-    let mut texts = Vec::with_capacity(page_count);
+    let mut out = String::new();
     for i in 0..page_count {
         let page_text = pdf.to_text(i).map_err(|e| MuonError::Search {
             provider: "fetch".into(),
             message: format!("pdf page {i} text extract failed: {e}"),
         })?;
-        texts.push(page_text);
+        if !out.is_empty() {
+            out.push_str("\n\n");
+        }
+        out.push_str(&page_text);
+        if out.chars().count() >= max_chars {
+            break;
+        }
     }
-    let full = texts.join("\n\n");
-    Ok(truncate_at_chars(&full, max_chars))
+    Ok(truncate_at_chars(&out, max_chars))
 }
 
 fn truncate_at_chars(text: &str, max_chars: usize) -> String {
-    if text.len() <= max_chars {
+    if max_chars == 0 {
+        return String::new();
+    }
+    if text.chars().count() <= max_chars {
         return text.to_string();
     }
-    let end = text.floor_char_boundary(max_chars);
+    let end = text
+        .char_indices()
+        .nth(max_chars)
+        .map(|(i, _)| i)
+        .unwrap_or(text.len());
     let mut s = text[..end].to_string();
     if let Some(pos) = s.rfind('.')
-        && pos > end / 2
+        && pos > s.len() / 2
     {
         s.truncate(pos + 1);
     }
