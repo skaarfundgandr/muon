@@ -4,6 +4,7 @@ use serde::Serialize;
 
 use noyalib::compat::serde_yaml;
 
+use crate::application::services::strip_leading_h1;
 use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
@@ -52,7 +53,7 @@ impl MarkdownExporter {
             .map_err(|e| MuonError::Io(std::io::Error::other(format!("frontmatter yaml: {e}"))))?;
         let mut content = format!("---\n{fm_yaml}---\n\n");
 
-        content.push_str(&report.summary);
+        content.push_str(&strip_leading_h1(&report.summary));
         content.push_str("\n\n");
 
         for section in &report.sections {

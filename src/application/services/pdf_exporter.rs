@@ -1,38 +1,15 @@
 use std::path::{Path, PathBuf};
 
-use pdf_oxide::api::Pdf;
-use serde::Serialize;
+use pdf_oxide::api::PdfBuilder;
 
-use noyalib::compat::serde_yaml;
-
+use crate::application::services::{soft_wrap_markdown_for_pdf, strip_leading_h1};
 use crate::domain::error::MuonError;
 use crate::domain::models::report::ResearchReport;
 use crate::domain::models::session::Session;
 
-#[derive(Serialize)]
-struct FrontMatter<'a> {
-    title: &'a str,
-    query: &'a str,
-    created_at: String,
-    sources: usize,
-}
-
-fn map_pdf_error(e: impl std::fmt::Display) -> MuonError {
-    MuonError::Io(std::io::Error::other(format!("PDF export: {e}")))
-}
-
-fn build_markdown(report: &ResearchReport, session: &Session) -> String {
-    let fm = FrontMatter {
-        title: &report.title,
-        query: &session.query,
-        created_at: session.created_at.to_rfc3339(),
-        sources: report.citations.len(),
-    };
-    let fm_yaml = serde_yaml::to_string(&fm)
-        .unwrap_or_else(|_| String::new());
-    let mut content = format!("---\n{fm_yaml}---\n\n");
-
-    content.push_str(&report.summary);
+fn build_pdf_markdown(report: &ResearchReport, _session: &Session) -> String {
+    let mut content = String::new();
+    content.push_str(&strip_leading_h1(&report.summary));
     content.push_str("\n\n");
 
     for section in &report.sections {
@@ -52,6 +29,10 @@ fn build_markdown(report: &ResearchReport, session: &Session) -> String {
     }
 
     content
+}
+
+fn map_pdf_error(e: impl std::fmt::Display) -> MuonError {
+    MuonError::Io(std::io::Error::other(format!("PDF export: {e}")))
 }
 
 pub struct PdfExporter;
@@ -90,9 +71,12 @@ impl PdfExporter {
             std::fs::create_dir_all(parent)?;
         }
 
-        let markdown = build_markdown(report, session);
-
-        let mut pdf = Pdf::from_markdown(&markdown).map_err(map_pdf_error)?;
+        let body = soft_wrap_markdown_for_pdf(&build_pdf_markdown(report, session), 96);
+        let mut pdf = PdfBuilder::new()
+            .title(report.title.as_str())
+            .subject(session.query.as_str())
+            .from_markdown(&body)
+            .map_err(map_pdf_error)?;
         pdf.save(path).map_err(map_pdf_error)?;
 
         Ok(path.to_path_buf())

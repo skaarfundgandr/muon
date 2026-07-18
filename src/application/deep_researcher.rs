@@ -273,8 +273,7 @@ impl<'a> DeepResearcher<'a> {
             if let Some(h) = line.strip_prefix("# ") {
                 if title.is_empty() {
                     title = h.trim().to_string();
-                }
-                if !found_heading {
+                } else if !found_heading {
                     summary_lines.push(*line);
                 } else {
                     current_body.push(*line);
