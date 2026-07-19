@@ -8,9 +8,9 @@ use ratatui::backend::CrosstermBackend;
 use tokio::sync::mpsc;
 
 use crate::application::bridge::{AgentEvent, BridgeChannels};
+use crate::application::config::MuonConfig;
 use crate::application::pipeline::PipelineState;
 use crate::application::session::SessionService;
-use crate::application::config::MuonConfig;
 use crate::domain::models::log_entry::{AgentTag, LogLevel};
 use crate::infrastructure::context::InfrastructureContext;
 use crate::presentation::components::query_input::QueryInput;
@@ -58,8 +58,7 @@ async fn run_loop(
     };
     let _ = config_reload_rx.try_recv();
 
-    let agents_dir =
-        crate::infrastructure::util::expand_tilde(config.advanced.agents_dir.clone());
+    let agents_dir = crate::infrastructure::util::expand_tilde(config.advanced.agents_dir.clone());
     let agent_settings = crate::infrastructure::config::load_agent_settings(&agents_dir)
         .unwrap_or_else(|e| {
             tracing::warn!(target: "muon::config", "failed to load agent settings: {e}");
@@ -174,7 +173,7 @@ async fn run_loop(
     if config.providers.is_empty() {
         app.status_flash = Some((
             std::time::Instant::now(),
-            "No providers configured — open Settings → Providers (F4)".to_string(),
+            "No providers configured — open Settings → Providers (4)".to_string(),
             crate::presentation::components::chrome::toast::ToastKind::Info,
         ));
     }
@@ -191,10 +190,8 @@ async fn run_loop(
 
 pub async fn run() -> crate::domain::error::Result<()> {
     let config = crate::infrastructure::config::load();
-    let observability = crate::infrastructure::observability::Observability::init(
-        "muon",
-        &config.observability,
-    )?;
+    let observability =
+        crate::infrastructure::observability::Observability::init("muon", &config.observability)?;
     let mut terminal = setup_terminal()?;
     let result = run_loop(&mut terminal).await;
     restore_terminal(&mut terminal);
