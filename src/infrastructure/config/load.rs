@@ -9,8 +9,7 @@ use crate::application::config::MuonConfig;
 use crate::domain::error::MuonError;
 
 pub fn config_dir() -> Option<PathBuf> {
-    let home = std::env::var("HOME").ok()?;
-    let mut p = PathBuf::from(home);
+    let mut p = dirs::home_dir()?;
     p.push(".config");
     p.push("muon");
     Some(p)
@@ -51,7 +50,7 @@ pub fn load_from_path(path: &std::path::Path) -> MuonConfig {
 
 pub fn save(cfg: &MuonConfig) -> Result<(), MuonError> {
     let path = config_path()
-        .ok_or_else(|| MuonError::Config("cannot resolve config path (HOME unset?)".into()))?;
+        .ok_or_else(|| MuonError::Config("cannot resolve config path (home directory unknown)".into()))?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }

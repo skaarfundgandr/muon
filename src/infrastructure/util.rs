@@ -6,7 +6,12 @@ pub fn expand_tilde<P: Into<PathBuf>>(p: P) -> PathBuf {
     if let Some(rest) = s.strip_prefix('~')
         && let Some(home) = dirs::home_dir()
     {
-        return home.join(rest.trim_start_matches('/'));
+        let rest = rest.trim_start_matches(['/', '\\']);
+        return if rest.is_empty() {
+            home
+        } else {
+            home.join(rest)
+        };
     }
     path
 }
