@@ -179,7 +179,7 @@ async fn run_loop(
     {
         app.status_flash = Some((
             std::time::Instant::now(),
-            "No provider API keys ready — open Settings → Providers (F4)".to_string(),
+            "No provider API keys ready — open Settings → Providers (4)".to_string(),
             crate::presentation::components::chrome::toast::ToastKind::Info,
         ));
     }
