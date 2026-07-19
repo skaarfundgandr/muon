@@ -128,8 +128,6 @@ pub async fn run_clarifier(
         cfg.agents.clarifier.max_iterations as u32,
     );
 
-    bridge.stage(crate::application::pipeline::PipelineStage::Clarification);
-
     while state.iteration < state.max_turns {
         let prompt = build_q_prompt(query, &state);
         let raw = match agent.prompt_raw(&prompt).await {

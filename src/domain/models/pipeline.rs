@@ -34,6 +34,17 @@ impl PipelineStage {
         }
     }
 
+    pub fn progress_step(&self) -> Option<u64> {
+        match self {
+            Self::IntentClassification => Some(1),
+            Self::Clarification => Some(2),
+            Self::ShallowResearch | Self::DeepResearch => Some(3),
+            Self::CitationVerify => Some(4),
+            Self::Report => Some(5),
+            Self::Idle | Self::Complete | Self::Cancelled | Self::Failed => None,
+        }
+    }
+
     pub fn parse_stage(s: &str) -> Result<Self, MuonError> {
         match s {
             "Idle" => Ok(Self::Idle),
@@ -84,7 +95,11 @@ impl PipelineState {
 
     pub fn set_stage(&mut self, s: PipelineStage) {
         self.stage = s;
-        self.current_step = self.current_step.saturating_add(1);
+        if let Some(step) = s.progress_step() {
+            self.current_step = self.current_step.max(step);
+        } else if s == PipelineStage::Complete {
+            self.current_step = self.total_steps;
+        }
         if matches!(
             s,
             PipelineStage::Complete | PipelineStage::Cancelled | PipelineStage::Failed
@@ -95,6 +110,7 @@ impl PipelineState {
 
     pub fn finish(&mut self) {
         self.stage = PipelineStage::Complete;
+        self.current_step = self.total_steps;
         self.completed_at = Some(Utc::now());
     }
 
