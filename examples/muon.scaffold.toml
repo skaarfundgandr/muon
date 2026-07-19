@@ -1,0 +1,61 @@
+# μon configuration (first-launch scaffold)
+# Providers and search backends start empty so the app boots without API keys.
+# Add them in Settings → Providers / Tools, or copy blocks from examples/muon.toml.
+
+# Pipeline knobs only. Model/provider/timeout live in agents/*.md frontmatter.
+[agents.clarifier]
+max_turns = 3
+plan_approval = true
+max_iterations = 10
+
+[agents.shallow_researcher]
+max_llm_turns = 10
+max_tool_iters = 5
+
+[agents.deep_researcher]
+iterations = 8
+max_retries = 3
+planner_max_cycles = 3
+orchestrator_max_tool_calls = 2
+planner_max_tool_calls = 4
+researcher_max_tool_calls = 4
+citation_verify = true
+
+[data_sources]
+web_search = true
+paper_search = true
+knowledge_layer_rag = false
+
+[display]
+visual_theme = "Tokyo Night"
+font_size = "Medium 14px"
+
+[advanced]
+max_researcher_loops = 2
+max_shallow_turns = 10
+max_deep_turns = 25
+escalate_agent = true
+compaction_threshold = 0.80
+agent_preamble = "You are μon, a deep research agent. Be extremely precise, fact-check everything, compile structured summaries, and cite sources in full formatting."
+agents_dir = "~/.config/muon/agents"
+session_db_path = "~/.local/share/muon/sessions.db"
+rag_db_path = "~/.local/share/muon/rag.db"
+max_search_items = 15
+embedding_model = "Xenova/bge-small-en-v1.5"
+rag_top_k = 5
+similarity_threshold = 0.70
+
+[obsidian]
+vault_path = ""
+
+[observability]
+debug = false
+
+[observability.langsmith]
+api_key = ""
+project = "default"
+endpoint = "https://api.smith.langchain.com/otel/v1/traces"
+service_name = "muon"
+console = false
+batch = true
+batch_delay_ms = 1000

@@ -6,16 +6,11 @@ use muon::application::config::MuonConfig;
 use muon::infrastructure::context::InfrastructureContext;
 
 #[tokio::test]
-async fn new_live_with_empty_providers_returns_ok_and_stubs_agent_prompts() {
-    let cfg = MuonConfig::default();
-    assert!(
-        cfg.providers.is_empty(),
-        "default config must have no providers"
-    );
-
+async fn new_live_degrades_without_ready_providers() {
     let (tx, _rx) = tokio::sync::mpsc::unbounded_channel();
     let bridge = BridgeChannels::new(tx);
 
+    // Process-global session pool: one path for the whole test binary scenario.
     let mut temp_dir = std::env::temp_dir();
     temp_dir.push(format!(
         "muon-empty-config-boot-{}.db",
@@ -23,29 +18,37 @@ async fn new_live_with_empty_providers_returns_ok_and_stubs_agent_prompts() {
     ));
     let _ = std::fs::remove_file(&temp_dir);
 
-    let mut cfg = cfg;
+    // 1) Empty [[providers]] → stubs
+    let mut cfg = MuonConfig::default();
+    assert!(cfg.providers.is_empty());
     cfg.advanced.session_db_path = temp_dir.to_string_lossy().to_string();
     let infra = InfrastructureContext::new_live(&cfg, &bridge)
         .await
         .expect("new_live must succeed with empty providers");
-
     let deps = PipelineDeps::from_infra(&infra);
-    let err = deps.intent_classifier.prompt_raw("test").await.unwrap_err();
-    match err {
+    match deps.intent_classifier.prompt_raw("test").await.unwrap_err() {
         muon::domain::error::MuonError::Config(_) => {}
         other => panic!("expected Config error, got {other:?}"),
     }
 
-    store::cleanup(&temp_dir);
-}
-
-mod store {
-    use std::path::Path;
-    pub fn cleanup(path: &Path) {
-        let _ = std::fs::remove_file(path);
-        let wal = path.with_extension("db-wal");
-        let shm = path.with_extension("db-shm");
-        let _ = std::fs::remove_file(wal);
-        let _ = std::fs::remove_file(shm);
+    // 2) Placeholder ${ENV} key unset → still boots via degrade (same pool path)
+    cfg.providers.push(muon::application::config::ProviderConfig {
+        name: "DeepSeek".into(),
+        base_url: "https://api.deepseek.com/v1".into(),
+        api_key: "${MUON_TEST_UNSET_API_KEY_XYZ}".into(),
+        models: vec![],
+        provider_type: muon::application::config::ProviderType::OpenAICompatible,
+    });
+    let infra = InfrastructureContext::new_live(&cfg, &bridge)
+        .await
+        .expect("new_live must degrade when provider env key is unset");
+    let deps = PipelineDeps::from_infra(&infra);
+    match deps.shallow.prompt_raw("test").await.unwrap_err() {
+        muon::domain::error::MuonError::Config(_) => {}
+        other => panic!("expected Config error from stub, got {other:?}"),
     }
+
+    let _ = std::fs::remove_file(&temp_dir);
+    let _ = std::fs::remove_file(temp_dir.with_extension("db-wal"));
+    let _ = std::fs::remove_file(temp_dir.with_extension("db-shm"));
 }

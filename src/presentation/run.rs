@@ -170,10 +170,16 @@ async fn run_loop(
     }
     app.infra = Some(Arc::new(infra));
     app.agent_tx = Some(agent_tx);
-    if config.providers.is_empty() {
+    if config.providers.is_empty()
+        || config.providers.iter().all(|p| {
+            crate::infrastructure::config::resolve_api_key(p)
+                .map(|k| k.trim().is_empty())
+                .unwrap_or(true)
+        })
+    {
         app.status_flash = Some((
             std::time::Instant::now(),
-            "No providers configured — open Settings → Providers (4)".to_string(),
+            "No provider API keys ready — open Settings → Providers (F4)".to_string(),
             crate::presentation::components::chrome::toast::ToastKind::Info,
         ));
     }

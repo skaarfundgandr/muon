@@ -22,7 +22,7 @@ impl MuonAgent for ConfigRequiredAgent {
 
     async fn prompt_raw(&self, _prompt: &str) -> Result<String, MuonError> {
         Err(MuonError::Config(
-            "no [[providers]] configured — add at least one via Settings → Providers".into(),
+            "provider not ready — add [[providers]] and API keys via Settings → Providers".into(),
         ))
     }
 }

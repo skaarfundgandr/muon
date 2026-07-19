@@ -72,7 +72,61 @@ impl InfrastructureContext {
         }
     }
 
+    async fn new_degraded(
+        cfg: &crate::application::config::MuonConfig,
+        bridge: &crate::application::bridge::BridgeChannels,
+        reason: &str,
+    ) -> Result<Self, MuonError> {
+        use std::sync::Arc;
+        bridge.log(
+            crate::domain::models::log_entry::AgentTag::Sys,
+            crate::domain::models::log_entry::LogLevel::Warn,
+            format!("starting with degraded stub agents: {reason}"),
+        );
+        let source_sink = Arc::new(Mutex::new(SourceRegistry::new()));
+        let pool = crate::infrastructure::storage::init_pool(&cfg.advanced.session_db_path).await?;
+        let session_store: Arc<dyn SessionStore> = Arc::new(
+            crate::infrastructure::storage::DieselSessionStore::new(pool),
+        );
+        Ok(Self::with_sink(
+            Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                AgentTag::Intent,
+            )),
+            Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                AgentTag::Search,
+            )),
+            Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                AgentTag::Clarify,
+            )),
+            Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                AgentTag::Orchestrate,
+            )),
+            Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                AgentTag::Plan,
+            )),
+            Arc::new(crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
+                AgentTag::Search,
+            )),
+            session_store,
+            source_sink,
+            None,
+        ))
+    }
+
     pub async fn new_live(
+        cfg: &crate::application::config::MuonConfig,
+        bridge: &crate::application::bridge::BridgeChannels,
+    ) -> Result<Self, MuonError> {
+        match Self::new_live_inner(cfg, bridge).await {
+            Ok(ctx) => Ok(ctx),
+            Err(MuonError::Config(msg)) => {
+                Self::new_degraded(cfg, bridge, &msg).await
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    async fn new_live_inner(
         cfg: &crate::application::config::MuonConfig,
         bridge: &crate::application::bridge::BridgeChannels,
     ) -> Result<Self, MuonError> {
@@ -86,41 +140,7 @@ impl InfrastructureContext {
 
         let providers = &cfg.providers;
         if providers.is_empty() {
-            bridge.log(
-                crate::domain::models::log_entry::AgentTag::Sys,
-                crate::domain::models::log_entry::LogLevel::Warn,
-                "no [[providers]] configured — starting with degraded stub agents",
-            );
-            let pool =
-                crate::infrastructure::storage::init_pool(&cfg.advanced.session_db_path).await?;
-            let session_store: Arc<dyn SessionStore> = Arc::new(
-                crate::infrastructure::storage::DieselSessionStore::new(pool),
-            );
-            return Ok(Self::with_sink(
-                Arc::new(
-                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Intent),
-                ),
-                Arc::new(
-                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Search),
-                ),
-                Arc::new(
-                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Clarify),
-                ),
-                Arc::new(
-                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(
-                        AgentTag::Orchestrate,
-                    ),
-                ),
-                Arc::new(
-                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Plan),
-                ),
-                Arc::new(
-                    crate::infrastructure::agent_stubs::ConfigRequiredAgent::new(AgentTag::Search),
-                ),
-                session_store,
-                source_sink,
-                None,
-            ));
+            return Self::new_degraded(cfg, bridge, "no [[providers]] configured").await;
         }
         fn resolve_model_id(
             providers: &[crate::application::config::ProviderConfig],

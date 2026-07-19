@@ -143,7 +143,7 @@ pub fn ensure_scaffolded_in(config_dir: &std::path::Path) {
             tracing::warn!(target: "muon::config", "scaffold: mkdir failed: {e}");
             return;
         }
-        let content = include_str!("../../../examples/muon.toml");
+        let content = include_str!("../../../examples/muon.scaffold.toml");
         if let Err(e) = std::fs::write(&cfg_path, content) {
             tracing::warn!(target: "muon::config", "scaffold: config.toml write failed: {e}");
             return;

@@ -67,4 +67,5 @@ The Cargo.toml clippy lints (`unwrap_used = "deny"`, `expect_used = "deny"`, `pa
 - `docs/backend.md` — architecture overview, pipeline state machine, storage schema, citation verifier, export, LangSmith, headless CLI.
 - `docs/agents.md` — how to author agent definition files (frontmatter schema, prompt body, template variables, pipeline routing).
 - `examples/agents/` — six example agent definitions (intent-classifier, clarifier, shallow-researcher, deep-orchestrator, planner, researcher).
+- `examples/muon.scaffold.toml` — first-launch config (empty providers).
 - `examples/muon.toml` — complete example configuration file.

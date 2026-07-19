@@ -4,7 +4,7 @@
 
 μon is a terminal-based deep research agent. It takes a user query, classifies intent, optionally clarifies scope interactively, then runs either shallow (single-pass) or deep (multi-loop orchestrator/planner/researcher) research. The output is a citation-backed structured report.
 
-On first launch, μon creates `~/.config/muon/config.toml` (copy of `examples/muon.toml`) and `~/.config/muon/agents/` containing the six agent preamble `.md` files. Existing files are never overwritten — edit them in place or use the Settings view.
+On first launch, μon creates `~/.config/muon/config.toml` (from `examples/muon.scaffold.toml` — empty `[[providers]]` / search backends so boot needs no API keys) and `~/.config/muon/agents/` containing the six agent preamble `.md` files. `examples/muon.toml` remains the full reference with sample providers. Existing files are never overwritten — edit them in place or use the Settings view.
 
 The backend follows a **CLEAN layered architecture**:
 
@@ -92,7 +92,7 @@ pub struct InfrastructureContext {
 **Constructor:**
 - `InfrastructureContext::new_live(cfg, bridge)` — builds real provider-backed ReAct agents, a Diesel session pool, and a `DieselSessionStore`. Works with zero or more `[[providers]]` entries; an empty list degrades to stub agents that return `MuonError::Config` on every call.
 
-When `cfg.providers` is empty, `new_live` degrades gracefully: it initializes the session store (so existing sessions load), installs `ConfigRequiredAgent` stubs for all six agent roles that return `MuonError::Config` on every `prompt_raw`, and returns `Ok`. The TUI starts with an Info toast directing the user to Settings → Providers. No fake API keys are generated.
+When `cfg.providers` is empty, or live agent construction fails with `MuonError::Config` (e.g. unset `${ENV}` API keys), `new_live` degrades gracefully: it initializes the session store (so existing sessions load), installs `ConfigRequiredAgent` stubs for all six agent roles that return `MuonError::Config` on every `prompt_raw`, and returns `Ok`. The TUI starts with an Info toast directing the user to Settings → Providers. No fake API keys are generated.
 
 ## 5. Storage Schema
 

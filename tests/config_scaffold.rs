@@ -29,39 +29,28 @@ fn scaffold_writes_config_and_agents_when_missing() {
 }
 
 #[test]
-fn scaffolded_config_toml_deserializes_with_providers() {
+fn scaffolded_config_toml_has_empty_providers() {
     let tmp = tempfile::tempdir().unwrap();
     let dir: &Path = tmp.path();
     config::ensure_scaffolded_in(dir);
     let cfg = config::load_from_path(&dir.join("config.toml"));
     assert!(
-        !cfg.providers.is_empty(),
-        "scaffolded config should retain [[providers]] (got empty Default?)"
+        cfg.providers.is_empty(),
+        "first-launch scaffold must not ship placeholder [[providers]]"
     );
     assert!(
-        !cfg.search.providers.is_empty(),
-        "scaffolded config should retain [[search.providers]]"
+        cfg.search.providers.is_empty(),
+        "first-launch scaffold must not ship placeholder [[search.providers]]"
     );
-    assert!(
-        cfg.search
-            .providers
-            .iter()
-            .any(|p| p.provider_type == SearchProviderType::Tavily),
-        "expected tavily search provider from type = \"tavily\""
-    );
-    assert!(
-        cfg.search
-            .providers
-            .iter()
-            .any(|p| p.provider_type == SearchProviderType::Brave),
-        "expected brave search provider from type = \"brave\""
-    );
-    // After migration: model/provider live in agents/*.md, not config.toml.
+    assert!(cfg.agents.clarifier.max_turns > 0);
     let intent_def = muon::infrastructure::config::parse_agent_md(
         &dir.join("agents").join("intent-classifier.md"),
     )
     .expect("intent-classifier.md should parse");
-    assert!(!intent_def.model.is_empty(), "intent-classifier.md must set a model");
+    assert!(
+        !intent_def.model.is_empty(),
+        "intent-classifier.md must set a model"
+    );
     assert!(
         !intent_def.provider.is_empty(),
         "intent-classifier.md must set a provider"
@@ -82,6 +71,16 @@ fn examples_muon_toml_round_trips() {
         SearchProviderType::Brave
     );
     assert!(!cfg.providers.is_empty());
+}
+
+#[test]
+fn examples_muon_scaffold_toml_round_trips_empty_providers() {
+    let raw = include_str!("../examples/muon.scaffold.toml");
+    let cfg: MuonConfig =
+        toml::from_str(raw).expect("examples/muon.scaffold.toml must parse as MuonConfig");
+    assert!(cfg.providers.is_empty());
+    assert!(cfg.search.providers.is_empty());
+    assert!(cfg.agents.clarifier.max_turns > 0);
 }
 
 #[test]
