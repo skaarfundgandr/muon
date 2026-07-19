@@ -87,6 +87,19 @@ fn parse_empty_body_ok() {
 }
 
 #[test]
+fn parse_crlf_frontmatter_ok() {
+    let tmp = tempfile::NamedTempFile::new().unwrap();
+    std::fs::write(
+        tmp.path(),
+        "---\r\nname: deep-orchestrator\r\nmodel: m\r\nprovider: p\r\n---\r\n\r\nbody text\r\n",
+    )
+    .unwrap();
+    let def = parse_agent_md(tmp.path()).unwrap_or_else(|e| panic!("CRLF should parse: {e}"));
+    assert_eq!(def.name, "deep-orchestrator");
+    assert_eq!(def.preamble_markdown, "body text");
+}
+
+#[test]
 fn load_by_name_happy_path() {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/agents");
     let def = load_by_name(&dir, "intent-classifier")
@@ -107,11 +120,7 @@ fn load_by_name_missing_returns_none() {
 #[test]
 fn load_by_name_parse_error_returns_err() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::write(
-        dir.path().join("broken.md"),
-        "---\nname: : :\n---\nbody\n",
-    )
-    .unwrap();
+    std::fs::write(dir.path().join("broken.md"), "---\nname: : :\n---\nbody\n").unwrap();
     let err = load_by_name(dir.path(), "broken").unwrap_err();
     assert!(
         err.to_string().contains("invalid YAML") || err.to_string().contains("broken"),
@@ -187,6 +196,9 @@ fn save_agent_settings_writes_all_six() {
         assert!(dir.path().join(format!("{name}.md")).exists());
     }
     let reloaded = muon::infrastructure::config::load_agent_settings(dir.path()).unwrap();
-    assert_eq!(reloaded.intent_classifier.model, settings.intent_classifier.model);
+    assert_eq!(
+        reloaded.intent_classifier.model,
+        settings.intent_classifier.model
+    );
     assert_eq!(reloaded.planner.provider, settings.planner.provider);
 }

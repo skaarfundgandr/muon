@@ -9,6 +9,7 @@ use crate::domain::error::MuonError;
 pub fn parse_agent_md(path: &Path) -> Result<AgentDef, MuonError> {
     let text = fs::read_to_string(path)
         .map_err(|e| MuonError::Config(format!("agent file {path:?}: read failed: {e}")))?;
+    let text = text.replace("\r\n", "\n").replace('\r', "\n");
     if !text.starts_with("---") {
         return Err(MuonError::Config(format!(
             "agent file {path:?}: missing opening frontmatter delimiter"
@@ -70,9 +71,8 @@ pub fn load_agent_settings(agents_dir: &Path) -> Result<AgentSettings, MuonError
 /// Write one agent file: YAML frontmatter + preserved markdown body.
 pub fn save_agent_md(path: &Path, def: &AgentDef) -> Result<(), MuonError> {
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| {
-            MuonError::Config(format!("agent file {path:?}: mkdir failed: {e}"))
-        })?;
+        fs::create_dir_all(parent)
+            .map_err(|e| MuonError::Config(format!("agent file {path:?}: mkdir failed: {e}")))?;
     }
     let yaml = serde_yaml::to_string(def)
         .map_err(|e| MuonError::Config(format!("agent file {path:?}: serialize YAML: {e}")))?;
