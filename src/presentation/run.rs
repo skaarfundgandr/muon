@@ -2,7 +2,7 @@ use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crossterm::event::{Event as CrosstermEvent, poll, read};
+use crossterm::event::{Event as CrosstermEvent, KeyEventKind, poll, read};
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
 use tokio::sync::mpsc;
@@ -121,6 +121,9 @@ async fn run_loop(
             match poll(Duration::from_millis(250)) {
                 Ok(true) => match read() {
                     Ok(CrosstermEvent::Key(key)) => {
+                        if !matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat) {
+                            continue;
+                        }
                         if key_tx.send(Event::Key(key)).is_err() {
                             break;
                         }
