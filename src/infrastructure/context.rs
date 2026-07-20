@@ -469,7 +469,7 @@ impl InfrastructureContext {
                             .preamble(planner_preamble)
                             .temperature(planner_def.temperature)
                             .max_tokens(u64::from(planner_def.max_tokens))
-                            .tool(crate::infrastructure::agent_rs::tools::ThinkTool);
+                            .tool(agent_rs::agent::ThinkTool);
                         let b = if let Some(ref wp) = web_provider {
                             b.tool(crate::infrastructure::agent_rs::tools::WebSearchTool::new(
                                 wp.clone(),
@@ -598,7 +598,7 @@ impl InfrastructureContext {
                             .preamble(orchestrator_preamble)
                             .temperature(orchestrator_def.temperature)
                             .max_tokens(u64::from(orchestrator_def.max_tokens))
-                            .tool(crate::infrastructure::agent_rs::tools::ThinkTool)
+                            .tool(agent_rs::agent::ThinkTool)
                             .tool(crate::infrastructure::agent_rs::SubagentTool::<
                                 crate::infrastructure::agent_rs::PlannerKind,
                             >::new(std::sync::Arc::clone(
