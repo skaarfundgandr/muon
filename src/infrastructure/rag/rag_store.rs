@@ -22,10 +22,22 @@ impl RagContext {
             .parse()
             .map_err(|e: String| MuonError::Config(e))?;
 
-        let svc_for_pipeline = EmbeddingService::from_fastembed(variant.clone())
-            .map_err(|e| MuonError::Database(e.to_string()))?;
-        let kept_embedder = EmbeddingService::from_fastembed(variant)
-            .map_err(|e| MuonError::Database(e.to_string()))?;
+        let cache_dir = dirs::data_dir()
+            .ok_or_else(|| {
+                MuonError::Io(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "data directory not found",
+                ))
+            })?
+            .join("muon")
+            .join("fastembed_cache");
+
+        let svc_for_pipeline =
+            EmbeddingService::from_fastembed_with_cache_dir(variant.clone(), &cache_dir)
+                .map_err(|e| MuonError::Database(e.to_string()))?;
+        let kept_embedder =
+            EmbeddingService::from_fastembed_with_cache_dir(variant, &cache_dir)
+                .map_err(|e| MuonError::Database(e.to_string()))?;
 
         let expanded_db = expand_tilde(&cfg.advanced.rag_db_path);
         let index_path = expanded_db.with_extension("tvim");
