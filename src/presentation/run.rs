@@ -184,7 +184,8 @@ async fn run_loop(
         ));
     }
 
-    if let Some(infra) = app.infra.as_ref()
+    if app.status_flash.is_none()
+        && let Some(infra) = app.infra.as_ref()
         && let Some(warning) = infra.rag_warning.clone()
     {
         app.status_flash = Some((
