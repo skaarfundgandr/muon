@@ -3,6 +3,9 @@ use std::path::PathBuf;
 use crate::application::config::MuonConfig;
 use crate::domain::error::MuonError;
 use crate::infrastructure::util::expand_tilde;
+use agent_rs::agent::embeddings::ort::ep::{
+    CoreML, CPU, CUDA, ExecutionProviderDispatch, OpenVINO, ROCm,
+};
 use agent_rs::agent::embeddings::{EmbeddingService, FastembedEmbeddingModel, FastembedModel};
 use agent_rs::rag::RagPipeline;
 
@@ -13,6 +16,16 @@ pub struct RagContext {
     pub index_path: PathBuf,
     pub similarity_threshold: f64,
     pub warning: Option<String>,
+}
+
+fn build_providers() -> Vec<ExecutionProviderDispatch> {
+    vec![
+        CUDA::default().build(),
+        ROCm::default().build(),
+        OpenVINO::default().build(),
+        CoreML::default().build(),
+        CPU::default().build(),
+    ]
 }
 
 fn resolve_embedding_model(raw: &str) -> Result<(FastembedModel, Option<String>), MuonError> {
@@ -54,12 +67,19 @@ impl RagContext {
             .join("muon")
             .join("fastembed_cache");
 
-        let svc_for_pipeline =
-            EmbeddingService::from_fastembed_with_cache_dir(variant.clone(), &cache_dir)
-                .map_err(|e| MuonError::Database(e.to_string()))?;
-        let kept_embedder =
-            EmbeddingService::from_fastembed_with_cache_dir(variant, &cache_dir)
-                .map_err(|e| MuonError::Database(e.to_string()))?;
+        let providers = build_providers();
+        let svc_for_pipeline = EmbeddingService::from_fastembed_with_providers_and_cache_dir(
+            variant.clone(),
+            providers.clone(),
+            &cache_dir,
+        )
+        .map_err(|e| MuonError::Database(e.to_string()))?;
+        let kept_embedder = EmbeddingService::from_fastembed_with_providers_and_cache_dir(
+            variant,
+            providers,
+            &cache_dir,
+        )
+        .map_err(|e| MuonError::Database(e.to_string()))?;
 
         let expanded_db = expand_tilde(&cfg.advanced.rag_db_path);
         let index_path = expanded_db.with_extension("tvim");
