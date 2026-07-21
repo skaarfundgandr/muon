@@ -33,8 +33,7 @@ pub fn render_dropdown_overlay(
     }
 
     let term_h = f.area().height;
-    // Increase maximum height to 12 (10 options + 2 borders) to accommodate many models
-    let max_popup_h = 12u16.min(term_h.saturating_sub(2)).max(3);
+    let max_popup_h = 8u16.min(term_h.saturating_sub(2)).max(3);
     let list_h = options.len() as u16 + 2; // borders
     let popup_h = list_h.min(max_popup_h);
     let popup_y = below.y.saturating_add(below.height);
