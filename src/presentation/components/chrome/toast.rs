@@ -10,6 +10,7 @@ pub enum ToastKind {
     Info,
     Success,
     Error,
+    Warning,
 }
 
 pub fn render(f: &mut ratatui::Frame, area: Rect, message: &str, kind: ToastKind) {
@@ -39,6 +40,7 @@ pub fn render(f: &mut ratatui::Frame, area: Rect, message: &str, kind: ToastKind
         ToastKind::Success => (theme::success(), theme::success()),
         ToastKind::Error => (theme::error(), theme::error()),
         ToastKind::Info => (theme::accent(), theme::text_main()),
+        ToastKind::Warning => (theme::warning(), theme::warning()),
     };
 
     let block = Block::default()

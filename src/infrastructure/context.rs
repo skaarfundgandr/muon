@@ -15,6 +15,7 @@ pub struct InfrastructureContext {
     pub(crate) session_store: Arc<dyn SessionStore>,
     pub(crate) source_sink: Arc<Mutex<SourceRegistry>>,
     pub(crate) vector_store: Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>>,
+    pub(crate) rag_warning: Option<String>,
 }
 
 impl std::fmt::Debug for InfrastructureContext {
@@ -44,6 +45,7 @@ impl InfrastructureContext {
             session_store,
             Arc::new(Mutex::new(SourceRegistry::new())),
             None,
+            None,
         )
     }
 
@@ -58,6 +60,7 @@ impl InfrastructureContext {
         session_store: Arc<dyn SessionStore>,
         source_sink: Arc<Mutex<SourceRegistry>>,
         vector_store: Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>>,
+        rag_warning: Option<String>,
     ) -> Self {
         Self {
             intent_classifier,
@@ -69,6 +72,7 @@ impl InfrastructureContext {
             session_store,
             source_sink,
             vector_store,
+            rag_warning,
         }
     }
 
@@ -109,6 +113,7 @@ impl InfrastructureContext {
             )),
             session_store,
             source_sink,
+            None,
             None,
         ))
     }
@@ -272,9 +277,10 @@ impl InfrastructureContext {
         let shallow_preamble = &shallow_def.preamble_markdown;
 
         // RAG — optional, gated on config toggle.
-        let (dynamic_index, vector_store): (
+        let (dynamic_index, vector_store, rag_warning_outer): (
             Option<crate::infrastructure::rag::RagToRigIndex>,
             Option<Arc<dyn crate::domain::traits::vector_store::VectorStore>>,
+            Option<String>,
         ) = if cfg.data_sources.knowledge_layer_rag {
             match crate::infrastructure::rag::RagContext::open(cfg).await {
                 Ok(rag) => {
@@ -284,9 +290,10 @@ impl InfrastructureContext {
                         LogLevel::Info,
                         "RAG context initialized",
                     );
+                    let rag_warning = rag.warning.clone();
                     let rag = Arc::new(rag);
                     let idx = crate::infrastructure::rag::RagToRigIndex::new(Arc::clone(&rag));
-                    (Some(idx), Some(rag))
+                    (Some(idx), Some(rag), rag_warning)
                 }
                 Err(e) => {
                     use crate::domain::models::log_entry::{AgentTag, LogLevel};
@@ -295,13 +302,13 @@ impl InfrastructureContext {
                         LogLevel::Warn,
                         format!("RAG init failed, continuing without: {e}"),
                     );
-                    (None, None)
+                    (None, None, None)
                 }
             }
         } else {
             use crate::domain::models::log_entry::{AgentTag, LogLevel};
             bridge.log(AgentTag::Sys, LogLevel::Info, "RAG disabled by config");
-            (None, None)
+            (None, None, None)
         };
 
         // Intent Classifier — no tools.
@@ -650,6 +657,7 @@ impl InfrastructureContext {
             session_store,
             source_sink,
             vector_store,
+            rag_warning_outer,
         ))
     }
 }

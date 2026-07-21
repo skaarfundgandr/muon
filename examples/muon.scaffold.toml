@@ -41,7 +41,7 @@ agents_dir = "~/.config/muon/agents"
 session_db_path = "~/.local/share/muon/sessions.db"
 rag_db_path = "~/.local/share/muon/rag.db"
 max_search_items = 15
-embedding_model = "Xenova/bge-small-en-v1.5"
+embedding_model = "BGESmallENV15"
 rag_top_k = 5
 similarity_threshold = 0.70
 

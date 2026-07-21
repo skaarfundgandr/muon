@@ -3,24 +3,46 @@ use std::path::PathBuf;
 use crate::application::config::MuonConfig;
 use crate::domain::error::MuonError;
 use crate::infrastructure::util::expand_tilde;
-use agent_rs::agent::embeddings::EmbeddingService;
+use agent_rs::agent::embeddings::{EmbeddingService, FastembedEmbeddingModel, FastembedModel};
 use agent_rs::rag::RagPipeline;
 
 pub struct RagContext {
     pub vector_index: agent_rs::rag::TurboVectorIndex,
     pub indexer: agent_rs::rag::RagIndexer,
-    pub embedder: EmbeddingService<rig_fastembed::EmbeddingModel>,
+    pub embedder: EmbeddingService<FastembedEmbeddingModel>,
     pub index_path: PathBuf,
     pub similarity_threshold: f64,
+    pub warning: Option<String>,
+}
+
+fn resolve_embedding_model(raw: &str) -> Result<(FastembedModel, Option<String>), MuonError> {
+    const LEGACY_MAP: &[(&str, &str)] = &[
+        ("Xenova/bge-small-en-v1.5", "BGESmallENV15"),
+        ("Xenova/all-MiniLM-L6-v2", "AllMiniLML6V2"),
+        ("Xenova/all-mpnet-base-v2", "AllMpnetBaseV2"),
+        ("Xenova/multilingual-e5-large", "MultilingualE5Large"),
+    ];
+    let (name, warning) = match LEGACY_MAP.iter().find(|(old, _)| *old == raw) {
+        Some((old, new)) => (
+            *new,
+            Some(format!(
+                "Legacy embedding model '{old}' mapped to '{new}' — update config (Settings → Advanced)"
+            )),
+        ),
+        None => (raw, None),
+    };
+    let variant = name
+        .parse()
+        .map_err(|e: String| MuonError::Config(e))?;
+    Ok((variant, warning))
 }
 
 impl RagContext {
     pub async fn open(cfg: &MuonConfig) -> Result<Self, MuonError> {
-        let variant: rig_fastembed::FastembedModel = cfg
-            .advanced
-            .embedding_model
-            .parse()
-            .map_err(|e: String| MuonError::Config(e))?;
+        let (variant, model_warning) = resolve_embedding_model(&cfg.advanced.embedding_model)?;
+        if let Some(ref w) = model_warning {
+            tracing::warn!("{w}");
+        }
 
         let cache_dir = dirs::data_dir()
             .ok_or_else(|| {
@@ -57,6 +79,7 @@ impl RagContext {
             embedder: kept_embedder,
             index_path,
             similarity_threshold: cfg.advanced.similarity_threshold,
+            warning: model_warning,
         })
     }
 }

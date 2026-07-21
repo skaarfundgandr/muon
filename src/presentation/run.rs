@@ -184,6 +184,16 @@ async fn run_loop(
         ));
     }
 
+    if let Some(infra) = app.infra.as_ref()
+        && let Some(warning) = infra.rag_warning.clone()
+    {
+        app.status_flash = Some((
+            std::time::Instant::now(),
+            warning,
+            crate::presentation::components::chrome::toast::ToastKind::Warning,
+        ));
+    }
+
     while app.running {
         terminal.draw(|f| render(f, &mut app))?;
         if let Some(event) = event_rx.recv().await {

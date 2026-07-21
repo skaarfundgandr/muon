@@ -36,7 +36,7 @@ quick-xml = "0.36"
 anyhow = "1"
 url = "2"
 tracing = "0.1"
-agent_rs = { git = "https://github.com/skaarfundgandr/agent_rs.git", rev = "682ec5d39cfe0511e74c95effd1eab884c393674", features = ["rag", "opentelemetry"] }
+agent_rs = { path = "../agent_rs", features = ["rag-load-dynamic", "opentelemetry"] }
 pdf_oxide = "0.3"
 fast_html2md = "0.0.62"
 diesel = { version = "2.3", features = ["sqlite", "chrono", "returning_clauses_for_sqlite_3_35"] }
@@ -46,7 +46,6 @@ turbovec = "0.9"
 regex = "1"
 glob = "0.3"
 rig-core = "0.40"
-rig-fastembed = "0.40"
 noyalib = { version = "0.0.13", features = ["compat-serde-yaml"] }
 reqwest = { version = "0.13", features = ["json", "rustls", "blocking"] }
 dirs = "6"

@@ -392,7 +392,7 @@ impl Default for AdvancedConfig {
             session_db_path: "~/.local/share/muon/sessions.db".to_string(),
             rag_db_path: "~/.local/share/muon/rag.db".to_string(),
             max_search_items: 15,
-            embedding_model: "Xenova/bge-small-en-v1.5".to_string(),
+            embedding_model: "BGESmallENV15".to_string(),
             rag_top_k: 5,
             similarity_threshold: 0.70,
         }
